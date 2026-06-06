@@ -26,22 +26,25 @@ function getConfig(req, session) {
   return { base, key };
 }
 
-// Gọi 1 endpoint Merchize, thử cả cách xác thực qua header lẫn query
-async function tryFetch(url, key) {
+// Gọi 1 endpoint Merchize, thử cả cách xác thực qua header lẫn query; hỗ trợ GET/POST
+async function tryFetch(url, key, method = 'GET') {
+  const body = method === 'POST' ? JSON.stringify({ limit: 50, page: 1 }) : undefined;
   const attempts = [
-    { headers: { 'X-API-KEY': key, 'Content-Type': 'application/json' }, url },
     { headers: { 'Authorization': `Bearer ${key}`, 'Content-Type': 'application/json' }, url },
+    { headers: { 'X-API-KEY': key, 'Content-Type': 'application/json' }, url },
     { headers: { 'Content-Type': 'application/json' }, url: url + (url.includes('?') ? '&' : '?') + 'api_key=' + encodeURIComponent(key) },
   ];
+  let last = { ok: false, status: 0 };
   for (const a of attempts) {
     try {
-      const r = await fetch(a.url, { headers: a.headers });
+      const opts = { method, headers: a.headers };
+      if (body) opts.body = body;
+      const r = await fetch(a.url, opts);
       const text = await r.text();
       let json; try { json = JSON.parse(text); } catch (e) { json = null; }
-      if (r.ok && json) return { ok: true, status: r.status, json, auth: a.headers['X-API-KEY'] ? 'x-api-key' : (a.headers['Authorization'] ? 'bearer' : 'query') };
-      // lưu lỗi gần nhất
-      var last = { ok: false, status: r.status, json, text: text.slice(0, 200) };
-    } catch (e) { var last = { ok: false, status: 0, error: e.message }; }
+      if (r.ok && json) return { ok: true, status: r.status, json, auth: a.headers['Authorization'] ? 'bearer' : (a.headers['X-API-KEY'] ? 'x-api-key' : 'query') };
+      last = { ok: false, status: r.status, json, text: text.slice(0, 200) };
+    } catch (e) { last = { ok: false, status: 0, error: e.message }; }
   }
   return last;
 }
@@ -73,13 +76,21 @@ export default async function handler(req, res) {
   const action = req.query.action || 'orders';
 
   // Các đường dẫn endpoint phổ biến của Merchize bo-api để thử
+  // (/order trả 200 "order management service" → endpoint thật nằm dưới /order)
   const candidates = [
-    '/orders',
-    '/order',
-    '/orders/list',
-    '/api/orders',
-    '/seller/orders',
-    '/v1/orders',
+    { path: '/order/list', method: 'GET' },
+    { path: '/order/search', method: 'POST' },
+    { path: '/order/list', method: 'POST' },
+    { path: '/orders/search', method: 'POST' },
+    { path: '/order/orders', method: 'GET' },
+    { path: '/order/get-list', method: 'GET' },
+    { path: '/order/get-list', method: 'POST' },
+    { path: '/order/all', method: 'GET' },
+    { path: '/order/index', method: 'GET' },
+    { path: '/order/filter', method: 'POST' },
+    { path: '/order', method: 'POST' },
+    { path: '/order/query', method: 'POST' },
+    { path: '/orders', method: 'GET' },
   ];
   const sep = base.endsWith('/bo-api') ? '' : '/bo-api';
   const root = base.endsWith('/bo-api') ? base : base + sep;
@@ -87,11 +98,11 @@ export default async function handler(req, res) {
   try {
     if (action === 'probe') {
       const out = [];
-      for (const path of candidates) {
-        const url = `${root}${path}?limit=5`;
-        const r = await tryFetch(url, key);
+      for (const c of candidates) {
+        const url = `${root}${c.path}${c.method === 'GET' ? '?limit=5' : ''}`;
+        const r = await tryFetch(url, key, c.method);
         const orders = r.ok ? extractOrders(r.json) : null;
-        out.push({ path, http: r.status, ok: r.ok, auth: r.auth || '-', found_orders: orders ? orders.length : (r.ok ? 'ok-nhưng-không-rõ-mảng' : 0), note: r.error || (r.text ? r.text.slice(0, 80) : '') });
+        out.push({ path: `${c.method} ${c.path}`, http: r.status, ok: r.ok, auth: r.auth || '-', found_orders: orders ? orders.length : (r.ok ? 'ok-?mảng' : 0), note: r.error || (r.text ? r.text.slice(0, 70) : '') });
         if (orders && orders.length) break; // tìm được rồi thì dừng
       }
       res.status(200).json({ root, probe: out });
@@ -100,12 +111,12 @@ export default async function handler(req, res) {
 
     // action=orders: thử lần lượt tới khi lấy được
     const limit = req.query.limit || 50;
-    for (const path of candidates) {
-      const url = `${root}${path}?limit=${limit}`;
-      const r = await tryFetch(url, key);
+    for (const c of candidates) {
+      const url = `${root}${c.path}${c.method === 'GET' ? `?limit=${limit}` : ''}`;
+      const r = await tryFetch(url, key, c.method);
       if (r.ok) {
         const orders = extractOrders(r.json);
-        if (orders) { res.status(200).json({ ok: true, endpoint: path, count: orders.length, data: orders }); return; }
+        if (orders) { res.status(200).json({ ok: true, endpoint: `${c.method} ${c.path}`, count: orders.length, data: orders }); return; }
       }
     }
     res.status(404).json({ error: 'Không tìm thấy endpoint đơn hàng phù hợp. Dùng action=probe để chẩn đoán, hoặc gửi tài liệu API Merchize.' });
