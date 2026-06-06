@@ -713,6 +713,27 @@ body[data-role="admin"] .staff-only{display:none}
     </div>
 
     <button class="btn btn-green" style="width:100%;justify-content:center" onclick="saveSettings()">💾 Lưu</button>
+
+    <div class="divider"></div>
+
+    <!-- KÉO ĐƠN TỪ MERCHIZE -->
+    <div class="modal-title" style="font-size:16px;margin-top:4px">🏭 Kéo đơn từ Merchize</div>
+    <div style="font-size:11.5px;color:var(--text2);margin-bottom:12px;line-height:1.6">
+      Lấy đơn có sẵn trong Merchize về app để quản lý/thống kê. Vào Merchize → menu <b>API</b> để lấy Base URL + Access Token. <span style="color:var(--orange)">Token Merchize hết hạn hàng tháng, nhớ cập nhật lại.</span>
+    </div>
+    <div class="fl" style="margin-bottom:10px">
+      <label>Base URL</label>
+      <input class="fi" type="text" id="mrz-base" placeholder="https://ten-store.merchize.store/bo-api">
+    </div>
+    <div class="fl" style="margin-bottom:12px">
+      <label>Access Token (API Key)</label>
+      <input class="fi" type="password" id="mrz-token" placeholder="token từ menu API của Merchize">
+    </div>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-sm" onclick="probeMerchize()">🔍 Chẩn đoán kết nối</button>
+      <button class="btn btn-green btn-sm" onclick="pullMerchize()">⬇ Kéo đơn về</button>
+    </div>
+    <div id="mrz-box" style="display:none;margin-top:10px;background:var(--bg);border:1px solid var(--border2);border-radius:9px;padding:10px;font-size:11px;font-family:monospace;white-space:pre-wrap;max-height:240px;overflow:auto"></div>
   </div>
 </div>
 
@@ -766,7 +787,7 @@ body[data-role="admin"] .staff-only{display:none}
 
 <script>
 const CFG_KEY='pod_cfg_v3';
-let cfg={proxyUrl:'http://localhost:3000',printifyToken:'',shopId:'',merchizeKey:'',sellerwixKey:'',sellerwixPid:'',sheetId:'',sheetToken:'',skuMap:[]};
+let cfg={proxyUrl:'http://localhost:3000',printifyToken:'',shopId:'',merchizeKey:'',sellerwixKey:'',sellerwixPid:'',sheetId:'',sheetToken:'',skuMap:[],mrzBase:'',mrzToken:''};
 let orders=[],filtered=[],current=null,currentTab='all',searchQ='';
 
 const DESIGNERS=['— Chưa gán —','Nguyễn Anh','Trần Mai','Lê Hùng','Phạm Ly','Team Design'];
@@ -1234,7 +1255,7 @@ function loadCfg(){
   if(cfg.shopId)document.getElementById('printify-shop').value=cfg.shopId;
 }
 function saveCfg(){localStorage.setItem(CFG_KEY,JSON.stringify(cfg));}
-function openSettings(){document.getElementById('s-pt').value=cfg.printifyToken||'';document.getElementById('settings-modal').classList.add('open');}
+function openSettings(){document.getElementById('s-pt').value=cfg.printifyToken||'';const mb=document.getElementById('mrz-base');if(mb)mb.value=cfg.mrzBase||'';const mt=document.getElementById('mrz-token');if(mt)mt.value=cfg.mrzToken||'';document.getElementById('settings-modal').classList.add('open');}
 function closeSettings(){document.getElementById('settings-modal').classList.remove('open');}
 function saveSettings(){cfg.printifyToken=document.getElementById('s-pt').value.trim();const ti=document.getElementById('printify-token');if(ti)ti.value=cfg.printifyToken;saveCfg();closeSettings();toast('✅ Đã lưu','success');}
 async function checkAccounts(){  const box=document.getElementById('accounts-list');
@@ -1274,6 +1295,98 @@ async function debugOrders(){
     });
     box.textContent=lines.join('\n\n')||'Không có dữ liệu';
   }catch(e){box.textContent='❌ '+e.message;}
+}
+
+// ── KÉO ĐƠN TỪ MERCHIZE ──
+function mrzHeaders(){
+  const h={'Content-Type':'application/json'};
+  if(auth&&auth.token)h['X-Session']=auth.token;
+  const base=document.getElementById('mrz-base').value.trim();
+  const tok=document.getElementById('mrz-token').value.trim();
+  if(base)h['X-Mrz-Base']=base;
+  if(tok)h['X-Mrz-Key']=tok;
+  return h;
+}
+async function probeMerchize(){
+  const box=document.getElementById('mrz-box');
+  box.style.display='block';box.textContent='Đang chẩn đoán... (thử nhiều đường)';
+  try{
+    const r=await fetch('/api/merchize?action=probe',{headers:mrzHeaders()});
+    if(r.status===404){box.textContent='⚠️ Chưa chạy qua server (mở file local).';return;}
+    const d=await r.json();
+    if(!r.ok)throw new Error(d.error||'Lỗi');
+    const lines=['Gốc: '+d.root,''].concat((d.probe||[]).map(p=>
+      `${p.ok?'✅':'❌'} ${p.path}  [HTTP ${p.http}]  đơn: ${p.found_orders}  ${p.auth!=='-'?'auth:'+p.auth:''}  ${p.note||''}`
+    ));
+    box.textContent=lines.join('\n');
+  }catch(e){box.textContent='❌ '+e.message;}
+}
+async function pullMerchize(){
+  // lưu cfg
+  cfg.mrzBase=document.getElementById('mrz-base').value.trim();
+  cfg.mrzToken=document.getElementById('mrz-token').value.trim();
+  saveCfg();
+  const box=document.getElementById('mrz-box');
+  box.style.display='block';box.textContent='Đang kéo đơn từ Merchize...';
+  try{
+    const r=await fetch('/api/merchize?action=orders&limit=100',{headers:mrzHeaders()});
+    if(r.status===404){
+      const d=await r.json().catch(()=>({}));
+      box.textContent='❌ '+(d.error||'Không tìm thấy endpoint. Bấm "Chẩn đoán kết nối" để xem chi tiết.');
+      return;
+    }
+    const d=await r.json();
+    if(!r.ok)throw new Error(d.error||'Lỗi '+r.status);
+    const raw=d.data||[];
+    if(!raw.length){box.textContent='Kết nối OK nhưng không có đơn nào (endpoint: '+d.endpoint+').';return;}
+    const mapped=raw.map(mapMerchizeOrder);
+    // gộp vào orders hiện có (không trùng id)
+    const ids=new Set(orders.map(o=>o.id));
+    mapped.forEach(o=>{if(!ids.has(o.id))orders.push(o);});
+    localStorage.setItem('pod_orders',JSON.stringify(orders));
+    await cloudSaveAll();await cloudLoad();
+    buildShopFilter();applyFilter();updateCounts();
+    box.textContent=`✅ Đã kéo ${mapped.length} đơn từ Merchize (endpoint: ${d.endpoint}).`;
+    toast(`✅ Đã kéo ${mapped.length} đơn từ Merchize`,'success');
+    setTimeout(closeSettings,1500);
+  }catch(e){box.textContent='❌ '+e.message;}
+}
+// Chuyển đơn Merchize → định dạng app (linh hoạt theo nhiều tên trường)
+function mapMerchizeOrder(o){
+  const g=(...keys)=>{for(const k of keys){const v=k.split('.').reduce((x,p)=>x&&x[p],o);if(v!==undefined&&v!==null)return v;}return undefined;};
+  const id=String(g('id','_id','code','order_code','order_number','number','name')||('MRZ-'+Math.random().toString(36).slice(2,8)));
+  const items=(g('items','line_items','order_items','products')||[]).map(it=>({
+    title:it.title||it.name||it.product_title||it.product_name||'Sản phẩm',
+    sku:it.sku||it.variant_sku||it.variant_id||'',
+    qty:it.quantity||it.qty||1,
+    price:'$'+(parseFloat(it.price||it.unit_price||0)).toFixed(2),
+    img:it.image||it.thumbnail||it.preview_url||'',
+    personalization:it.personalization||it.note||'',
+    supplier:'Merchize',ptype:'— Chọn —',material:'— Chọn —',size:it.size||'— Chọn —',
+    designer:'— Chưa gán —',fulfiller:'Merchize',confirmed:false,
+  }));
+  const cust=g('customer.name','customer_name','shipping_address.name','buyer_name','address.name')||
+    [g('shipping_address.first_name','customer.first_name'),g('shipping_address.last_name','customer.last_name')].filter(Boolean).join(' ')||'Unknown';
+  return{
+    id,external_id:String(g('external_number','external_id','reference')||''),
+    account:'Merchize',shopId:String(g('store_id','shop_id')||'merchize'),shopTitle:g('store_name','shop_name')||'Merchize',
+    status:mapMrzStatus(g('status','order_status','fulfillment_status')),
+    created:g('created_at','created','createdAt','order_date')||new Date().toISOString(),
+    customer:cust,
+    country:g('shipping_address.country','customer.country','address.country','country')||'—',
+    email:g('customer.email','email','buyer_email','shipping_address.email')||'—',
+    address:[g('shipping_address.address1','address.address1','address_line1'),g('shipping_address.city','address.city'),g('shipping_address.country','address.country')].filter(Boolean).join(', '),
+    total:'$'+(parseFloat(g('total','total_price','grand_total','amount')||0)).toFixed(2),
+    items,urgent:false,note:'',pushed:{merchize:true,sellerwix:false,sheet:false},source:'merchize',
+  };
+}
+function mapMrzStatus(s){
+  s=(s||'').toString().toLowerCase();
+  if(s.includes('cancel'))return 'missing';
+  if(s.includes('fulfill')||s.includes('complete')||s.includes('done')||s.includes('ship'))return 'done';
+  if(s.includes('process')||s.includes('production'))return 'processing';
+  if(s.includes('pending')||s.includes('hold'))return 'pending';
+  return 'new';
 }
 
 async function fetchOrders(){
