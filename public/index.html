@@ -689,6 +689,8 @@ body[data-role="admin"] .staff-only{display:none}
         <span style="color:var(--text3)">Nhấn "Kiểm tra" để xem danh sách shop...</span>
       </div>
       <button class="btn btn-sm" style="margin-top:8px" onclick="checkAccounts()">🔌 Kiểm tra kết nối tất cả tài khoản</button>
+      <button class="btn btn-sm" style="margin-top:8px" onclick="debugOrders()">🔍 Soi dữ liệu đơn (chẩn đoán)</button>
+      <div id="debug-box" style="display:none;margin-top:10px;background:var(--bg);border:1px solid var(--border2);border-radius:9px;padding:10px;font-size:11px;font-family:monospace;white-space:pre-wrap;max-height:240px;overflow:auto"></div>
     </div>
 
     <div class="divider"></div>
@@ -1235,8 +1237,7 @@ function saveCfg(){localStorage.setItem(CFG_KEY,JSON.stringify(cfg));}
 function openSettings(){document.getElementById('s-pt').value=cfg.printifyToken||'';document.getElementById('settings-modal').classList.add('open');}
 function closeSettings(){document.getElementById('settings-modal').classList.remove('open');}
 function saveSettings(){cfg.printifyToken=document.getElementById('s-pt').value.trim();const ti=document.getElementById('printify-token');if(ti)ti.value=cfg.printifyToken;saveCfg();closeSettings();toast('✅ Đã lưu','success');}
-async function checkAccounts(){
-  const box=document.getElementById('accounts-list');
+async function checkAccounts(){  const box=document.getElementById('accounts-list');
   box.innerHTML='<span class="spinner"></span> Đang kiểm tra...';
   try{
     const headers={'Content-Type':'application/json'};
@@ -1255,7 +1256,26 @@ async function checkAccounts(){
   }catch(e){box.innerHTML=`<span style="color:var(--red)">❌ ${e.message}</span>`;}
 }
 
-// ── FETCH ──
+async function debugOrders(){
+  const box=document.getElementById('debug-box');
+  box.style.display='block';
+  box.textContent='Đang soi dữ liệu...';
+  try{
+    const headers={'Content-Type':'application/json'};
+    if(auth&&auth.token)headers['X-Session']=auth.token;
+    if(cfg.printifyToken)headers['Authorization']=`Bearer ${cfg.printifyToken}`;
+    const r=await fetch('/api/printify?action=debug',{headers});
+    if(r.status===404){box.textContent='⚠️ Chưa chạy qua server (mở file local).';return;}
+    const data=await r.json();
+    if(!r.ok)throw new Error(data.error||'Lỗi');
+    const lines=(data.debug||[]).map(d=>{
+      if(d.error)return `❌ ${d.account}: ${d.error}`;
+      return `🏪 ${d.shopTitle} (#${d.shopId})\n   kênh: ${d.channel||'?'}\n   HTTP: ${d.http_status}\n   số đơn API thấy: ${d.order_count}\n   trạng thái: ${d.statuses.join(', ')||'(không có)'}\n   mẫu: ${JSON.stringify(d.sample)}`;
+    });
+    box.textContent=lines.join('\n\n')||'Không có dữ liệu';
+  }catch(e){box.textContent='❌ '+e.message;}
+}
+
 async function fetchOrders(){
   setFetch(true);setConn(false,'Đang kết nối...');
   document.getElementById('order-list').innerHTML='<div class="empty-state"><div class="spinner"></div><div>Đang tải đơn từ tất cả shop...</div></div>';
