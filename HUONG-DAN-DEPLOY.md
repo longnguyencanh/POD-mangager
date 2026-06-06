@@ -170,3 +170,29 @@ Khai báo bảng viết tắt: menu **👥 Quản lý nhân viên** → mục **
 - `TA` → Tuấn Anh
 
 App tự đọc mọi SKU và quy đơn về đúng nhân viên để xếp hạng. Viết tắt dài hơn được ưu tiên khớp trước (tránh nhầm).
+
+---
+
+## 🏭 KÉO ĐƠN TỪ MERCHIZE
+
+App lấy được đơn có sẵn trong Merchize về để quản lý/thống kê chung.
+
+### Lấy Base URL + Token
+1. Đăng nhập tài khoản **seller Merchize**
+2. Vào menu **API**
+3. Copy **Base URL** (dạng `https://ten-store.merchize.store/bo-api`) và **Access Token** (bấm "Create new" nếu chưa có)
+
+⚠️ Token Merchize **hết hạn hàng tháng** — mỗi tháng phải tạo lại và cập nhật.
+
+### Dùng trong app
+Vào **⚙️ Cài đặt** → kéo xuống mục **🏭 Kéo đơn từ Merchize**:
+- Nhập **Base URL** + **Access Token**
+- Bấm **🔍 Chẩn đoán kết nối** để kiểm tra (app tự dò đúng đường lấy đơn)
+- Bấm **⬇ Kéo đơn về** → đơn Merchize nhập vào app, gộp chung với đơn khác
+
+### (Tuỳ chọn) Cấu hình cố định trên Vercel
+Để không phải nhập tay mỗi lần, thêm 2 biến trên Vercel:
+- `MERCHIZE_BASE_URL` = Base URL
+- `MERCHIZE_API_KEY` = Access Token
+
+> Nếu bấm "Kéo đơn về" mà báo không tìm thấy endpoint, bấm "Chẩn đoán kết nối" và gửi kết quả — Merchize có thể dùng đường dẫn API riêng cần khai báo thêm.
