@@ -1,0 +1,10 @@
+{
+  "name": "pod-order-manager",
+  "version": "1.0.0",
+  "description": "Quản lý đơn POD — kéo đơn Printify, đẩy xưởng",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=18"
+  }
+}
