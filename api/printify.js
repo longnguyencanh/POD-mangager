@@ -71,18 +71,47 @@ export default async function handler(req, res) {
       return;
     }
 
+    // ── DEBUG: soi dữ liệu thô Printify trả về ──
+    if (action === 'debug') {
+      const out = [];
+      for (let i = 0; i < tokens.length; i++) {
+        const sh = await pfetch(tokens[i].token, '/shops.json');
+        if (!sh.ok || !Array.isArray(sh.json)) { out.push({ account: tokens[i].name, error: `shops lỗi ${sh.status}` }); continue; }
+        for (const shop of sh.json) {
+          const od = await pfetch(tokens[i].token, `/shops/${shop.id}/orders.json`, { limit: 10 });
+          const list = od.ok && od.json ? (od.json.data || (Array.isArray(od.json) ? od.json : [])) : [];
+          out.push({
+            account: tokens[i].name,
+            shopId: shop.id,
+            shopTitle: shop.title,
+            channel: shop.sales_channel,
+            http_status: od.status,
+            order_count: list.length,
+            statuses: [...new Set(list.map(o => o.status))],
+            sample: list.slice(0, 2).map(o => ({ id: o.id, status: o.status, external_id: o.external_id })),
+          });
+        }
+      }
+      res.status(200).json({ debug: out });
+      return;
+    }
+
     // ── Gộp đơn từ TẤT CẢ shop ──
     if (action === 'allorders') {
-      const limit = req.query.limit || 50;
+      const limit = req.query.limit || 100;
       const all = [];
       for (let i = 0; i < tokens.length; i++) {
         const sh = await pfetch(tokens[i].token, '/shops.json');
         if (!sh.ok || !Array.isArray(sh.json)) continue;
         for (const shop of sh.json) {
-          const od = await pfetch(tokens[i].token, `/shops/${shop.id}/orders.json`, { limit });
-          if (od.ok && od.json) {
+          // Quét nhiều trang để lấy hết đơn
+          for (let page = 1; page <= 5; page++) {
+            const od = await pfetch(tokens[i].token, `/shops/${shop.id}/orders.json`, { limit, page });
+            if (!od.ok || !od.json) break;
             const list = od.json.data || (Array.isArray(od.json) ? od.json : []);
+            if (!list.length) break;
             list.forEach(o => { o._account = tokens[i].name; o._shopId = shop.id; o._shopTitle = shop.title; all.push(o); });
+            if (list.length < limit) break; // hết đơn
           }
         }
       }
