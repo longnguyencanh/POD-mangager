@@ -72,6 +72,14 @@ body{font-family:'Be Vietnam Pro',sans-serif;background:var(--bg);color:var(--te
 .oi-info{flex:1;min-width:0}
 .oi-name{font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .oi-id{font-size:11px;color:var(--text3);margin-top:2px}
+.oi-code{font-weight:700;color:var(--accent);font-size:12px}
+.d-header{display:flex;gap:14px;align-items:center;padding:14px;background:var(--bg);border:1px solid var(--border);border-radius:12px;margin-bottom:16px}
+.d-header-thumb{width:72px;height:72px;border-radius:11px;overflow:hidden;background:var(--surface);border:1px solid var(--border2);display:flex;align-items:center;justify-content:center;font-size:30px;flex-shrink:0}
+.d-header-thumb img{width:100%;height:100%;object-fit:cover}
+.d-header-info{flex:1;min-width:0}
+.d-header-name{font-size:14px;font-weight:600;margin-bottom:4px}
+.d-header-code{font-size:15px;font-weight:800;color:var(--accent);letter-spacing:.3px}
+.d-header-shop{font-size:11.5px;color:var(--text3);margin-top:3px}
 .oi-meta{display:flex;align-items:center;gap:7px;margin-top:7px;flex-wrap:wrap}
 .pill{display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:12px;font-size:10.5px;font-weight:600}
 .p-new{background:var(--green-l);color:var(--green-d)}
@@ -559,6 +567,16 @@ body[data-role="admin"] .staff-only{display:none}
   </div>
 
   <div class="detail-scroll">
+    <!-- Header nổi bật: ảnh + tên SP + mã đơn -->
+    <div class="d-header">
+      <div class="d-header-thumb" id="d-thumb">🖼️</div>
+      <div class="d-header-info">
+        <div class="d-header-name" id="d-pname">Sản phẩm</div>
+        <div class="d-header-code" id="d-pcode">#—</div>
+        <div class="d-header-shop" id="d-pshop"></div>
+      </div>
+    </div>
+
     <!-- Thông tin đơn -->
     <div class="sec-title">Thông tin đơn</div>
     <div class="fr c2">
@@ -1459,7 +1477,7 @@ function renderList(){
     const[pc,pl]=PILLS[o.status]||['p-done',o.status];
     const img=o.items?.[0]?.img?`<img src="${o.items[0].img}" onerror="this.style.display='none';this.parentElement.textContent='🖼️'">`:'🖼️';
     const pi=[o.pushed?.merchize?'🏭':'',o.pushed?.sellerwix?'🛒':'',o.pushed?.sheet?'📊':''].filter(Boolean).join('');
-    return`<div class="oi" onclick="selectOrder('${o.id}')"><div class="oi-thumb">${img}</div><div class="oi-info"><div class="oi-name">${o.items?.[0]?.title||'Sản phẩm'}</div><div class="oi-id">#${o.id}${o.shopTitle?' · 🏪 '+o.shopTitle:''}</div><div class="oi-meta"><span class="pill ${pc}">${pl}</span>${o.urgent?'<span class="urgent-tag">🚩 Gấp</span>':''}${pi?`<span style="font-size:11px">${pi}</span>`:''}<span class="oi-price">${o.total}</span><span class="oi-time">${relTime(o.created)}</span></div></div></div>`;
+    return`<div class="oi" onclick="selectOrder('${o.id}')"><div class="oi-thumb">${img}</div><div class="oi-info"><div class="oi-name">${o.items?.[0]?.title||'Sản phẩm'}</div><div class="oi-id"><span class="oi-code">#${o.id}</span>${o.shopTitle?' · 🏪 '+o.shopTitle:''}</div><div class="oi-meta"><span class="pill ${pc}">${pl}</span>${o.urgent?'<span class="urgent-tag">🚩 Gấp</span>':''}${pi?`<span style="font-size:11px">${pi}</span>`:''}<span class="oi-price">${o.total}</span><span class="oi-time">${relTime(o.created)}</span></div></div></div>`;
   }).join('');
 }
 
@@ -1468,6 +1486,13 @@ function selectOrder(id){
   current=orders.find(o=>o.id===id);if(!current)return;
   const o=current;
   set('d-oid',o.id);set('d-status',o.status,1);set('d-cust',o.customer);set('d-country',o.country);set('d-email',o.email);set('d-total',o.total);set('d-addr',o.address);set('d-note',o.note||'');
+  // Header nổi bật
+  const it0=o.items?.[0]||{};
+  document.getElementById('d-pname').textContent=it0.title||'Sản phẩm';
+  document.getElementById('d-pcode').textContent='#'+o.id;
+  document.getElementById('d-pshop').textContent=o.shopTitle?('🏪 '+o.shopTitle):'';
+  const th=document.getElementById('d-thumb');
+  th.innerHTML=it0.img?`<img src="${it0.img}" onerror="this.style.display='none';this.parentElement.textContent='🖼️'">`:'🖼️';
   document.getElementById('d-time').textContent=fmtDate(o.created);
   const fb=document.getElementById('btn-flag');fb.classList.toggle('on',o.urgent);
   renderProds(o.items||[]);
