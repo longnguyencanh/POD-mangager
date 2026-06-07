@@ -1699,30 +1699,29 @@ async function cloudLoadCfg(){
 function openSettings(){const mb=document.getElementById('mrz-base');if(mb)mb.value=cfg.mrzBase||'';const mt=document.getElementById('mrz-token');if(mt)mt.value=cfg.mrzToken||'';const tu=document.getElementById('trk-sheet-url');if(tu)tu.value=cfg.trkSheetUrl||'';const wu=document.getElementById('mrz-webhook-url');if(wu)wu.value=location.origin+'/api/webhooks/merchize';document.getElementById('settings-modal').classList.add('open');}
 function copyWebhookUrl(){const el=document.getElementById('mrz-webhook-url');el.select();try{navigator.clipboard.writeText(el.value);}catch(e){document.execCommand('copy');}toast('✅ Đã copy URL webhook','success');}
 function closeSettings(){document.getElementById('settings-modal').classList.remove('open');}
-function saveTrkCfg(){cfg.trkSheetUrl=document.getElementById('trk-sheet-url').value.trim();saveCfg();toast('✅ Đã lưu link Sheet tracking','success');}
 // Đồng bộ tracking từ Google Sheet xưởng: dò mã đơn → lấy tracking
 async function syncTracking(){
   const box=document.getElementById('trk-box');box.style.display='block';
-  const url=(document.getElementById('trk-sheet-url').value||cfg.trkSheetUrl||'').trim();
-  if(!url){box.textContent='⚠️ Chưa có link Google Sheet. Dán link (publish CSV) rồi Lưu.';return;}
+  let url=(document.getElementById('trk-sheet-url').value||cfg.trkSheetUrl||'').trim();
+  if(!url){box.textContent='⚠️ Chưa có link Google Sheet. Dán link rồi Lưu.';return;}
   cfg.trkSheetUrl=url;saveCfg();
+  // Tự chuyển link share/edit của Google Sheet sang link CSV đọc được
+  url=toCsvUrl(url);
   box.textContent='Đang tải dữ liệu từ Sheet xưởng...';
   try{
     const r=await fetch(url);
-    if(!r.ok){box.textContent='❌ Không tải được Sheet (HTTP '+r.status+'). Kiểm tra link đã Publish to web dạng CSV chưa.';return;}
+    if(!r.ok){box.textContent='❌ Không tải được Sheet (HTTP '+r.status+').\nSheet cần được chia sẻ "Bất kỳ ai có link đều xem được" (Anyone with the link).';return;}
     const text=await r.text();
+    if(text.trim().startsWith('<')){box.textContent='❌ Sheet chưa công khai. Mở Sheet → Share → đổi thành "Anyone with the link → Viewer".';return;}
     const rows=parseCSV(text);
     if(rows.length<2){box.textContent='❌ Sheet rỗng hoặc sai định dạng.';return;}
     const header=rows[0].map(h=>h.trim().toLowerCase());
-    // tìm cột mã đơn + cột tracking (linh hoạt nhiều cách đặt tên)
     const findCol=(...names)=>header.findIndex(h=>names.some(n=>h.includes(n)));
-    const ci=findCol('order id','order_id','order number','order','mã đơn','ma don','reference','external');
-    const ti=findCol('tracking','track','vận đơn','van don','mã vận','tracking number');
-    if(ci<0||ti<0){box.textContent='❌ Không tìm thấy cột mã đơn hoặc cột tracking trong Sheet.\nCột tìm thấy: '+header.join(', ');return;}
-    // map mã đơn → tracking
+    const ci=findCol('order id','order_id','order number','order','mã đơn','ma don','reference','external','id đơn','id don');
+    const ti=findCol('tracking','track','vận đơn','van don','mã vận','tracking number','mã tracking');
+    if(ci<0||ti<0){box.textContent='❌ Không tìm thấy cột mã đơn hoặc tracking.\nCác cột trong Sheet: '+header.join(', ');return;}
     const trkMap={};
     for(let i=1;i<rows.length;i++){const code=(rows[i][ci]||'').trim();const trk=(rows[i][ti]||'').trim();if(code&&trk)trkMap[code.toUpperCase()]=trk;}
-    // gán vào đơn (dò theo mã đơn: id, orderNumber, external_id)
     let matched=0;
     orders.forEach(o=>{
       const keys=[o.id,o.orderNumber,o.external_id].filter(Boolean).map(x=>String(x).toUpperCase());
@@ -1731,10 +1730,23 @@ async function syncTracking(){
     localStorage.setItem('pod_orders',JSON.stringify(orders));
     await cloudSaveAll();
     buildShopFilter();applyFilter();updateCounts();
-    box.textContent=`✅ Đã đối chiếu ${Object.keys(trkMap).length} tracking từ Sheet. Gán cho ${matched} đơn (tự chuyển sang "Đã gửi").`;
+    box.textContent=`✅ Đọc ${Object.keys(trkMap).length} tracking từ Sheet. Gán cho ${matched} đơn (tự chuyển "Đã gửi").`+(matched===0?'\n⚠️ 0 đơn khớp — có thể mã đơn trong Sheet khác mã đơn trong app.':'');
     toast(`✅ Đã lấy tracking cho ${matched} đơn`,'success');
-  }catch(e){box.textContent='❌ Lỗi: '+e.message+'\n(Có thể Sheet chưa publish công khai, hoặc link sai.)';}
+  }catch(e){box.textContent='❌ Lỗi: '+e.message+'\nKiểm tra: Sheet đã chia sẻ công khai (Anyone with link) chưa?';}
 }
+// Chuyển link Google Sheet bất kỳ sang link CSV export
+function toCsvUrl(url){
+  const m=url.match(/\/spreadsheets\/d\/([a-zA-Z0-9_-]+)/);
+  if(m){
+    const id=m[1];
+    // lấy gid (tab) nếu có
+    const g=url.match(/[#&?]gid=(\d+)/);
+    const gid=g?g[1]:'0';
+    return `https://docs.google.com/spreadsheets/d/${id}/export?format=csv&gid=${gid}`;
+  }
+  return url; // link khác (vd publish CSV sẵn) giữ nguyên
+}
+function saveTrkCfg(){cfg.trkSheetUrl=document.getElementById('trk-sheet-url').value.trim();saveCfg();toast('✅ Đã lưu link Sheet tracking','success');}
 function saveMrzCfg(){cfg.mrzBase=document.getElementById('mrz-base').value.trim();cfg.mrzToken=document.getElementById('mrz-token').value.trim();saveCfg();toast('✅ Đã lưu cấu hình Merchize','success');}
 function saveSettings(){saveMrzCfg();closeSettings();}
 // ── KÉO ĐƠN TỪ MERCHIZE ──
