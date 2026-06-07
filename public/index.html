@@ -1887,12 +1887,19 @@ function loadDemo(){
 // ── Lọc theo shop ──
 let shopFilter='all';
 let empFilter='all';
-// Lấy viết tắt SKU của người đang đăng nhập (khớp tên linh hoạt: bỏ hoa/thường + khoảng trắng)
+// Lấy viết tắt SKU của người đang đăng nhập
+// Khớp tên linh hoạt: bỏ hoa/thường + khoảng trắng, và chấp nhận khi tên này CHỨA tên kia
+// (vd tài khoản "Mr Huy" khớp với "Huy" trong bảng viết tắt)
 function myAbbrs(){
   if(!auth)return[];
   const norm=s=>(s||'').toLowerCase().replace(/\s+/g,' ').trim();
   const me=norm(auth.name);
-  return (cfg.skuMap||[]).filter(m=>norm(m.name)===me).map(m=>(m.abbr||'').toUpperCase()).filter(Boolean);
+  if(!me)return[];
+  return (cfg.skuMap||[]).filter(m=>{
+    const nm=norm(m.name);
+    if(!nm)return false;
+    return me===nm || me.includes(nm) || nm.includes(me);
+  }).map(m=>(m.abbr||'').toUpperCase()).filter(Boolean);
 }
 // Đơn có SKU chứa 1 trong các viết tắt cho trước không
 function orderMatchesAbbrs(o,abbrs){
