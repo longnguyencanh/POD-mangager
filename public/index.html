@@ -424,6 +424,7 @@ body[data-role="seller"] .no-seller{display:none !important}
     <div class="cfg-bar">
       <span style="flex:1;font-size:12px;color:var(--text3)">Ấn nút đồng bộ đơn và tải lại.</span>
       <button class="btn btn-sm admin-only" onclick="exportOrdersSheet()">📊 Xuất Sheet</button>
+      <button class="btn btn-sm admin-only" onclick="syncMerchizePrices({onlyZero:true})">🔄 Làm mới doanh thu</button>
       <button class="btn btn-green btn-sm" onclick="syncOrders()" id="fetch-btn">⟳ Đồng bộ đơn</button>
     </div>
 
@@ -1246,6 +1247,9 @@ async function enterApp(){
   const ok=await cloudLoad();
   enrichEtsyNames();
   if(ok){buildShopFilter();applyFilter();updateCounts();if(orders.length)setConn(true,`${orders.length} đơn (đồng bộ chung)`);}
+  // Tự đồng bộ doanh thu đơn $0 (ngầm) khi mở app + định kỳ mỗi 10 phút
+  setTimeout(autoSyncRevenue,3000);
+  if(!window._autoSyncTimer)window._autoSyncTimer=setInterval(autoSyncRevenue,10*60*1000);
 }
 // Ghép tên SP + ảnh từ đơn Merchize sang đơn Etsy có cùng SKU (Etsy không có tên SP)
 function enrichEtsyNames(){
@@ -1533,10 +1537,16 @@ async function probeMerchizeOrder(){
     box.textContent='📋 Field liên quan SHOP & TIỀN của đơn '+code+':\n\n'+(relevant.join('\n')||'(không thấy)')+'\n\n--- TẤT CẢ field ---\n'+lines.join('\n');
   }catch(e){box.textContent='❌ Lỗi: '+e.message;}
 }
-async function syncMerchizePrices(){
-  const box=document.getElementById('mrz-price-box');if(box){box.style.display='block';box.textContent='Đang lấy dữ liệu từ Merchize...';}
-  const codes=orders.map(o=>o.orderNumber||o.external_id||o.id).filter(Boolean).slice(0,300);
-  if(!codes.length){if(box)box.textContent='❌ Chưa có đơn nào.';return;}
+async function syncMerchizePrices(opts){
+  opts=opts||{};
+  const silent=opts.silent;const onlyZero=opts.onlyZero;
+  const box=document.getElementById('mrz-price-box');
+  if(box&&!silent){box.style.display='block';box.textContent='Đang lấy dữ liệu từ Merchize...';}
+  // Nếu chỉ đơn $0: lọc đơn chưa có doanh thu
+  const num=o=>parseFloat(String(o.total||'').replace(/[^0-9.]/g,''))||0;
+  const pool=onlyZero?orders.filter(o=>num(o)<=0):orders;
+  const codes=pool.map(o=>o.orderNumber||o.external_id||o.id).filter(Boolean).slice(0,300);
+  if(!codes.length){if(box&&!silent)box.textContent='✅ Không có đơn nào cần cập nhật.';return {upRev:0,upCost:0,upShop:0};}
   let upRev=0,upCost=0,upShop=0,sampleKeys='';
   try{
     for(let i=0;i<codes.length;i+=50){
@@ -1549,28 +1559,35 @@ async function syncMerchizePrices(){
         const o=orders.find(x=>[x.orderNumber,x.external_id,x.id,x.external_number].filter(Boolean).map(v=>String(v).toUpperCase()).includes(mcode));
         if(!o)return;
         if(!sampleKeys)sampleKeys=JSON.stringify(Object.keys(md).slice(0,30));
-        // 1) DOANH THU (revenue / giá bán Etsy)
         const rev=findRevenue(md);
         if(rev!=null&&rev>0){o.total='$'+rev.toFixed(2);upRev++;}
-        // 2) BASECOST (giá xưởng)
         const cost=findPrice(md);
         if(cost!=null&&o.items&&o.items[0]){o.items[0].basecostFromWorkshop=String(cost);upCost++;}
-        // 3) TÊN SHOP (tag)
         const shop=findShopTag(md);
         if(shop){
           o.shopTitle=shop;o.shopId=shop.toLowerCase().replace(/\s+/g,'');upShop++;
-          // tự thêm shop mới vào danh sách khai báo (để hiện ở bộ lọc)
           if(!cfg.shops)cfg.shops=[];
           if(!cfg.shops.includes(shop))cfg.shops.push(shop);
         }
       });
     }
     localStorage.setItem('pod_orders',JSON.stringify(orders));
-    saveCfg(); // lưu danh sách shop mới phát hiện
+    saveCfg();
     await cloudSaveAll();buildShopFilter();applyFilter();updateCounts();
-    if(box)box.textContent=`✅ Đã đồng bộ từ Merchize:\n• Doanh thu: ${upRev} đơn\n• Basecost: ${upCost} đơn\n• Tên shop: ${upShop} đơn`+((upRev+upCost+upShop)===0?'\n⚠️ Không tìm thấy trường. Các trường có: '+sampleKeys:'');
-    toast(`✅ Đồng bộ Merchize: ${upRev} doanh thu, ${upShop} shop`,'success');
-  }catch(e){if(box)box.textContent='❌ Lỗi: '+e.message;}
+    if(box&&!silent)box.textContent=`✅ Đã đồng bộ từ Merchize:\n• Doanh thu: ${upRev} đơn\n• Basecost: ${upCost} đơn\n• Tên shop: ${upShop} đơn`+((upRev+upCost+upShop)===0?'\n⚠️ Không tìm thấy trường. Các trường có: '+sampleKeys:'');
+    if(!silent)toast(`✅ Đồng bộ Merchize: ${upRev} doanh thu, ${upShop} shop`,'success');
+    else if(upRev>0)toast(`🔄 Tự cập nhật ${upRev} doanh thu mới`,'success');
+    return {upRev,upCost,upShop};
+  }catch(e){if(box&&!silent)box.textContent='❌ Lỗi: '+e.message;return {upRev:0,upCost:0,upShop:0,error:e.message};}
+}
+// Tự đồng bộ ngầm: chỉ đơn $0, không làm phiền (gọi khi mở app + định kỳ)
+let _autoSyncRunning=false;
+async function autoSyncRevenue(){
+  if(_autoSyncRunning)return;
+  if(!(cfg.mrzToken||(document.getElementById('mrz-token')||{}).value))return; // chưa cấu hình token thì bỏ
+  _autoSyncRunning=true;
+  try{await syncMerchizePrices({silent:true,onlyZero:true});}catch(e){}
+  _autoSyncRunning=false;
 }
 // DOANH THU (giá bán Etsy) — Merchize lưu ở invoice.amount/total/subtotal
 function findRevenue(md){
