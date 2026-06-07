@@ -57,7 +57,7 @@ async function loadUsers() {
     // Tạo admin mặc định lần đầu
     const u = process.env.ADMIN_DEFAULT_USER || 'admin';
     const p = process.env.ADMIN_DEFAULT_PASS || 'abc13579';
-    users = [{ user: u, pass: hashPass(p), role: 'admin', name: 'Sếp' }];
+    users = [{ user: u, pass: hashPass(p), role: 'admin', name: 'Long Nguyên' }];
     await kvSet(UKEY, users);
   }
   return users;
@@ -93,7 +93,7 @@ export default async function handler(req, res) {
       // Fallback USERS_JSON (chưa có DB) — pass dạng chữ thường
       let list = [];
       try { list = JSON.parse(process.env.USERS_JSON || '[]'); } catch (e) {}
-      if (!list.length) list = [{ user: 'admin', pass: 'abc13579', role: 'admin', name: 'Sếp' }];
+      if (!list.length) list = [{ user: 'admin', pass: 'abc13579', role: 'admin', name: 'Long Nguyên' }];
       const f = list.find(u => u.user === user && u.pass === pass);
       if (!f) { res.status(401).json({ error: 'Sai tài khoản hoặc mật khẩu' }); return; }
       const exp = Date.now() + 12 * 3600 * 1000;
