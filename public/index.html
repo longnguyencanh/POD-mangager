@@ -1946,12 +1946,22 @@ function applyFilter(){
   });
   renderList();
 }
-function updateCounts(){const c={all:orders.length};orders.forEach(o=>{c[o.status]=(c[o.status]||0)+1;});['all','pending','processing','done','missing','missing_qty'].forEach(k=>{const el=document.getElementById('tc-'+k);if(el)el.textContent=c[k]||0;});document.getElementById('sb-cnt').textContent=orders.length;if(currentPage==='home')renderHome();else if(currentPage==='dashboard')renderDashboard();else if(currentPage==='analytics')renderAnalytics();}
+function visibleOrders(){
+  // Đơn mà người hiện tại được phép thấy (nhân viên: lọc theo SKU; admin: tất cả)
+  if(auth&&auth.role!=='admin'){const mine=myAbbrs();return orders.filter(o=>orderMatchesAbbrs(o,mine));}
+  return orders;
+}
+function updateCounts(){const vis=visibleOrders();const c={all:vis.length};vis.forEach(o=>{c[o.status]=(c[o.status]||0)+1;});['all','pending','processing','done','missing','missing_qty'].forEach(k=>{const el=document.getElementById('tc-'+k);if(el)el.textContent=c[k]||0;});document.getElementById('sb-cnt').textContent=vis.length;if(currentPage==='home')renderHome();else if(currentPage==='dashboard')renderDashboard();else if(currentPage==='analytics')renderAnalytics();}
 
 const PILLS={new:['p-new','🆕 Đơn mới'],pending:['p-pending','⏳ Chờ xử lý'],processing:['p-processing','⚙️ Đang xử lý'],not_sent:['p-notsent','📦 Chưa gửi'],producing:['p-producing','🏭 Chờ sản xuất'],shipped:['p-shipped','🟢 Đã gửi'],hold:['p-hold','🟠 Hold'],done:['p-done','✓ Đã xử lý'],missing:['p-missing','⚠ Thiếu info'],missing_qty:['p-missing','⚠ Thiếu SL'],cancelled:['p-cancelled','🔴 Huỷ']};
 const STATUS_LABEL={new:'Đơn mới',pending:'Chờ xử lý',processing:'Đang xử lý',not_sent:'Chưa gửi',producing:'Đang chờ sản xuất',shipped:'Đã gửi đi',hold:'Hold',done:'Đã xử lý',missing:'Thiếu info',missing_qty:'Thiếu SL',cancelled:'Huỷ'};
 function renderList(){
   const el=document.getElementById('order-list');
+  // Cảnh báo nếu nhân viên chưa được gán viết tắt SKU nào
+  if(auth&&auth.role!=='admin'&&!myAbbrs().length){
+    el.innerHTML='<div class="empty-state"><div class="ei">🔖</div><div>Tài khoản "'+(auth.name||'')+'" chưa được gán viết tắt SKU.<br><span style="font-size:11px;color:var(--text3)">Nhờ Sếp vào Quản lý nhân viên → Viết tắt SKU, thêm dòng có TÊN đúng bằng "'+(auth.name||'')+'".</span></div></div>';
+    return;
+  }
   if(!filtered.length){el.innerHTML='<div class="empty-state"><div class="ei">📭</div><div>Không có đơn</div></div>';return;}
   el.innerHTML=filtered.map(o=>{
     const[pc,pl]=PILLS[o.status]||['p-done',o.status];
