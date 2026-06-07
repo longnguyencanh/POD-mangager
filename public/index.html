@@ -392,6 +392,7 @@ body[data-role="seller"] .no-seller{display:none !important}
   <div class="sb-item" id="nav-home" onclick="goPage('home')"><span class="ic">🏠</span> Trang chủ</div>
   <div class="sb-item" id="nav-analytics" onclick="goPage('analytics')"><span class="ic">📊</span> Bảng thống kê</div>
   <div class="sb-item" id="nav-dashboard" onclick="goPage('dashboard')"><span class="ic">📈</span> Dashboard</div>
+  <div class="sb-item" id="nav-idea" onclick="goPage('idea')"><span class="ic">💡</span> Idea / Thiết kế</div>
   <div class="sb-sec">Quản lý</div>
   <div class="sb-item active" id="nav-orders" onclick="goPage('orders')"><span class="ic">📦</span> Đơn hàng <span class="sb-badge" id="sb-cnt">0</span></div>
   <div class="sb-item" id="nav-history" onclick="goPage('history')"><span class="ic">🗂️</span> Lịch sử đơn</div>
@@ -824,6 +825,41 @@ body[data-role="seller"] .no-seller{display:none !important}
           <button class="btn btn-green btn-sm" onclick="addOpCost()">+ Thêm</button>
         </div>
         <div id="oc-list" style="font-size:12px"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════ PAGE: IDEA / THIẾT KẾ (KANBAN) ════ -->
+  <div class="page" id="page-idea">
+    <div class="ph">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+        <div><h1>💡 Idea / Thiết kế</h1><p class="sub">Bảng giao việc thiết kế cho team. Kéo thẻ qua các cột theo tiến độ.</p></div>
+        <button class="btn btn-green btn-sm admin-only" onclick="openIdeaModal()">+ Thêm Idea</button>
+      </div>
+    </div>
+    <div class="page-scroll">
+      <div id="kanban-board" style="display:grid;grid-template-columns:repeat(5,minmax(220px,1fr));gap:12px;overflow-x:auto;padding-bottom:20px"></div>
+    </div>
+  </div>
+
+  <!-- Modal thêm/sửa Idea -->
+  <div class="modal-overlay" id="idea-modal">
+    <div class="modal" style="max-width:460px">
+      <div class="modal-title" style="font-size:16px;margin-bottom:12px" id="idea-modal-title">💡 Thêm Idea</div>
+      <input type="hidden" id="idea-id">
+      <div class="fl" style="margin-bottom:8px"><label>Tiêu đề *</label><input class="fi" id="idea-title" placeholder="vd: Áo 4th July - thêm tên"></div>
+      <div class="fl" style="margin-bottom:8px"><label>Link Etsy</label><input class="fi" id="idea-link" placeholder="https://etsy.com/listing/..."></div>
+      <div class="fl" style="margin-bottom:8px"><label>Link ảnh tham khảo</label><input class="fi" id="idea-img" placeholder="Dán link ảnh..."></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+        <div class="fl"><label>Giao cho (designer)</label><select class="fi" id="idea-assignee"></select></div>
+        <div class="fl"><label>Độ ưu tiên</label><select class="fi" id="idea-priority"><option value="normal">Bình thường</option><option value="high">🔴 Cao</option><option value="low">Thấp</option></select></div>
+      </div>
+      <div class="fl" style="margin-bottom:8px"><label>Deadline</label><input class="fi" id="idea-deadline" type="date"></div>
+      <div class="fl" style="margin-bottom:12px"><label>Ghi chú</label><textarea class="fi" id="idea-note" rows="2" placeholder="vd: lấy hình khác, có tên các sự kiện ở trên ảnh"></textarea></div>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-green btn-sm" onclick="saveIdea()">💾 Lưu</button>
+        <button class="btn btn-sm" onclick="document.getElementById('idea-modal').classList.remove('open')">Đóng</button>
+        <button class="btn btn-sm admin-only" style="color:var(--red);margin-left:auto" id="idea-del-btn" onclick="delIdea()">🗑 Xoá</button>
       </div>
     </div>
   </div>
@@ -1444,6 +1480,98 @@ async function fetchFxRate(){
     else info.textContent='❌ Không lấy được tỷ giá. Nhập tay giúp.';
   }catch(e){info.textContent='❌ Lỗi mạng khi lấy tỷ giá. Nhập tay giúp (vd 25400).';}
 }
+// ── IDEA / THIẾT KẾ (KANBAN) ──
+const IDEA_COLS=[['unsorted','📥 Chưa phân loại'],['idea','💡 Idea'],['doing','🎨 Đang làm'],['review','👀 Đợi duyệt'],['done','✅ Hoàn thành']];
+function renderIdeaBoard(){
+  const board=document.getElementById('kanban-board');if(!board)return;
+  const ideas=cfg.ideas||[];
+  const isAdmin=auth&&auth.role==='admin';
+  // designer thấy hết nhưng nổi bật việc của mình
+  board.innerHTML=IDEA_COLS.map(([key,label])=>{
+    const items=ideas.filter(x=>(x.status||'unsorted')===key);
+    const cards=items.map(it=>{
+      const pr=it.priority==='high'?'<span style="color:var(--red);font-weight:700">🔴 Cao</span>':it.priority==='low'?'<span style="color:var(--text3)">Thấp</span>':'';
+      const dl=it.deadline?`<span style="font-size:10px;color:var(--text3)">⏰ ${it.deadline}</span>`:'';
+      const who=it.assignee?`<span style="font-size:10px;background:var(--accent-l);color:var(--accent);padding:1px 6px;border-radius:6px">👤 ${esc(it.assignee)}</span>`:'';
+      const img=it.img?`<img src="${esc(it.img)}" style="width:100%;height:120px;object-fit:cover;border-radius:8px;margin-bottom:6px" onerror="this.style.display='none'">`:'';
+      const link=it.link?`<a href="${esc(it.link)}" target="_blank" onclick="event.stopPropagation()" style="font-size:11px;color:var(--accent);word-break:break-all">🔗 Link Etsy</a>`:'';
+      return`<div draggable="true" ondragstart="ideaDragStart(event,'${it.id}')" onclick="openIdeaModal('${it.id}')" style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:10px;cursor:pointer;box-shadow:0 1px 3px rgba(0,0,0,.06)">
+        ${img}
+        <div style="font-size:13px;font-weight:600;margin-bottom:4px">${esc(it.title)}</div>
+        ${link?`<div style="margin-bottom:4px">${link}</div>`:''}
+        ${it.note?`<div style="font-size:11px;color:var(--text2);margin-bottom:6px">${esc(it.note)}</div>`:''}
+        <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">${who}${pr}${dl}</div>
+      </div>`;
+    }).join('')||'<div style="font-size:11px;color:var(--text3);text-align:center;padding:14px">Trống</div>';
+    return`<div ondragover="event.preventDefault()" ondrop="ideaDrop(event,'${key}')" style="background:var(--bg);border-radius:12px;padding:10px;min-height:200px">
+      <div style="font-size:12.5px;font-weight:700;margin-bottom:10px;display:flex;justify-content:space-between"><span>${label}</span><span style="color:var(--text3)">${items.length}</span></div>
+      <div style="display:flex;flex-direction:column;gap:8px">${cards}</div>
+    </div>`;
+  }).join('');
+}
+let _dragIdeaId=null;
+function ideaDragStart(e,id){_dragIdeaId=id;e.dataTransfer.effectAllowed='move';}
+function ideaDrop(e,col){
+  e.preventDefault();
+  if(!_dragIdeaId)return;
+  const it=(cfg.ideas||[]).find(x=>x.id===_dragIdeaId);
+  if(it){it.status=col;saveCfg();cloudSaveAll();renderIdeaBoard();toast('✅ Đã chuyển sang "'+(IDEA_COLS.find(c=>c[0]===col)||[,col])[1]+'"','success');}
+  _dragIdeaId=null;
+}
+function openIdeaModal(id){
+  const m=document.getElementById('idea-modal');
+  // đổ danh sách designer
+  const asg=document.getElementById('idea-assignee');
+  const designers=(cfg.skuMap||[]).map(s=>s.name).filter(Boolean);
+  asg.innerHTML='<option value="">— Chưa giao —</option>'+[...new Set(designers)].map(n=>`<option value="${esc(n)}">${esc(n)}</option>`).join('');
+  const delBtn=document.getElementById('idea-del-btn');
+  if(id){
+    const it=(cfg.ideas||[]).find(x=>x.id===id);if(!it)return;
+    document.getElementById('idea-modal-title').textContent='✏️ Sửa Idea';
+    document.getElementById('idea-id').value=it.id;
+    document.getElementById('idea-title').value=it.title||'';
+    document.getElementById('idea-link').value=it.link||'';
+    document.getElementById('idea-img').value=it.img||'';
+    document.getElementById('idea-assignee').value=it.assignee||'';
+    document.getElementById('idea-priority').value=it.priority||'normal';
+    document.getElementById('idea-deadline').value=it.deadline||'';
+    document.getElementById('idea-note').value=it.note||'';
+    if(delBtn)delBtn.style.display='';
+  }else{
+    document.getElementById('idea-modal-title').textContent='💡 Thêm Idea';
+    ['idea-id','idea-title','idea-link','idea-img','idea-deadline','idea-note'].forEach(i=>document.getElementById(i).value='');
+    document.getElementById('idea-priority').value='normal';
+    if(delBtn)delBtn.style.display='none';
+  }
+  m.classList.add('open');
+}
+function saveIdea(){
+  const title=document.getElementById('idea-title').value.trim();
+  if(!title){toast('Nhập tiêu đề','error');return;}
+  if(!cfg.ideas)cfg.ideas=[];
+  const id=document.getElementById('idea-id').value;
+  const data={
+    title,
+    link:document.getElementById('idea-link').value.trim(),
+    img:document.getElementById('idea-img').value.trim(),
+    assignee:document.getElementById('idea-assignee').value,
+    priority:document.getElementById('idea-priority').value,
+    deadline:document.getElementById('idea-deadline').value,
+    note:document.getElementById('idea-note').value.trim(),
+  };
+  if(id){const it=cfg.ideas.find(x=>x.id===id);if(it)Object.assign(it,data);}
+  else{cfg.ideas.push({id:'idea_'+Date.now(),status:'unsorted',...data});}
+  saveCfg();cloudSaveAll();renderIdeaBoard();
+  document.getElementById('idea-modal').classList.remove('open');
+  toast('✅ Đã lưu Idea','success');
+}
+function delIdea(){
+  const id=document.getElementById('idea-id').value;if(!id)return;
+  if(!confirm('Xoá idea này?'))return;
+  cfg.ideas=(cfg.ideas||[]).filter(x=>x.id!==id);
+  saveCfg();cloudSaveAll();renderIdeaBoard();
+  document.getElementById('idea-modal').classList.remove('open');
+}
 // ── NHÀ CUNG CẤP (XƯỞNG) ──
 function addSupplier(){
   const name=document.getElementById('sup-name').value.trim();
@@ -1925,6 +2053,7 @@ function goPage(page){
   if(page==='pricing'){renderPriceList();loadFees();savePriceSheetUrl_load();}
   if(page==='costs'){loadCostUI();renderAdList();renderOpList();}
   if(page==='suppliers'){renderSuppliers();}
+  if(page==='idea'){renderIdeaBoard();}
 }
 
 // ── helper: orders in period ──
@@ -2376,7 +2505,7 @@ async function cloudSaveCfg(){
   try{
     const headers={'Content-Type':'application/json'};
     if(auth&&auth.token)headers['X-Session']=auth.token;
-    const shared={skuMap:cfg.skuMap||[],priceMap:cfg.priceMap||[],fees:cfg.fees||{},adCosts:cfg.adCosts||[],opCosts:cfg.opCosts||[],fxRate:cfg.fxRate||0,fxManual:cfg.fxManual||false,shops:cfg.shops||[],suppliers:cfg.suppliers||[]};
+    const shared={skuMap:cfg.skuMap||[],priceMap:cfg.priceMap||[],fees:cfg.fees||{},adCosts:cfg.adCosts||[],opCosts:cfg.opCosts||[],fxRate:cfg.fxRate||0,fxManual:cfg.fxManual||false,shops:cfg.shops||[],suppliers:cfg.suppliers||[],ideas:cfg.ideas||[]};
     const r=await fetch('/api/data?op=config',{method:'POST',headers,body:JSON.stringify(shared)});
     return r.ok;
   }catch(e){return false;}
@@ -2386,7 +2515,7 @@ async function cloudLoadCfg(){
     const headers={'Content-Type':'application/json'};
     if(auth&&auth.token)headers['X-Session']=auth.token;
     const r=await fetch('/api/data?op=config',{headers});
-    if(r.ok){const c=await r.json();if(c&&Array.isArray(c.skuMap)){cfg.skuMap=c.skuMap;}if(c&&Array.isArray(c.priceMap)){cfg.priceMap=c.priceMap;}if(c&&c.fees){cfg.fees=c.fees;}if(c&&Array.isArray(c.adCosts)){cfg.adCosts=c.adCosts;}if(c&&Array.isArray(c.opCosts)){cfg.opCosts=c.opCosts;}if(c&&c.fxRate){cfg.fxRate=c.fxRate;cfg.fxManual=c.fxManual;}if(c&&Array.isArray(c.shops)){cfg.shops=c.shops;}if(c&&Array.isArray(c.suppliers)){cfg.suppliers=c.suppliers;}localStorage.setItem(CFG_KEY,JSON.stringify(cfg));}
+    if(r.ok){const c=await r.json();if(c&&Array.isArray(c.skuMap)){cfg.skuMap=c.skuMap;}if(c&&Array.isArray(c.priceMap)){cfg.priceMap=c.priceMap;}if(c&&c.fees){cfg.fees=c.fees;}if(c&&Array.isArray(c.adCosts)){cfg.adCosts=c.adCosts;}if(c&&Array.isArray(c.opCosts)){cfg.opCosts=c.opCosts;}if(c&&c.fxRate){cfg.fxRate=c.fxRate;cfg.fxManual=c.fxManual;}if(c&&Array.isArray(c.shops)){cfg.shops=c.shops;}if(c&&Array.isArray(c.suppliers)){cfg.suppliers=c.suppliers;}if(c&&Array.isArray(c.ideas)){cfg.ideas=c.ideas;}localStorage.setItem(CFG_KEY,JSON.stringify(cfg));}
   }catch(e){}
 }
 function openSettings(){const mb=document.getElementById('mrz-base');if(mb)mb.value=cfg.mrzBase||'';const mt=document.getElementById('mrz-token');if(mt)mt.value=cfg.mrzToken||'';const tu=document.getElementById('trk-sheet-url');if(tu)tu.value=cfg.trkSheetUrl||'';const wu=document.getElementById('mrz-webhook-url');if(wu)wu.value=location.origin+'/api/webhooks/merchize';const es=document.getElementById('etsy-shop');if(es){const shops=shopList();es.innerHTML=shops.length?shops.map(s=>`<option value="${s}">${s}</option>`).join(''):'<option value="Etsy">Etsy</option>';}document.getElementById('settings-modal').classList.add('open');}
