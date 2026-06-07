@@ -446,7 +446,8 @@ body[data-role="seller"] .no-seller{display:none !important}
       <div class="tab" onclick="setTab(this,'processing')">Xử lý <span class="tc" id="tc-processing">0</span></div>
       <div class="tab" onclick="setTab(this,'done')">Đã xử lý <span class="tc" id="tc-done">0</span></div>
       <div class="tab" onclick="setTab(this,'missing')">Thiếu info <span class="tc" id="tc-missing">0</span></div>
-      <div class="tab" onclick="setTab(this,'missing_qty')">Thiếu số lượng <span class="tc" id="tc-missing_qty">0</span></div>
+      <div class="tab" onclick="setTab(this,'has_track')">📦 Có tracking <span class="tc" id="tc-has_track">0</span></div>
+      <div class="tab" onclick="setTab(this,'no_track')">⏳ Chưa tracking <span class="tc" id="tc-no_track">0</span></div>
     </div>
 
     <div class="admin-only" id="bulk-controls" style="padding:8px 28px 0;display:flex;align-items:center;gap:10px">
@@ -2064,7 +2065,9 @@ function applyFilter(){
     // Bộ lọc nhân viên (admin chọn)
     if(empFilter&&empFilter!=='all'){if(!orderMatchesAbbrs(o,[empFilter.toUpperCase()]))return false;}
     if(shopFilter!=='all'&&o.shopTitle!==shopFilter)return false;
-    if(currentTab!=='all'&&o.status!==currentTab)return false;
+    if(currentTab==='has_track'){if(!o.tracking)return false;}
+    else if(currentTab==='no_track'){if(o.tracking)return false;}
+    else if(currentTab!=='all'&&o.status!==currentTab)return false;
     if(searchQ)return o.id.includes(searchQ)||o.customer.toLowerCase().includes(searchQ)||(o.items?.[0]?.title||'').toLowerCase().includes(searchQ)||(o.external_id||'').includes(searchQ)||(o.items?.[0]?.sku||'').toLowerCase().includes(searchQ);
     return true;
   });
@@ -2075,7 +2078,7 @@ function visibleOrders(){
   if(auth&&auth.role!=='admin'){const mine=myAbbrs();return orders.filter(o=>orderMatchesAbbrs(o,mine));}
   return orders;
 }
-function updateCounts(){const vis=visibleOrders();const c={all:vis.length};vis.forEach(o=>{c[o.status]=(c[o.status]||0)+1;});['all','pending','processing','done','missing','missing_qty'].forEach(k=>{const el=document.getElementById('tc-'+k);if(el)el.textContent=c[k]||0;});document.getElementById('sb-cnt').textContent=vis.length;if(currentPage==='home')renderHome();else if(currentPage==='dashboard')renderDashboard();else if(currentPage==='analytics')renderAnalytics();}
+function updateCounts(){const vis=visibleOrders();const c={all:vis.length};vis.forEach(o=>{c[o.status]=(c[o.status]||0)+1;});c.has_track=vis.filter(o=>o.tracking).length;c.no_track=vis.filter(o=>!o.tracking).length;['all','pending','processing','done','missing','missing_qty','has_track','no_track'].forEach(k=>{const el=document.getElementById('tc-'+k);if(el)el.textContent=c[k]||0;});document.getElementById('sb-cnt').textContent=vis.length;if(currentPage==='home')renderHome();else if(currentPage==='dashboard')renderDashboard();else if(currentPage==='analytics')renderAnalytics();}
 
 const PILLS={new:['p-new','🆕 Đơn mới'],pending:['p-pending','⏳ Chờ xử lý'],processing:['p-processing','⚙️ Đang xử lý'],not_sent:['p-notsent','📦 Chưa gửi'],producing:['p-producing','🏭 Chờ sản xuất'],shipped:['p-shipped','🟢 Đã gửi'],hold:['p-hold','🟠 Hold'],done:['p-done','✓ Đã xử lý'],missing:['p-missing','⚠ Thiếu info'],missing_qty:['p-missing','⚠ Thiếu SL'],cancelled:['p-cancelled','🔴 Huỷ']};
 const STATUS_LABEL={new:'Đơn mới',pending:'Chờ xử lý',processing:'Đang xử lý',not_sent:'Chưa gửi',producing:'Đang chờ sản xuất',shipped:'Đã gửi đi',hold:'Hold',done:'Đã xử lý',missing:'Thiếu info',missing_qty:'Thiếu SL',cancelled:'Huỷ'};
