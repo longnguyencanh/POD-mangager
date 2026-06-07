@@ -515,6 +515,10 @@ body[data-role="seller"] .no-seller{display:none !important}
         <div class="block-title">📈 Doanh số theo thời gian</div>
         <div id="d-period-grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-top:8px"></div>
       </div>
+      <div class="block" style="margin-bottom:16px">
+        <div class="block-title">🏪 Lời ròng theo shop (30 ngày qua)</div>
+        <div id="d-shop-profit" style="margin-top:8px"></div>
+      </div>
       <div class="stat-grid">
         <div class="stat-card"><span class="sc-ic">📦</span><div class="stat-label">Tổng đơn</div><div class="stat-value accent" id="d-total-orders">0</div><div class="stat-sub">trong hệ thống</div></div>
         <div class="stat-card"><span class="sc-ic">🏭</span><div class="stat-label">Đã đẩy xưởng</div><div class="stat-value green" id="d-pushed">0</div><div class="stat-sub">đang sản xuất</div></div>
@@ -763,21 +767,39 @@ body[data-role="seller"] .no-seller{display:none !important}
     </div>
     <div class="page-scroll">
       <div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:20px;max-width:720px;margin-bottom:16px">
-        <div style="font-size:14px;font-weight:700;margin-bottom:4px">📣 Quảng cáo theo ngày</div>
+        <div style="font-size:14px;font-weight:700;margin-bottom:4px">💱 Tỷ giá USD → VNĐ</div>
+        <div style="font-size:11.5px;color:var(--text2);margin-bottom:12px;line-height:1.6">App tự lấy tỷ giá. Bạn có thể nhập tay (vd theo Vietcombank) để chính xác hơn.</div>
+        <div style="display:grid;grid-template-columns:1.5fr auto auto;gap:8px;align-items:end">
+          <div class="fl"><label>1 USD = ? VNĐ</label><input class="fi" id="fx-rate" type="number" placeholder="25400" oninput="saveFxManual()"></div>
+          <button class="btn btn-sm" onclick="fetchFxRate()">🔄 Lấy tỷ giá tự động</button>
+        </div>
+        <div id="fx-info" style="font-size:11px;color:var(--text3);margin-top:6px"></div>
+      </div>
+
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:20px;max-width:720px;margin-bottom:16px">
+        <div style="font-size:14px;font-weight:700;margin-bottom:4px">📣 Quảng cáo theo ngày ($)</div>
         <div style="font-size:11.5px;color:var(--text2);margin-bottom:14px;line-height:1.6">Ghi chi phí quảng cáo mỗi ngày. Quên ngày nào ghi bổ sung được (chỉ thêm, không sửa). Seller & admin đều ghi được.</div>
-        <div style="display:grid;grid-template-columns:1fr 1.2fr auto;gap:8px;align-items:end;margin-bottom:8px">
-          <div class="fl"><label>Ngày</label><input class="fi" id="ad-date" type="date"></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:8px;align-items:end;margin-bottom:8px">
+          <div class="fl"><label>Shop</label><select class="fi" id="ad-shop"></select></div>
+          <div class="fl"><label>Ngày</label><input class="fi" id="ad-date" type="date" min="2025-01-01" max="2030-12-31"></div>
           <div class="fl"><label>Số tiền ($)</label><input class="fi" id="ad-amount" type="number" step="0.01" placeholder="15.00"></div>
           <button class="btn btn-green btn-sm" onclick="addAdCost()">+ Ghi</button>
         </div>
-        <div id="ad-list" style="font-size:12px;max-height:220px;overflow:auto"></div>
+        <div style="display:flex;gap:8px;align-items:center;margin:10px 0;flex-wrap:wrap">
+          <label style="font-size:12px;color:var(--text2)">Năm:</label>
+          <select class="fi" id="ad-year" style="width:auto;padding:5px 10px" onchange="renderAdList()"></select>
+          <label style="font-size:12px;color:var(--text2)">Shop:</label>
+          <select class="fi" id="ad-filter-shop" style="width:auto;padding:5px 10px" onchange="renderAdList()"></select>
+        </div>
+        <div id="ad-list" style="font-size:12px;max-height:300px;overflow:auto"></div>
       </div>
+
       <div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:20px;max-width:720px">
-        <div style="font-size:14px;font-weight:700;margin-bottom:4px">🏢 Chi phí cố định (theo tháng)</div>
-        <div style="font-size:11.5px;color:var(--text2);margin-bottom:14px;line-height:1.6">Lương nhân viên, tiếp khách, thuê văn phòng... Nhập từng khoản riêng.</div>
+        <div style="font-size:14px;font-weight:700;margin-bottom:4px">🏢 Chi phí cố định (theo tháng, VNĐ)</div>
+        <div style="font-size:11.5px;color:var(--text2);margin-bottom:14px;line-height:1.6">Lương nhân viên, tiếp khách, thuê văn phòng... Nhập từng khoản riêng (VNĐ).</div>
         <div style="display:grid;grid-template-columns:1.5fr 1fr auto;gap:8px;align-items:end;margin-bottom:8px">
           <div class="fl"><label>Tên khoản</label><input class="fi" id="oc-name" placeholder="vd: Lương NV văn phòng"></div>
-          <div class="fl"><label>Số tiền/tháng ($)</label><input class="fi" id="oc-amount" type="number" step="0.01" placeholder="500"></div>
+          <div class="fl"><label>Số tiền/tháng (đ)</label><input class="fi" id="oc-amount" type="number" placeholder="10000000"></div>
           <button class="btn btn-green btn-sm" onclick="addOpCost()">+ Thêm</button>
         </div>
         <div id="oc-list" style="font-size:12px"></div>
@@ -1300,30 +1322,72 @@ async function syncPriceSheet(){
   }catch(e){box.textContent='❌ Lỗi: '+e.message;}
 }
 function savePriceSheetUrl_load(){const el=document.getElementById('price-sheet-url');if(el)el.value=cfg.priceSheetUrl||'';}
+// ── TỶ GIÁ USD→VND ──
+function getFxRate(){return (cfg.fxRate&&cfg.fxRate>0)?cfg.fxRate:25400;}
+function saveFxManual(){const v=parseFloat(document.getElementById('fx-rate').value)||0;if(v>0){cfg.fxRate=v;cfg.fxManual=true;saveCfg();document.getElementById('fx-info').textContent='Đang dùng tỷ giá nhập tay: 1$ = '+v.toLocaleString('vi-VN')+'đ';}}
+async function fetchFxRate(){
+  const info=document.getElementById('fx-info');info.textContent='Đang lấy tỷ giá...';
+  try{
+    const r=await fetch('https://open.er-api.com/v6/latest/USD');
+    const d=await r.json();
+    const vnd=d&&d.rates&&d.rates.VND;
+    if(vnd){cfg.fxRate=Math.round(vnd);cfg.fxManual=false;saveCfg();document.getElementById('fx-rate').value=cfg.fxRate;info.textContent='✅ Tỷ giá tự động: 1$ = '+cfg.fxRate.toLocaleString('vi-VN')+'đ (cập nhật '+(d.time_last_update_utc||'').slice(0,16)+'). Có thể nhập tay đè nếu muốn theo Vietcombank.';}
+    else info.textContent='❌ Không lấy được tỷ giá. Nhập tay giúp.';
+  }catch(e){info.textContent='❌ Lỗi mạng khi lấy tỷ giá. Nhập tay giúp (vd 25400).';}
+}
 // ── CHI PHÍ VẬN HÀNH ──
+function shopList(){return [...new Set(orders.map(o=>o.shopTitle).filter(Boolean))];}
 function addAdCost(){
+  const shop=document.getElementById('ad-shop').value;
   const date=document.getElementById('ad-date').value;
   const amount=parseFloat(document.getElementById('ad-amount').value)||0;
+  if(!shop){toast('Chọn shop','error');return;}
   if(!date){toast('Chọn ngày','error');return;}
   if(!amount){toast('Nhập số tiền','error');return;}
   if(!cfg.adCosts)cfg.adCosts=[];
-  cfg.adCosts.push({date,amount,by:auth?auth.name:'',at:new Date().toISOString()});
-  saveCfg();renderAdList();renderDashboard&&renderDashboard();
+  cfg.adCosts.push({shop,date,amount,by:auth?auth.name:'',at:new Date().toISOString()});
+  saveCfg();renderAdList();if(typeof renderDashboard==='function'&&currentPage==='dashboard')renderDashboard();
   document.getElementById('ad-amount').value='';
-  toast('✅ Đã ghi quảng cáo ngày '+date,'success');
+  toast('✅ Đã ghi QC '+shop+' ngày '+date,'success');
 }
 function renderAdList(){
   const el=document.getElementById('ad-list');if(!el)return;
-  const list=(cfg.adCosts||[]).slice().sort((a,b)=>b.date.localeCompare(a.date));
-  if(!list.length){el.innerHTML='<div style="color:var(--text3)">Chưa ghi quảng cáo nào.</div>';return;}
-  el.innerHTML=list.map(a=>`<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid var(--border2)"><span>📅 ${a.date}</span><span style="font-weight:600">$${(a.amount||0).toFixed(2)}</span><span style="color:var(--text3);font-size:11px">${a.by||''}</span></div>`).join('');
+  const all=(cfg.adCosts||[]).slice();
+  // year selector
+  const ySel=document.getElementById('ad-year');
+  const years=[...new Set(all.map(a=>(a.date||'').slice(0,4)).filter(Boolean))].sort().reverse();
+  const curY=new Date().getFullYear().toString();
+  if(!years.includes(curY))years.unshift(curY);
+  if(ySel){const cur=ySel.value||curY;ySel.innerHTML=years.map(y=>`<option value="${y}">${y}</option>`).join('');ySel.value=years.includes(cur)?cur:years[0];}
+  const selY=ySel?ySel.value:curY;
+  // shop filter selector
+  const sSel=document.getElementById('ad-filter-shop');
+  if(sSel){const cur=sSel.value||'all';sSel.innerHTML='<option value="all">Tất cả shop</option>'+shopList().map(s=>`<option value="${s}">${s}</option>`).join('');sSel.value=cur;}
+  const selS=sSel?sSel.value:'all';
+  let list=all.filter(a=>(a.date||'').startsWith(selY));
+  if(selS!=='all')list=list.filter(a=>a.shop===selS);
+  list.sort((a,b)=>b.date.localeCompare(a.date));
+  if(!list.length){el.innerHTML='<div style="color:var(--text3)">Chưa ghi QC nào'+(selS!=='all'?' cho '+selS:'')+' năm '+selY+'.</div>';return;}
+  const totalYear=list.reduce((s,a)=>s+(a.amount||0),0);
+  // tổng theo shop
+  const byShop={};list.forEach(a=>{const sh=a.shop||'(không rõ)';byShop[sh]=(byShop[sh]||0)+(a.amount||0);});
+  let html=`<div style="font-weight:700;color:var(--accent);margin-bottom:6px">Tổng QC năm ${selY}: $${totalYear.toFixed(2)}</div>`;
+  html+='<div style="font-size:11px;color:var(--text2);margin-bottom:8px">'+Object.keys(byShop).map(s=>`${s}: $${byShop[s].toFixed(2)}`).join(' · ')+'</div>';
+  // gom theo tháng
+  const byMonth={};list.forEach(a=>{const m=a.date.slice(0,7);if(!byMonth[m])byMonth[m]=[];byMonth[m].push(a);});
+  Object.keys(byMonth).sort().reverse().forEach(m=>{
+    const items=byMonth[m];const mt=items.reduce((s,a)=>s+(a.amount||0),0);
+    html+=`<div style="font-weight:600;margin:8px 0 4px;color:var(--text2)">Tháng ${m.slice(5)}/${m.slice(0,4)} — $${mt.toFixed(2)}</div>`;
+    html+=items.map(a=>`<div style="display:flex;justify-content:space-between;gap:8px;padding:3px 0 3px 12px;border-bottom:1px solid var(--border2)"><span>📅 ${a.date}</span><span style="color:var(--green-d);font-weight:600">🏪 ${a.shop||'—'}</span><span style="font-weight:600">$${(a.amount||0).toFixed(2)}</span><span style="color:var(--text3);font-size:11px">${a.by||''}</span></div>`).join('');
+  });
+  el.innerHTML=html;
 }
 function addOpCost(){
   const name=document.getElementById('oc-name').value.trim();
   const amount=parseFloat(document.getElementById('oc-amount').value)||0;
   if(!name){toast('Nhập tên khoản','error');return;}
   if(!cfg.opCosts)cfg.opCosts=[];
-  cfg.opCosts.push({name,amount});
+  cfg.opCosts.push({name,amount}); // amount = VNĐ
   saveCfg();renderOpList();
   document.getElementById('oc-name').value='';document.getElementById('oc-amount').value='';
   toast('✅ Đã thêm "'+name+'"','success');
@@ -1334,7 +1398,14 @@ function renderOpList(){
   const list=cfg.opCosts||[];
   if(!list.length){el.innerHTML='<div style="color:var(--text3)">Chưa có khoản nào.</div>';return;}
   const total=list.reduce((a,c)=>a+(c.amount||0),0);
-  el.innerHTML=list.map((c,i)=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid var(--border2)"><span>${c.name}</span><span style="font-weight:600">$${(c.amount||0).toFixed(2)}/th</span><button class="btn btn-xs" style="color:var(--red)" onclick="delOpCost(${i})">✕</button></div>`).join('')+`<div style="display:flex;justify-content:space-between;padding:8px 0;font-weight:700;color:var(--accent)"><span>Tổng cố định/tháng</span><span>$${total.toFixed(2)}</span></div>`;
+  const fx=getFxRate();
+  el.innerHTML=list.map((c,i)=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid var(--border2)"><span>${c.name}</span><span style="font-weight:600">${(c.amount||0).toLocaleString('vi-VN')}đ</span><button class="btn btn-xs" style="color:var(--red)" onclick="delOpCost(${i})">✕</button></div>`).join('')+`<div style="display:flex;justify-content:space-between;padding:8px 0;font-weight:700;color:var(--accent)"><span>Tổng cố định/tháng</span><span>${total.toLocaleString('vi-VN')}đ (≈$${(total/fx).toFixed(0)})</span></div>`;
+}
+function loadCostUI(){
+  const f=document.getElementById('fx-rate');if(f)f.value=cfg.fxRate||'';
+  const info=document.getElementById('fx-info');if(info&&cfg.fxRate)info.textContent=(cfg.fxManual?'Tỷ giá nhập tay':'Tỷ giá tự động')+': 1$ = '+getFxRate().toLocaleString('vi-VN')+'đ';
+  const shopSel=document.getElementById('ad-shop');
+  if(shopSel){const shops=shopList();shopSel.innerHTML=shops.length?shops.map(s=>`<option value="${s}">${s}</option>`).join(''):'<option value="">(chưa có shop)</option>';}
 }
 function addPrice(){
   const style=document.getElementById('pr-style').value.trim();
@@ -1544,7 +1615,7 @@ function goPage(page){
   if(page==='history')renderHistoryPage();
   if(page==='sysadmin')renderSysadmin();
   if(page==='pricing'){renderPriceList();loadFees();savePriceSheetUrl_load();}
-  if(page==='costs'){renderAdList();renderOpList();}
+  if(page==='costs'){loadCostUI();renderAdList();renderOpList();}
 }
 
 // ── helper: orders in period ──
@@ -1606,6 +1677,33 @@ function homeAction(i){
 //  DASHBOARD
 // ══════════════════════════════════════════
 // Thống kê doanh số theo mốc thời gian (theo ngày đơn về)
+// Lời ròng theo từng shop (30 ngày qua): doanh thu, lời gộp, QC shop, lời ròng
+function renderShopProfit(){
+  const el=document.getElementById('d-shop-profit');if(!el)return;
+  const d30=new Date();d30.setHours(0,0,0,0);d30.setDate(d30.getDate()-29);
+  const fx=getFxRate();
+  const num=o=>parseFloat(String(o.total||'').replace(/[^0-9.]/g,''))||0;
+  const prof=o=>{const p=(typeof profitFor==='function')?profitFor(o):null;return p||0;};
+  const dateOf=o=>{const d=o.created||o.saleDate||o.date;return d?new Date(d):null;};
+  const recent=orders.filter(o=>{const d=dateOf(o);return d&&!isNaN(d)&&d>=d30;});
+  const shops=shopList();
+  if(!shops.length){el.innerHTML='<div style="color:var(--text3);font-size:12px">Chưa có dữ liệu shop.</div>';return;}
+  const adByShop={};(cfg.adCosts||[]).forEach(a=>{const d=new Date(a.date);if(!isNaN(d)&&d>=d30){adByShop[a.shop]=(adByShop[a.shop]||0)+(a.amount||0);}});
+  const opMonthlyUSD=(cfg.opCosts||[]).reduce((x,c)=>x+(c.amount||0),0)/fx;
+  const opPerShop=shops.length?opMonthlyUSD/shops.length:0;
+  const rows=shops.map(s=>{
+    const ol=recent.filter(o=>o.shopTitle===s);
+    const rev=ol.reduce((a,o)=>a+num(o),0);
+    const gross=ol.reduce((a,o)=>a+prof(o),0);
+    const ad=adByShop[s]||0;
+    const net=gross-ad-opPerShop;
+    return{s,n:ol.length,rev,gross,ad,net};
+  }).sort((a,b)=>b.net-a.net);
+  el.innerHTML='<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12.5px">'+
+    '<tr style="text-align:left;color:var(--text3);font-size:11px"><th style="padding:6px">SHOP</th><th>ĐƠN</th><th>DOANH THU</th><th>LỜI GỘP</th><th>QC</th><th>LỜI RÒNG</th></tr>'+
+    rows.map(r=>`<tr style="border-top:1px solid var(--border2)"><td style="padding:8px 6px;font-weight:600">🏪 ${r.s}</td><td>${r.n}</td><td>$${r.rev.toFixed(2)}</td><td style="color:#b8860b">$${r.gross.toFixed(2)}</td><td style="color:var(--red)">−$${r.ad.toFixed(2)}</td><td style="font-weight:700;color:${r.net>=0?'#2e7d46':'var(--red)'}">$${r.net.toFixed(2)}</td></tr>`).join('')+
+    '</table></div><div style="font-size:11px;color:var(--text3);margin-top:8px">* Lời ròng = lời gộp − QC shop − chi phí cố định chia đều ('+opPerShop.toFixed(2)+'$/shop).</div>';
+}
 function renderPeriodStats(){
   const el=document.getElementById('d-period-grid');if(!el)return;
   const now=new Date();
@@ -1633,7 +1731,7 @@ function renderPeriodStats(){
     const s=agg(p.f);
     // Chi phí vận hành trừ vào lời (QC theo ngày trong kỳ + lương cố định theo số tháng)
     let adCost=0;(cfg.adCosts||[]).forEach(a=>{const d=new Date(a.date);if(!isNaN(d)&&p.f({created:a.date}))adCost+=a.amount||0;});
-    const opMonthly=(cfg.opCosts||[]).reduce((x,c)=>x+(c.amount||0),0);
+    const opMonthly=(cfg.opCosts||[]).reduce((x,c)=>x+(c.amount||0),0)/getFxRate(); // VNĐ→$
     // số tháng ước lượng theo kỳ
     const monthsByLabel={'Hôm nay':1/30,'Hôm qua':1/30,'7 ngày qua':7/30,'30 ngày qua':1,['Năm nay ('+yearNow+')']:Math.max(1,now.getMonth()+1),['Năm ngoái ('+(yearNow-1)+')']:12};
     const months=monthsByLabel[p.label]||0;
@@ -1650,6 +1748,7 @@ function renderPeriodStats(){
 }
 function renderDashboard(){
   renderPeriodStats();
+  renderShopProfit();
   const total=orders.length;
   const pushed=orders.filter(o=>o.pushed?.merchize||o.pushed?.sellerwix||o.pushed?.sheet).length;
   const countries=[...new Set(orders.map(o=>o.country))].filter(c=>c&&c!=='—');
@@ -1967,7 +2066,7 @@ async function cloudSaveCfg(){
   try{
     const headers={'Content-Type':'application/json'};
     if(auth&&auth.token)headers['X-Session']=auth.token;
-    const shared={skuMap:cfg.skuMap||[],priceMap:cfg.priceMap||[],fees:cfg.fees||{},adCosts:cfg.adCosts||[],opCosts:cfg.opCosts||[]};
+    const shared={skuMap:cfg.skuMap||[],priceMap:cfg.priceMap||[],fees:cfg.fees||{},adCosts:cfg.adCosts||[],opCosts:cfg.opCosts||[],fxRate:cfg.fxRate||0,fxManual:cfg.fxManual||false};
     const r=await fetch('/api/data?op=config',{method:'POST',headers,body:JSON.stringify(shared)});
     return r.ok;
   }catch(e){return false;}
@@ -1977,7 +2076,7 @@ async function cloudLoadCfg(){
     const headers={'Content-Type':'application/json'};
     if(auth&&auth.token)headers['X-Session']=auth.token;
     const r=await fetch('/api/data?op=config',{headers});
-    if(r.ok){const c=await r.json();if(c&&Array.isArray(c.skuMap)){cfg.skuMap=c.skuMap;}if(c&&Array.isArray(c.priceMap)){cfg.priceMap=c.priceMap;}if(c&&c.fees){cfg.fees=c.fees;}if(c&&Array.isArray(c.adCosts)){cfg.adCosts=c.adCosts;}if(c&&Array.isArray(c.opCosts)){cfg.opCosts=c.opCosts;}localStorage.setItem(CFG_KEY,JSON.stringify(cfg));}
+    if(r.ok){const c=await r.json();if(c&&Array.isArray(c.skuMap)){cfg.skuMap=c.skuMap;}if(c&&Array.isArray(c.priceMap)){cfg.priceMap=c.priceMap;}if(c&&c.fees){cfg.fees=c.fees;}if(c&&Array.isArray(c.adCosts)){cfg.adCosts=c.adCosts;}if(c&&Array.isArray(c.opCosts)){cfg.opCosts=c.opCosts;}if(c&&c.fxRate){cfg.fxRate=c.fxRate;cfg.fxManual=c.fxManual;}localStorage.setItem(CFG_KEY,JSON.stringify(cfg));}
   }catch(e){}
 }
 function openSettings(){const mb=document.getElementById('mrz-base');if(mb)mb.value=cfg.mrzBase||'';const mt=document.getElementById('mrz-token');if(mt)mt.value=cfg.mrzToken||'';const tu=document.getElementById('trk-sheet-url');if(tu)tu.value=cfg.trkSheetUrl||'';const wu=document.getElementById('mrz-webhook-url');if(wu)wu.value=location.origin+'/api/webhooks/merchize';document.getElementById('settings-modal').classList.add('open');}
