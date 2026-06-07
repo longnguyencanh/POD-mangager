@@ -115,6 +115,7 @@ body.sb-collapsed .desk-hamb{display:block}
 .oi-id{font-size:11px;color:var(--text3);margin-top:2px}
 .oi-code{font-weight:700;color:var(--accent);font-size:12px}
 .oi-shop{font-size:11px;color:var(--green-d);font-weight:600;margin-top:2px}
+.oi-chk{width:17px;height:17px;flex-shrink:0;margin-right:4px;cursor:pointer;align-self:center}
 .d-header{display:flex;gap:16px;align-items:center;padding:16px;background:linear-gradient(135deg,var(--accent-l),var(--bg));border:1px solid var(--border);border-radius:14px;margin-bottom:18px}
 .d-header-thumb{width:88px;height:88px;border-radius:12px;overflow:hidden;background:var(--surface);border:1px solid var(--border2);display:flex;align-items:center;justify-content:center;font-size:34px;flex-shrink:0}
 .d-header-thumb img{width:100%;height:100%;object-fit:cover}
@@ -445,6 +446,20 @@ body[data-role="seller"] .no-seller{display:none !important}
       <div class="tab" onclick="setTab(this,'done')">Đã xử lý <span class="tc" id="tc-done">0</span></div>
       <div class="tab" onclick="setTab(this,'missing')">Thiếu info <span class="tc" id="tc-missing">0</span></div>
       <div class="tab" onclick="setTab(this,'missing_qty')">Thiếu số lượng <span class="tc" id="tc-missing_qty">0</span></div>
+    </div>
+
+    <div class="admin-only" id="bulk-controls" style="padding:8px 28px 0;display:flex;align-items:center;gap:10px">
+      <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text2);cursor:pointer"><input type="checkbox" onclick="toggleSelAll()"> Chọn tất cả</label>
+    </div>
+    <div id="bulk-bar" style="display:none;align-items:center;gap:8px;padding:10px 28px;background:var(--accent-l);border-bottom:1px solid var(--border);flex-wrap:wrap">
+      <span style="font-size:12.5px;font-weight:600">Đã chọn <span id="bulk-cnt">0</span> đơn:</span>
+      <button class="btn btn-xs" onclick="bulkStatus('shipped')">🟢 Đã gửi</button>
+      <button class="btn btn-xs" onclick="bulkStatus('producing')">🏭 Chờ SX</button>
+      <button class="btn btn-xs" onclick="bulkStatus('hold')">🟠 Hold</button>
+      <button class="btn btn-xs" onclick="bulkStatus('cancelled')">🔴 Huỷ</button>
+      <button class="btn btn-xs" onclick="bulkStatus('done')">✓ Đã xử lý</button>
+      <button class="btn btn-xs" onclick="bulkExport()">📊 Xuất Sheet đơn chọn</button>
+      <button class="btn btn-xs" onclick="bulkSel.clear();renderList()" style="margin-left:auto">✕ Bỏ chọn</button>
     </div>
 
     <div class="order-list" id="order-list">
@@ -1063,7 +1078,19 @@ async function enterApp(){
   // Rồi đồng bộ từ DB chung (nếu đã deploy + cấu hình)
   await cloudLoadCfg(); // tải bảng viết tắt SKU dùng chung
   const ok=await cloudLoad();
+  enrichEtsyNames();
   if(ok){buildShopFilter();applyFilter();updateCounts();if(orders.length)setConn(true,`${orders.length} đơn (đồng bộ chung)`);}
+}
+// Ghép tên SP + ảnh từ đơn Merchize sang đơn Etsy có cùng SKU (Etsy không có tên SP)
+function enrichEtsyNames(){
+  // gom title+img theo SKU từ các đơn Merchize
+  const bySku={};
+  orders.forEach(o=>{if(o.source==='merchize')(o.items||[]).forEach(it=>{if(it.sku&&it.title&&it.title!==it.sku){bySku[it.sku.toUpperCase()]={title:it.title,img:it.img};}});});
+  if(!Object.keys(bySku).length)return;
+  orders.forEach(o=>{if(o.source==='etsy')(o.items||[]).forEach(it=>{
+    const m=it.sku&&bySku[it.sku.toUpperCase()];
+    if(m){if(!it.title||it.title===it.sku)it.title=m.title;if(!it.img&&m.img)it.img=m.img;}
+  });});
 }
 
 function logout(){
@@ -1217,23 +1244,25 @@ function collapseSidebar(){
 // Xuất CSV chi tiết (mở bằng Google Sheet): tên đơn, tên SP, size, địa chỉ tách dòng
 function exportOrdersSheet(){
   if(!orders.length){toast('Chưa có đơn để xuất','warn');return;}
-  const cols=['Mã đơn','Tên sản phẩm','SKU','Size','Số lượng','Khách hàng','Email','Địa chỉ 1','Địa chỉ 2','Thành phố','Bang/Tỉnh','Mã bưu chính','Quốc gia','Tổng tiền','Trạng thái','Link Lark','Link Google Drive'];
+  exportSheetFor(orders);
+  toast('✅ Đã xuất file (mở bằng Google Sheet)','success');
+}
+function exportSheetFor(list){
+  const cols=['Mã đơn','Tên sản phẩm','SKU','Size','Số lượng','Khách hàng','Email','Địa chỉ 1','Địa chỉ 2','Thành phố','Bang/Tỉnh','Mã bưu chính','Quốc gia','Tổng tiền','Trạng thái','Ngày nhận','Link Lark','Link Google Drive'];
   let csv=cols.join(',')+'\n';
-  orders.forEach(o=>{
+  list.forEach(o=>{
     const it=(o.items&&o.items[0])||{};
-    // tách địa chỉ: o.address dạng "addr1, city, state, zip, country"
     const parts=(o.address||'').split(',').map(s=>s.trim());
     const addr1=parts[0]||'';const addr2='';const city=parts[1]||'';const state=parts[2]||'';const zip=parts[3]||'';const country=o.country||parts[4]||'';
     const row=[
       orderCode(o),it.title||'',it.sku||'',fixedSize(it),it.qty||1,
       o.customer||'',o.email||'',addr1,addr2,city,state,zip,country,
-      o.total||'',STATUS_LABEL[o.status]||o.status,o.larkLink||'',o.gdriveLink||''
+      o.total||'',STATUS_LABEL[o.status]||o.status,fmtDateShort(o.created),o.larkLink||'',o.gdriveLink||''
     ].map(x=>`"${String(x).replace(/"/g,'""')}"`).join(',');
     csv+=row+'\n';
   });
   const blob=new Blob(['\ufeff'+csv],{type:'text/csv;charset=utf-8'});
   const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='don-hang-chi-tiet.csv';a.click();
-  toast('✅ Đã xuất file (mở bằng Google Sheet)','success');
 }
 function toggleSidebar(force){
   const sb=document.getElementById('sidebar');const ov=document.getElementById('sb-overlay');
@@ -1982,21 +2011,58 @@ function updateCounts(){const vis=visibleOrders();const c={all:vis.length};vis.f
 
 const PILLS={new:['p-new','🆕 Đơn mới'],pending:['p-pending','⏳ Chờ xử lý'],processing:['p-processing','⚙️ Đang xử lý'],not_sent:['p-notsent','📦 Chưa gửi'],producing:['p-producing','🏭 Chờ sản xuất'],shipped:['p-shipped','🟢 Đã gửi'],hold:['p-hold','🟠 Hold'],done:['p-done','✓ Đã xử lý'],missing:['p-missing','⚠ Thiếu info'],missing_qty:['p-missing','⚠ Thiếu SL'],cancelled:['p-cancelled','🔴 Huỷ']};
 const STATUS_LABEL={new:'Đơn mới',pending:'Chờ xử lý',processing:'Đang xử lý',not_sent:'Chưa gửi',producing:'Đang chờ sản xuất',shipped:'Đã gửi đi',hold:'Hold',done:'Đã xử lý',missing:'Thiếu info',missing_qty:'Thiếu SL',cancelled:'Huỷ'};
+// ── CHỌN HÀNG LOẠT (chỉ admin) ──
+let bulkSel=new Set();
+function toggleSel(id){if(bulkSel.has(id))bulkSel.delete(id);else bulkSel.add(id);updateBulkBar();}
+function toggleSelAll(){
+  const allSelected=filtered.length&&filtered.every(o=>bulkSel.has(o.id));
+  if(allSelected)filtered.forEach(o=>bulkSel.delete(o.id));
+  else filtered.forEach(o=>bulkSel.add(o.id));
+  renderList();
+}
+function updateBulkBar(){
+  const bar=document.getElementById('bulk-bar');if(!bar)return;
+  const n=bulkSel.size;
+  if(n>0&&auth&&auth.role==='admin'){bar.style.display='flex';document.getElementById('bulk-cnt').textContent=n;}
+  else bar.style.display='none';
+}
+async function bulkStatus(st){
+  if(!bulkSel.size)return;
+  const label=STATUS_LABEL[st]||st;
+  if(!confirm(`Đổi ${bulkSel.size} đơn sang "${label}"?`))return;
+  let cnt=0;
+  orders.forEach(o=>{if(bulkSel.has(o.id)){o.status=st;if(st==='cancelled')o.urgent=false;logHistory(o,`Đổi trạng thái (hàng loạt): ${label}`);cnt++;}});
+  localStorage.setItem('pod_orders',JSON.stringify(orders));
+  await cloudSaveAll();
+  bulkSel.clear();
+  buildShopFilter();applyFilter();updateCounts();
+  toast(`✅ Đã đổi ${cnt} đơn sang "${label}"`,'success');
+}
+function bulkExport(){
+  if(!bulkSel.size)return;
+  const sel=orders.filter(o=>bulkSel.has(o.id));
+  exportSheetFor(sel);
+  toast(`✅ Đã xuất ${sel.length} đơn đã chọn`,'success');
+}
 function renderList(){
   const el=document.getElementById('order-list');
   // Cảnh báo nếu nhân viên chưa được gán viết tắt SKU nào
   if(auth&&auth.role!=='admin'&&!myAbbrs().length){
     el.innerHTML='<div class="empty-state"><div class="ei">🔖</div><div>Tài khoản "'+(auth.name||'')+'" chưa được gán viết tắt SKU.<br><span style="font-size:11px;color:var(--text3)">Nhờ Sếp vào Quản lý nhân viên → Viết tắt SKU, thêm dòng có TÊN đúng bằng "'+(auth.name||'')+'".</span></div></div>';
-    return;
+    updateBulkBar();return;
   }
-  if(!filtered.length){el.innerHTML='<div class="empty-state"><div class="ei">📭</div><div>Không có đơn</div></div>';return;}
+  if(!filtered.length){el.innerHTML='<div class="empty-state"><div class="ei">📭</div><div>Không có đơn</div></div>';updateBulkBar();return;}
+  const isAdmin=auth&&auth.role==='admin';
   el.innerHTML=filtered.map(o=>{
     const[pc,pl]=PILLS[o.status]||['p-done',o.status];
     const img=o.items?.[0]?.img?`<img src="${o.items[0].img}" onerror="this.style.display='none';this.parentElement.textContent='🖼️'">`:'🖼️';
     const pi=[o.pushed?.merchize?'🏭':'',o.pushed?.sellerwix?'🛒':'',o.pushed?.sheet?'📊':''].filter(Boolean).join('');
-    return`<div class="oi" onclick="selectOrder('${o.id}')"><div class="oi-thumb">${img}</div><div class="oi-info"><div class="oi-name">${o.items?.[0]?.title||'Sản phẩm'}</div><div class="oi-id"><span class="oi-code">${orderCode(o)}</span></div><div class="oi-shop">🏪 ${o.shopTitle||'—'}</div><div class="oi-meta"><span class="pill ${pc}">${pl}</span>${o.urgent?'<span class="urgent-tag">🚩 Gấp</span>':''}${pi?`<span style="font-size:11px">${pi}</span>`:''}<span class="oi-price">${o.total}</span><span class="oi-time">${relTime(o.created)}</span></div></div></div>`;
+    const chk=isAdmin?`<input type="checkbox" class="oi-chk" ${bulkSel.has(o.id)?'checked':''} onclick="event.stopPropagation();toggleSel('${o.id}')">`:'';
+    return`<div class="oi" onclick="selectOrder('${o.id}')">${chk}<div class="oi-thumb">${img}</div><div class="oi-info"><div class="oi-name">${o.items?.[0]?.title||'Sản phẩm'}</div><div class="oi-id"><span class="oi-code">${orderCode(o)}</span></div><div class="oi-shop">🏪 ${o.shopTitle||'—'}</div><div class="oi-meta"><span class="pill ${pc}">${pl}</span>${o.urgent?'<span class="urgent-tag">🚩 Gấp</span>':''}${pi?`<span style="font-size:11px">${pi}</span>`:''}<span class="oi-price">${o.total}</span><span class="oi-time">📅 ${fmtDateShort(o.created)}</span></div></div></div>`;
   }).join('');
+  updateBulkBar();
 }
+function fmtDateShort(d){if(!d)return'—';try{const dt=new Date(d);return dt.toLocaleDateString('vi-VN',{day:'2-digit',month:'2-digit',year:'numeric'});}catch(e){return'—';}}
 
 // ── SELECT (open overlay) ──
 function selectOrder(id){
