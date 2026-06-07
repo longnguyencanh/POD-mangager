@@ -14,6 +14,14 @@ export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Session');
   if (req.method === 'OPTIONS') { res.status(204).end(); return; }
 
+  // ── CẤU HÌNH CHUNG (skuMap...) — cho phép GET không cần auth chặt (chỉ đọc, không nhạy cảm) ──
+  if (req.query.op === 'config' && req.method === 'GET') {
+    if (!hasRedis()) { res.status(200).json({ error: 'no-db' }); return; }
+    try { const cfg = await kvGet('pod:config'); res.status(200).json(cfg || {}); }
+    catch (e) { res.status(200).json({ error: e.message }); }
+    return;
+  }
+
   const session = verify(req.headers['x-session']);
   if (!session) { res.status(401).json({ error: 'Chưa đăng nhập' }); return; }
 
