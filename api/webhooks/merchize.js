@@ -43,7 +43,7 @@ function mapMerchizeOrder(o) {
   const status = g('status', 'order_status', 'fulfillment_status', 'payment_status');
   return {
     id, orderNumber: String(readable || ''), external_id: String(g('external_number', 'external_id') || ''),
-    account: 'Merchize', shopId: String(g('store_id', 'shop_id') || 'merchize'), shopTitle: g('store_name', 'shop_name') || 'Merchize',
+    account: 'Merchize', shopId: String(g('store_id', 'shop_id') || 'etsy2'), shopTitle: g('store_name', 'shop_name') || 'Etsy 2',
     status: mapStatus(status),
     created: g('created', 'created_at', 'order_date', 'event_time') || new Date().toISOString(),
     customer: cust,
