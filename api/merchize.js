@@ -102,23 +102,39 @@ export default async function handler(req, res) {
       let codes = [];
       try { const b = typeof req.body === 'string' ? JSON.parse(req.body) : req.body; codes = (b && b.codes) || []; } catch (e) {}
       if (!codes.length) { res.status(400).json({ error: 'Thiếu danh sách mã đơn (codes)' }); return; }
+      const debug = req.query.debug === '1';
+      if (!key) { res.status(200).json({ error: 'Chưa có API key', hint: 'Nhập API Key Merchize trong Cài đặt rồi Lưu', base }); return; }
       const rootD = base.endsWith('/bo-api') ? base : base + '/bo-api';
       const url = `${rootD}/order/external/orders/list-orders-detail`;
-      const orders = codes.map(c => {
+      const ordersBody = codes.map(c => {
         const s = String(c).trim();
-        // nếu giống mã Merchize (RB-/RX-...) → code; ngược lại coi là external_number
         return /^[A-Z]{2}-/i.test(s) ? { code: s } : { external_number: s };
       });
-      const r = await fetch(url, {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${key}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ orders }),
-      });
-      const text = await r.text();
-      let json; try { json = JSON.parse(text); } catch (e) { json = null; }
-      if (!r.ok || !json) { res.status(502).json({ error: 'Merchize trả lỗi', http: r.status, sample: text.slice(0, 200) }); return; }
-      const data = json.data || json.orders || [];
-      res.status(200).json({ ok: true, count: Array.isArray(data) ? data.length : 0, data });
+      const body = JSON.stringify({ orders: ordersBody });
+      // Thử nhiều cách xác thực
+      const authMethods = [
+        { name: 'bearer', headers: { 'Authorization': `Bearer ${key}`, 'Content-Type': 'application/json' }, u: url },
+        { name: 'x-api-key', headers: { 'X-API-KEY': key, 'Content-Type': 'application/json' }, u: url },
+        { name: 'api-key', headers: { 'api-key': key, 'Content-Type': 'application/json' }, u: url },
+        { name: 'token', headers: { 'X-Merchize-Api-Key': key, 'Content-Type': 'application/json' }, u: url },
+        { name: 'query', headers: { 'Content-Type': 'application/json' }, u: url + '?api_key=' + encodeURIComponent(key) },
+      ];
+      const tried = [];
+      for (const m of authMethods) {
+        try {
+          const r = await fetch(m.u, { method: 'POST', headers: m.headers, body });
+          const text = await r.text();
+          let json; try { json = JSON.parse(text); } catch (e) { json = null; }
+          tried.push({ method: m.name, http: r.status, ok: r.ok, sample: text.slice(0, 120) });
+          if (r.ok && json && (json.data || json.orders || json.success)) {
+            const data = json.data || json.orders || [];
+            res.status(200).json({ ok: true, authUsed: m.name, count: Array.isArray(data) ? data.length : 0, data, ...(debug ? { tried } : {}) });
+            return;
+          }
+        } catch (e) { tried.push({ method: m.name, error: e.message }); }
+      }
+      // Tất cả đều fail
+      res.status(200).json({ error: 'Merchize từ chối mọi cách xác thực', http: 403, base: rootD, url, keyLen: key.length, tried });
       return;
     }
 
