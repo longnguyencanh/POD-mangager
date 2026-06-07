@@ -101,6 +101,33 @@ export default async function handler(req, res) {
       return;
     }
 
+    // ── QUÊN MẬT KHẨU (gửi pass mới qua Telegram) ──
+    if (action === 'forgot') {
+      const { user } = body;
+      if (!users) { res.status(501).json({ error: 'Cần cấu hình database' }); return; }
+      const found = users.find(u => u.user === user);
+      // Chỉ cho admin reset; luôn trả về "đã gửi" để không lộ tài khoản nào tồn tại
+      const botToken = process.env.TELEGRAM_BOT_TOKEN || '';
+      const chatId = process.env.TELEGRAM_CHAT_ID || '';
+      if (found && found.role === 'admin' && botToken && chatId) {
+        // tạo mật khẩu mới ngẫu nhiên
+        const newPass = 'LN' + Math.random().toString(36).slice(2, 8) + Math.floor(Math.random() * 90 + 10);
+        found.pass = hashPass(newPass);
+        await saveUsers(users);
+        // gửi Telegram
+        try {
+          const text = `🔐 POD Manager — Đặt lại mật khẩu\n\nTài khoản: ${user}\nMật khẩu mới: ${newPass}\n\nĐăng nhập rồi đổi lại mật khẩu trong mục Đổi mật khẩu.`;
+          await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ chat_id: chatId, text }),
+          });
+        } catch (e) {}
+      }
+      // luôn trả về thông báo giống nhau (bảo mật)
+      res.status(200).json({ ok: true, message: 'Nếu tài khoản hợp lệ, mật khẩu mới đã được gửi vào Telegram.' });
+      return;
+    }
+
     // Các action sau cần đăng nhập
     const session = verify(req.headers['x-session']);
     if (!session) { res.status(401).json({ error: 'Chưa đăng nhập' }); return; }
