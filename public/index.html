@@ -31,10 +31,51 @@ body{font-family:'Be Vietnam Pro',sans-serif;background:var(--bg);color:var(--te
 .sb-item.active{background:var(--green);color:#fff;border-radius:0 22px 22px 0;margin-right:14px}
 .sb-item .ic{font-size:14px}
 .sb-badge{margin-left:auto;background:#fff;color:var(--green);font-size:10px;font-weight:700;padding:1px 7px;border-radius:10px}
+.sb-account{margin-top:auto;padding:14px 16px;border-top:1px solid var(--border)}
+.sb-acc-name{font-size:12px;font-weight:600;color:var(--text);margin-bottom:8px}
+.sb-logout{width:100%;background:var(--red-l);border:1px solid #f0c4bd;color:var(--red);border-radius:8px;padding:8px;cursor:pointer;font-family:inherit;font-size:12px;font-weight:600}
+.sb-logout:hover{background:#f8ddd9}
 .sb-item.active .sb-badge{background:rgba(255,255,255,.25);color:#fff}
 
 /* ─── MAIN ─── */
 .main{flex:1;display:flex;flex-direction:column;overflow:hidden;position:relative}
+
+/* nút thu/mở menu + thanh mobile */
+.mobile-top{display:none;align-items:center;gap:12px;padding:10px 16px;background:var(--surface);border-bottom:1px solid var(--border);flex-shrink:0}
+.hamb{background:none;border:1px solid var(--border2);border-radius:8px;font-size:18px;width:38px;height:38px;cursor:pointer;color:var(--text);flex-shrink:0}
+.hamb:hover{background:var(--bg)}
+.mobile-title{font-weight:700;font-size:15px}
+.sb-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:90}
+.sb-overlay.show{display:block}
+/* thu gọn sidebar trên desktop */
+body.sb-collapsed .sb{width:0;min-width:0;overflow:hidden;border-right:none}
+.desk-hamb{position:absolute;top:12px;left:12px;z-index:50;background:var(--surface);border:1px solid var(--border2);border-radius:8px;font-size:16px;width:34px;height:34px;cursor:pointer;color:var(--text);display:none}
+body.sb-collapsed .desk-hamb{display:block}
+
+/* ─── RESPONSIVE: điện thoại (iPhone, Samsung...) ─── */
+@media (max-width:768px){
+  body{font-size:13px}
+  .mobile-top{display:flex}
+  /* sidebar trượt ra từ trái */
+  .sb{position:fixed;top:0;left:0;height:100vh;z-index:100;width:240px;transform:translateX(-100%);transition:transform .25s ease;box-shadow:2px 0 16px rgba(0,0,0,.15)}
+  .sb.open{transform:translateX(0)}
+  /* config strip + page header gọn lại */
+  .cfg-bar{padding:10px 14px;flex-wrap:wrap}
+  .ph{padding:14px 16px !important}
+  .page-scroll{padding:14px 16px !important}
+  /* detail panel toàn màn hình */
+  .detail{width:100% !important;max-width:100% !important}
+  /* modal vừa màn hình */
+  .modal{width:95vw !important;padding:18px !important}
+  /* bảng cuộn ngang được */
+  .mini-table{display:block;overflow-x:auto;white-space:nowrap}
+  /* grid 2 cột → 1 cột */
+  .block-grid2,.fr.c2,.fr.c21{grid-template-columns:1fr !important;display:grid !important}
+  .hist-filters{flex-direction:column;align-items:stretch}
+  .hist-filters .fi,.hist-filters .btn{width:100% !important}
+  .desk-collapse{display:none !important}
+  .desk-hamb{display:none !important}
+}
 
 /* config strip */
 .cfg-bar{background:var(--surface);border-bottom:1px solid var(--border);padding:10px 28px;display:flex;gap:8px;align-items:center;flex-shrink:0}
@@ -73,13 +114,13 @@ body{font-family:'Be Vietnam Pro',sans-serif;background:var(--bg);color:var(--te
 .oi-name{font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .oi-id{font-size:11px;color:var(--text3);margin-top:2px}
 .oi-code{font-weight:700;color:var(--accent);font-size:12px}
-.d-header{display:flex;gap:14px;align-items:center;padding:14px;background:var(--bg);border:1px solid var(--border);border-radius:12px;margin-bottom:16px}
-.d-header-thumb{width:72px;height:72px;border-radius:11px;overflow:hidden;background:var(--surface);border:1px solid var(--border2);display:flex;align-items:center;justify-content:center;font-size:30px;flex-shrink:0}
+.d-header{display:flex;gap:16px;align-items:center;padding:16px;background:linear-gradient(135deg,var(--accent-l),var(--bg));border:1px solid var(--border);border-radius:14px;margin-bottom:18px}
+.d-header-thumb{width:88px;height:88px;border-radius:12px;overflow:hidden;background:var(--surface);border:1px solid var(--border2);display:flex;align-items:center;justify-content:center;font-size:34px;flex-shrink:0}
 .d-header-thumb img{width:100%;height:100%;object-fit:cover}
 .d-header-info{flex:1;min-width:0}
-.d-header-name{font-size:14px;font-weight:600;margin-bottom:4px}
-.d-header-code{font-size:15px;font-weight:800;color:var(--accent);letter-spacing:.3px}
-.d-header-shop{font-size:11.5px;color:var(--text3);margin-top:3px}
+.d-header-code{font-size:17px;font-weight:800;color:var(--accent);letter-spacing:.3px;margin-bottom:5px}
+.d-header-name{font-size:13.5px;font-weight:500;color:var(--text);line-height:1.4;margin-bottom:4px}
+.d-header-shop{font-size:11.5px;color:var(--text3)}
 .d-history{display:flex;flex-direction:column;gap:0}
 .hist-row{display:flex;gap:10px;padding:6px 0;position:relative}
 .hist-dot{width:9px;height:9px;border-radius:50%;background:var(--accent);margin-top:5px;flex-shrink:0;box-shadow:0 0 0 3px var(--accent-l)}
@@ -102,9 +143,14 @@ body{font-family:'Be Vietnam Pro',sans-serif;background:var(--bg);color:var(--te
 .p-new{background:var(--green-l);color:var(--green-d)}
 .p-pending{background:var(--orange-l);color:var(--orange)}
 .p-processing{background:#e8eef7;color:#4a6ba0}
+.p-notsent{background:#f0eeea;color:#777}
+.p-producing{background:#fdf0e3;color:#9a6a2a}
+.p-shipped{background:#e3f3e8;color:#2e7d46;font-weight:700}
+.p-hold{background:#fbe9d4;color:#c47a1e;font-weight:700}
 .p-done{background:#f0eeea;color:#888}
 .p-missing{background:var(--red-l);color:var(--red)}
-.p-cancelled{background:#f0eeea;color:#aaa}
+.p-cancelled{background:#fbe3e0;color:#c23a2a;font-weight:700}
+.urgent-tag{background:#fff3cd;color:#b8860b;font-weight:700;padding:1px 7px;border-radius:10px;font-size:10.5px}
 .oi-price{font-size:12px;font-weight:700;color:var(--accent);margin-left:auto}
 .oi-time{font-size:10.5px;color:var(--text3)}
 .urgent-tag{background:var(--red-l);color:var(--red);font-size:10px;font-weight:700;padding:2px 7px;border-radius:9px;border:1px solid #f0c4bd}
@@ -324,10 +370,16 @@ body[data-role="seller"] .no-seller{display:none !important}
 </div>
 
 <!-- SIDEBAR -->
-<aside class="sb">
+<div class="sb-overlay" id="sb-overlay" onclick="toggleSidebar(false)"></div>
+<aside class="sb" id="sidebar">
   <div class="sb-logo">
-    <div class="sb-logo-t">🏷️ POD Manager</div>
-    <div class="sb-logo-s">Quản lý đơn xưởng</div>
+    <div style="display:flex;align-items:center;justify-content:space-between">
+      <div>
+        <div class="sb-logo-t">🏷️ POD Manager</div>
+        <div class="sb-logo-s">Quản lý đơn xưởng</div>
+      </div>
+      <button class="hamb desk-collapse" onclick="collapseSidebar()" title="Thu gọn menu" style="width:30px;height:30px;font-size:14px">«</button>
+    </div>
   </div>
   <div class="sb-sec">Tổng quan</div>
   <div class="sb-item" id="nav-home" onclick="goPage('home')"><span class="ic">🏠</span> Trang chủ</div>
@@ -346,15 +398,24 @@ body[data-role="seller"] .no-seller{display:none !important}
   <div class="sb-item admin-only" onclick="openUsers()"><span class="ic">👥</span> Quản lý nhân viên</div>
   <div class="sb-item admin-only" onclick="openSettings()"><span class="ic">⚙️</span> Cài đặt</div>
   <div class="sb-item" onclick="openChangePass()"><span class="ic">🔑</span> Đổi mật khẩu</div>
+  <div id="sb-account" class="sb-account"></div>
 </aside>
 
 <!-- MAIN -->
 <div class="main">
+  <button class="desk-hamb" onclick="collapseSidebar()" title="Mở menu">☰</button>
+
+  <!-- Thanh trên cùng (mobile + nút thu/mở menu) -->
+  <div class="mobile-top">
+    <button class="hamb" onclick="toggleSidebar()">☰</button>
+    <div class="mobile-title">🏷️ POD Manager</div>
+  </div>
 
   <!-- ════ PAGE: ĐƠN HÀNG ════ -->
   <div class="page active" id="page-orders">
     <div class="cfg-bar">
-      <span style="flex:1;font-size:12px;color:var(--text3)">Đơn tự động về từ Merchize (webhook). Nhấn <b>Đồng bộ đơn</b> để tải lại danh sách mới nhất.</span>
+      <span style="flex:1;font-size:12px;color:var(--text3)">Đơn tự động về từ Merchize (webhook). Nhấn <b>Đồng bộ đơn</b> để tải lại.</span>
+      <button class="btn btn-sm admin-only" onclick="exportOrdersSheet()">📊 Xuất Sheet</button>
       <button class="btn btn-green btn-sm" onclick="syncOrders()" id="fetch-btn">⟳ Đồng bộ đơn</button>
     </div>
 
@@ -672,12 +733,12 @@ body[data-role="seller"] .no-seller{display:none !important}
   </div>
 
   <div class="detail-scroll">
-    <!-- Header nổi bật: ảnh + tên SP + mã đơn -->
+    <!-- Header nổi bật: ảnh to + mã đơn + tên SP -->
     <div class="d-header">
       <div class="d-header-thumb" id="d-thumb">🖼️</div>
       <div class="d-header-info">
-        <div class="d-header-name" id="d-pname">Sản phẩm</div>
         <div class="d-header-code" id="d-pcode">#—</div>
+        <div class="d-header-name" id="d-pname">Sản phẩm</div>
         <div class="d-header-shop" id="d-pshop"></div>
       </div>
     </div>
@@ -688,12 +749,16 @@ body[data-role="seller"] .no-seller{display:none !important}
       <div class="fl"><label>Order ID</label><input class="fi" id="d-oid" readonly></div>
       <div class="fl"><label>Trạng thái</label>
         <select class="fi" id="d-status" onchange="onStatusChange()">
-          <option value="new">Đơn mới</option>
-          <option value="pending">Chờ xử lý</option>
-          <option value="processing">Đang xử lý</option>
-          <option value="done">Đã xử lý</option>
-          <option value="missing">Thiếu info</option>
-          <option value="cancelled">Đã huỷ</option>
+          <option value="new">🆕 Đơn mới</option>
+          <option value="pending">⏳ Chờ xử lý</option>
+          <option value="processing">⚙️ Đang xử lý</option>
+          <option value="not_sent">📦 Chưa gửi</option>
+          <option value="producing">🏭 Đang chờ sản xuất</option>
+          <option value="shipped">🟢 Đã gửi đi</option>
+          <option value="hold">🟠 Hold</option>
+          <option value="done">✓ Đã xử lý</option>
+          <option value="missing">⚠️ Thiếu info</option>
+          <option value="cancelled">🔴 Đã huỷ</option>
         </select>
       </div>
     </div>
@@ -780,11 +845,16 @@ body[data-role="seller"] .no-seller{display:none !important}
     <div class="divider"></div>
 
     <!-- Ghi chú -->
-    <div class="sec-title">🎨 File thiết kế (Lark)</div>
-    <div class="push-row" style="display:flex;gap:8px;align-items:center">
-      <input class="fi" id="d-lark" placeholder="Dán link Lark file design của đơn..." style="flex:1">
-      <button class="btn btn-sm no-support no-seller" onclick="saveLark()">💾 Lưu link</button>
+    <div class="sec-title">🎨 File thiết kế</div>
+    <div class="push-row" style="display:flex;gap:8px;align-items:center;margin-bottom:8px">
+      <input class="fi" id="d-lark" placeholder="Dán link Lark..." style="flex:1">
+      <button class="btn btn-sm no-support" onclick="saveLark()">💾 Lưu Lark</button>
       <a id="d-lark-open" class="btn btn-sm" target="_blank" style="display:none">↗ Mở</a>
+    </div>
+    <div class="push-row" style="display:flex;gap:8px;align-items:center">
+      <input class="fi" id="d-gdrive" placeholder="Dán link Google Drive..." style="flex:1">
+      <button class="btn btn-sm no-support" onclick="saveGdrive()">📤 Gửi link lên</button>
+      <a id="d-gdrive-open" class="btn btn-sm" target="_blank" style="display:none">↗ Mở</a>
     </div>
 
     <div class="sec-title">📝 Ghi chú nội bộ</div>
@@ -964,7 +1034,7 @@ async function doLogin(){
     catch(netErr){ r=null; } // mở file local → không có server
     if(!r||r.status===404){
       // Chế độ demo (chưa deploy): cho đăng nhập các vai trò để xem trước
-      const demo={admin:['abc13579','admin','Sếp (demo)'],seller:['seller123','seller','Seller (demo)'],design:['design123','design','Design (demo)'],support:['support123','support','Support (demo)']};
+      const demo={admin:['abc13579','admin','Sếp'],seller:['seller123','seller','Seller'],design:['design123','design','Design'],support:['support123','support','Support']};
       const d=demo[user];
       if(d&&pass===d[0]){auth={token:'local-demo',role:d[1],name:d[2],user};}
       else throw new Error('Sai tài khoản. (Demo: admin/abc13579, seller/seller123, design/design123, support/support123)');
@@ -1114,16 +1184,12 @@ function applyRole(){
     const oc=el.getAttribute('onclick')||'';
     if((oc.includes("analytics")||oc.includes("insight"))&&!isAdmin)el.style.display='none';
   });
-  // Nhãn vai trò
+  // Nhãn vai trò — hiện ở cuối sidebar
   const ROLE_LABEL={admin:'👑 Sếp',seller:'🛒 Seller',design:'🎨 Design',support:'🎧 Support',staff:'👤 Nhân viên'};
   const label=ROLE_LABEL[auth?auth.role:'']||'👤';
-  const logo=document.querySelector('.sb-logo');
-  if(logo&&!document.getElementById('user-box')){
-    const box=document.createElement('div');
-    box.id='user-box';
-    box.style.cssText='margin-top:10px;padding:8px 10px;background:var(--bg);border-radius:8px;font-size:11.5px;display:flex;align-items:center;justify-content:space-between;gap:6px';
-    box.innerHTML=`<span>${label} · ${auth.name}</span><button onclick="logout()" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:11px;font-family:inherit">Thoát</button>`;
-    logo.appendChild(box);
+  const acc=document.getElementById('sb-account');
+  if(acc&&auth){
+    acc.innerHTML=`<div class="sb-acc-name">${label} · ${auth.name}</div><button class="sb-logout" onclick="logout()">⎋ Đăng xuất</button>`;
   }
   document.body.setAttribute('data-role',auth?auth.role:'');
 }
@@ -1135,9 +1201,40 @@ let currentPage='orders';
 let charts={};
 let analyticsPeriod='7d';
 
+function collapseSidebar(){
+  document.body.classList.toggle('sb-collapsed');
+}
+// Xuất CSV chi tiết (mở bằng Google Sheet): tên đơn, tên SP, size, địa chỉ tách dòng
+function exportOrdersSheet(){
+  if(!orders.length){toast('Chưa có đơn để xuất','warn');return;}
+  const cols=['Mã đơn','Tên sản phẩm','SKU','Size','Số lượng','Khách hàng','Email','Địa chỉ 1','Địa chỉ 2','Thành phố','Bang/Tỉnh','Mã bưu chính','Quốc gia','Tổng tiền','Trạng thái','Link Lark','Link Google Drive'];
+  let csv=cols.join(',')+'\n';
+  orders.forEach(o=>{
+    const it=(o.items&&o.items[0])||{};
+    // tách địa chỉ: o.address dạng "addr1, city, state, zip, country"
+    const parts=(o.address||'').split(',').map(s=>s.trim());
+    const addr1=parts[0]||'';const addr2='';const city=parts[1]||'';const state=parts[2]||'';const zip=parts[3]||'';const country=o.country||parts[4]||'';
+    const row=[
+      orderCode(o),it.title||'',it.sku||'',fixedSize(it),it.qty||1,
+      o.customer||'',o.email||'',addr1,addr2,city,state,zip,country,
+      o.total||'',STATUS_LABEL[o.status]||o.status,o.larkLink||'',o.gdriveLink||''
+    ].map(x=>`"${String(x).replace(/"/g,'""')}"`).join(',');
+    csv+=row+'\n';
+  });
+  const blob=new Blob(['\ufeff'+csv],{type:'text/csv;charset=utf-8'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='don-hang-chi-tiet.csv';a.click();
+  toast('✅ Đã xuất file (mở bằng Google Sheet)','success');
+}
+function toggleSidebar(force){
+  const sb=document.getElementById('sidebar');const ov=document.getElementById('sb-overlay');
+  const open=(typeof force==='boolean')?force:!sb.classList.contains('open');
+  sb.classList.toggle('open',open);
+  ov.classList.toggle('show',open);
+}
 function goPage(page){
   // Chặn staff vào trang analytics
   if((page==='analytics'||page==='insight'||page==='sysadmin')&&(!auth||auth.role!=='admin')){toast('Bạn không có quyền xem trang này','error');return;}
+  toggleSidebar(false); // đóng menu sau khi chọn (mobile)
   currentPage=page;
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.getElementById('page-'+page).classList.add('active');
@@ -1801,8 +1898,8 @@ function filterOrders(q){searchQ=q.toLowerCase();applyFilter();}
 function applyFilter(){filtered=orders.filter(o=>{if(shopFilter!=='all'&&o.shopTitle!==shopFilter)return false;if(currentTab!=='all'&&o.status!==currentTab)return false;if(searchQ)return o.id.includes(searchQ)||o.customer.toLowerCase().includes(searchQ)||(o.items?.[0]?.title||'').toLowerCase().includes(searchQ)||(o.external_id||'').includes(searchQ)||(o.items?.[0]?.sku||'').toLowerCase().includes(searchQ);return true;});renderList();}
 function updateCounts(){const c={all:orders.length};orders.forEach(o=>{c[o.status]=(c[o.status]||0)+1;});['all','pending','processing','done','missing','missing_qty'].forEach(k=>{const el=document.getElementById('tc-'+k);if(el)el.textContent=c[k]||0;});document.getElementById('sb-cnt').textContent=orders.length;if(currentPage==='home')renderHome();else if(currentPage==='dashboard')renderDashboard();else if(currentPage==='analytics')renderAnalytics();}
 
-const PILLS={new:['p-new','● Đơn mới'],pending:['p-pending','● Chờ xử lý'],processing:['p-processing','● Đang xử lý'],done:['p-done','✓ Đã xử lý'],missing:['p-missing','⚠ Thiếu info'],missing_qty:['p-missing','⚠ Thiếu SL'],cancelled:['p-cancelled','✕ Huỷ']};
-const STATUS_LABEL={new:'Đơn mới',pending:'Chờ xử lý',processing:'Đang xử lý',done:'Đã xử lý',missing:'Thiếu info',missing_qty:'Thiếu SL',cancelled:'Huỷ'};
+const PILLS={new:['p-new','🆕 Đơn mới'],pending:['p-pending','⏳ Chờ xử lý'],processing:['p-processing','⚙️ Đang xử lý'],not_sent:['p-notsent','📦 Chưa gửi'],producing:['p-producing','🏭 Chờ sản xuất'],shipped:['p-shipped','🟢 Đã gửi'],hold:['p-hold','🟠 Hold'],done:['p-done','✓ Đã xử lý'],missing:['p-missing','⚠ Thiếu info'],missing_qty:['p-missing','⚠ Thiếu SL'],cancelled:['p-cancelled','🔴 Huỷ']};
+const STATUS_LABEL={new:'Đơn mới',pending:'Chờ xử lý',processing:'Đang xử lý',not_sent:'Chưa gửi',producing:'Đang chờ sản xuất',shipped:'Đã gửi đi',hold:'Hold',done:'Đã xử lý',missing:'Thiếu info',missing_qty:'Thiếu SL',cancelled:'Huỷ'};
 function renderList(){
   const el=document.getElementById('order-list');
   if(!filtered.length){el.innerHTML='<div class="empty-state"><div class="ei">📭</div><div>Không có đơn</div></div>';return;}
@@ -1832,6 +1929,8 @@ function selectOrder(id){
   renderHistory(o);
   const lk=document.getElementById('d-lark');if(lk)lk.value=o.larkLink||'';
   const lo=document.getElementById('d-lark-open');if(lo){if(o.larkLink){lo.style.display='';lo.href=o.larkLink;}else lo.style.display='none';}
+  const gd=document.getElementById('d-gdrive');if(gd)gd.value=o.gdriveLink||'';
+  const go=document.getElementById('d-gdrive-open');if(go){if(o.gdriveLink){go.style.display='';go.href=o.gdriveLink;}else go.style.display='none';}
   document.getElementById('d-time').textContent=fmtDate(o.created);
   const fb=document.getElementById('btn-flag');if(fb)fb.classList.toggle('on',!!o.urgent);
   renderProds(o.items);
@@ -1851,6 +1950,16 @@ function selectOrder(id){
 }
 function closeDetail(){document.getElementById('overlay-bg').classList.remove('open');document.getElementById('detail').classList.remove('open');}
 
+function saveGdrive(){
+  if(!current)return;
+  const v=document.getElementById('d-gdrive').value.trim();
+  current.gdriveLink=v;
+  logHistory(current,v?'Cập nhật link Google Drive':'Xoá link Google Drive');
+  save();
+  const go=document.getElementById('d-gdrive-open');if(go){if(v){go.style.display='';go.href=v;}else go.style.display='none';}
+  renderHistory(current);
+  toast('✅ Đã gửi link Google Drive lên','success');
+}
 function saveLark(){
   if(!current)return;
   const v=document.getElementById('d-lark').value.trim();
@@ -1871,6 +1980,13 @@ function renderHistory(o){
 function pushStat(id,done,name){const el=document.getElementById(id);if(done){el.style.display='flex';el.innerHTML=`<span class="push-ok">✅ Đã đẩy sang ${name}</span>`;}else el.style.display='none';}
 
 // ── PRODUCTS ──
+// Trích size khách đặt (từ field size hoặc personalization "SIZE: 9\"")
+function fixedSize(it){
+  if(it.size&&it.size!=='— Chọn —')return it.size;
+  const p=it.personalization||'';
+  const m=p.match(/size[:\s]*([^,;\n]+)/i);
+  return m?m[1].trim():(p||'—');
+}
 function renderProds(items){
   const isAuto=current&&(current.source==='etsy'||current.source==='merchize');
   document.getElementById('prod-cnt').textContent=items.length;
@@ -1896,13 +2012,13 @@ function renderProds(items){
     </div>
     <div class="fr c2">
       <div class="fl"><label>Chất liệu (tuỳ chọn)</label><select class="fi" onchange="upd(${i},'material',this.value)">${MATERIALS.map(s=>`<option${it.material===s?' selected':''}>${s}</option>`).join('')}</select></div>
-      <div class="fl"><label>Kích thước (tuỳ chọn)</label><select class="fi" onchange="upd(${i},'size',this.value)">${SIZES.map(s=>`<option${it.size===s?' selected':''}>${s}</option>`).join('')}</select></div>
+      <div class="fl"><label>Kích thước ${isAuto?'🔒 (khách đặt)':'(tuỳ chọn)'}</label>${isAuto?`<input class="fi" value="${esc(fixedSize(it))}" readonly style="background:var(--bg);color:var(--text2);cursor:not-allowed" title="Size khách đặt — không sửa">`:`<select class="fi" onchange="upd(${i},'size',this.value)">${SIZES.map(s=>`<option${it.size===s?' selected':''}>${s}</option>`).join('')}</select>`}</div>
     </div>
     <div class="fr c2">
       <div class="fl"><label>Designer phụ trách</label><select class="fi" onchange="upd(${i},'designer',this.value)">${DESIGNERS.map(d=>`<option${it.designer===d?' selected':''}>${d}</option>`).join('')}</select></div>
       <div class="fl"><label>Fulfiller phụ trách</label><select class="fi" onchange="upd(${i},'fulfiller',this.value)">${FULFILLERS.map(f=>`<option${it.fulfiller===f?' selected':''}>${f}</option>`).join('')}</select></div>
     </div>
-    <div class="fr"><div class="fl"><label>Personalization</label><input class="fi" value="${esc(it.personalization)}" placeholder="Nội dung cá nhân hoá..." oninput="upd(${i},'personalization',this.value)"></div></div>
+    <div class="fr"><div class="fl"><label>Personalization ${isAuto?'🔒 (khách yêu cầu)':''}</label><input class="fi" value="${esc(it.personalization)}" ${isAuto?'readonly style="background:var(--bg);color:var(--text2);cursor:not-allowed" title="Yêu cầu của khách — không sửa"':`placeholder="Nội dung cá nhân hoá..." oninput="upd(${i},'personalization',this.value)"`}></div></div>
     <div class="fr"><div class="fl"><label>🎨 Link design SP này (Lark)</label><div style="display:flex;gap:6px"><input class="fi" value="${esc(it.larkLink||'')}" placeholder="Link Lark cho sản phẩm này..." oninput="upd(${i},'larkLink',this.value)" style="flex:1">${it.larkLink?`<a class="btn btn-sm" href="${esc(it.larkLink)}" target="_blank">↗</a>`:''}</div></div></div>
     <div style="display:flex;align-items:center;gap:12px;margin-top:6px">
       <button class="btn-confirm${it.confirmed?' done':''}" onclick="confirmProd(${i})">✓ ${it.confirmed?'Đã xác nhận':'Xác nhận sản phẩm'}</button>
