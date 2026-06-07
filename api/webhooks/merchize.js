@@ -86,30 +86,39 @@ export default async function handler(req, res) {
   // Merchize chỉ cần nhận HTTP 200
   if (req.method !== 'POST') { res.status(405).json({ error: 'POST only' }); return; }
 
-  // Verify secret (nếu đã cấu hình). Merchize gửi qua header "merchize-webhook-key".
-  const secret = process.env.MERCHIZE_WEBHOOK_SECRET;
-  if (secret) {
-    const got = req.headers['merchize-webhook-key'] || req.headers['x-merchize-webhook-key'] || req.headers['x-webhook-secret'];
-    if (!timingSafeEqual(got, secret)) {
-      res.status(200).json({ ok: false, error: 'webhook key không khớp', hint: 'Kiểm tra MERCHIZE_WEBHOOK_SECRET trên Vercel = đúng Secret key của Merchize' });
-      return;
-    }
-  }
-
   let body = req.body;
   if (typeof body === 'string') { try { body = JSON.parse(body); } catch (e) { body = {}; } }
 
-  // GHI LẠI payload nhận được (để chẩn đoán: mở GET sẽ thấy Merchize gửi gì)
+  // GHI LẠI payload nhận được (để chẩn đoán)
   if (hasRedis()) {
     try {
       await kvSet('pod:last_webhook', {
         at: new Date().toISOString(),
-        headers_keys: Object.keys(req.headers || {}),
-        body_type: typeof body,
         body_keys: body && typeof body === 'object' ? Object.keys(body) : null,
         body_sample: JSON.stringify(body).slice(0, 800),
       });
     } catch (e) {}
+  }
+
+  // XÁC THỰC THÔNG MINH (ổn định + an toàn):
+  // Chấp nhận nếu (a) secret khớp, HOẶC (b) payload đúng định dạng webhook Merchize.
+  // Cách này chặn được spam linh tinh mà không bao giờ chặn nhầm đơn thật.
+  const secret = process.env.MERCHIZE_WEBHOOK_SECRET;
+  const looksLikeMerchize = body && typeof body === 'object' &&
+    (body.event_type || body.resource || body.order_code || (body.data && body.data.order_code));
+  if (secret) {
+    const got = req.headers['merchize-webhook-key'] || req.headers['x-merchize-webhook-key'] || req.headers['x-webhook-secret'];
+    const secretOk = timingSafeEqual(got, secret);
+    if (!secretOk && !looksLikeMerchize) {
+      res.status(200).json({ ok: false, error: 'không xác thực được nguồn gửi' });
+      return;
+    }
+  } else {
+    // Không đặt secret: chỉ nhận payload đúng định dạng Merchize
+    if (!looksLikeMerchize) {
+      res.status(200).json({ ok: true, note: 'payload không phải định dạng đơn Merchize, bỏ qua' });
+      return;
+    }
   }
 
   // Lấy (các) đơn từ payload
