@@ -14,12 +14,21 @@ export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Session');
   if (req.method === 'OPTIONS') { res.status(204).end(); return; }
 
-  // ── CẤU HÌNH CHUNG (skuMap...) — cho phép GET không cần auth chặt (chỉ đọc, không nhạy cảm) ──
-  if (req.query.op === 'config' && req.method === 'GET') {
+  // ── CẤU HÌNH CHUNG (skuMap...) — GET+POST không cần auth chặt (chỉ skuMap, không nhạy cảm) ──
+  if (req.query.op === 'config') {
     if (!hasRedis()) { res.status(200).json({ error: 'no-db' }); return; }
-    try { const cfg = await kvGet('pod:config'); res.status(200).json(cfg || {}); }
-    catch (e) { res.status(200).json({ error: e.message }); }
-    return;
+    if (req.method === 'GET') {
+      try { const cfg = await kvGet('pod:config'); res.status(200).json(cfg || {}); }
+      catch (e) { res.status(200).json({ error: e.message }); }
+      return;
+    }
+    if (req.method === 'POST') {
+      let body = req.body;
+      if (typeof body === 'string') { try { body = JSON.parse(body); } catch (e) { body = {}; } }
+      try { await kvSet('pod:config', body || {}); res.status(200).json({ ok: true }); }
+      catch (e) { res.status(200).json({ ok: false, error: e.message }); }
+      return;
+    }
   }
 
   const session = verify(req.headers['x-session']);
@@ -34,22 +43,6 @@ export default async function handler(req, res) {
   const CFG_KEY = 'pod:config';
 
   try {
-    // ── CẤU HÌNH CHUNG (skuMap, v.v.) — dùng chung cả team ──
-    if (req.query.op === 'config') {
-      if (req.method === 'GET') {
-        const cfg = await kvGet(CFG_KEY);
-        res.status(200).json(cfg || {});
-        return;
-      }
-      if (req.method === 'POST') {
-        let body = req.body;
-        if (typeof body === 'string') { try { body = JSON.parse(body); } catch (e) { body = {}; } }
-        await kvSet(CFG_KEY, body || {});
-        res.status(200).json({ ok: true });
-        return;
-      }
-    }
-
     if (req.method === 'GET') {
       const data = await kvGet(KEY);
       res.status(200).json(data || { orders: [], updatedAt: null, updatedBy: null });
