@@ -129,7 +129,9 @@ export default async function handler(req, res) {
       const { user, pass, role, name } = body;
       if (!user || !pass) { res.status(400).json({ error: 'Thiếu tài khoản/mật khẩu' }); return; }
       if (users.find(u => u.user === user)) { res.status(400).json({ error: 'Tài khoản đã tồn tại' }); return; }
-      users.push({ user, pass: hashPass(pass), role: role === 'admin' ? 'admin' : 'staff', name: name || user });
+      const validRoles = ['admin', 'seller', 'design', 'support', 'staff'];
+      const safeRole = validRoles.includes(role) ? role : 'seller';
+      users.push({ user, pass: hashPass(pass), role: safeRole, name: name || user });
       await saveUsers(users);
       res.status(200).json({ ok: true });
       return;

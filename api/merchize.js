@@ -78,19 +78,19 @@ export default async function handler(req, res) {
   // Các đường dẫn endpoint phổ biến của Merchize bo-api để thử
   // (/order trả 200 "order management service" → endpoint thật nằm dưới /order)
   const candidates = [
+    { path: '/order/get-orders', method: 'GET' },
+    { path: '/order/getOrders', method: 'GET' },
+    { path: '/order/list-order', method: 'GET' },
+    { path: '/order/list-orders', method: 'GET' },
+    { path: '/order/get-list-order', method: 'GET' },
+    { path: '/order-list', method: 'GET' },
+    { path: '/order/lists', method: 'GET' },
     { path: '/order/list', method: 'GET' },
-    { path: '/order/search', method: 'POST' },
-    { path: '/order/list', method: 'POST' },
-    { path: '/orders/search', method: 'POST' },
-    { path: '/order/orders', method: 'GET' },
-    { path: '/order/get-list', method: 'GET' },
-    { path: '/order/get-list', method: 'POST' },
+    { path: '/order/search', method: 'GET' },
     { path: '/order/all', method: 'GET' },
-    { path: '/order/index', method: 'GET' },
-    { path: '/order/filter', method: 'POST' },
-    { path: '/order', method: 'POST' },
-    { path: '/order/query', method: 'POST' },
-    { path: '/orders', method: 'GET' },
+    { path: '/order/data', method: 'GET' },
+    { path: '/order/items', method: 'GET' },
+    { path: '/order/get-list', method: 'GET' },
   ];
   const sep = base.endsWith('/bo-api') ? '' : '/bo-api';
   const root = base.endsWith('/bo-api') ? base : base + sep;
@@ -99,7 +99,8 @@ export default async function handler(req, res) {
     if (action === 'probe') {
       const out = [];
       for (const c of candidates) {
-        const url = `${root}${c.path}${c.method === 'GET' ? '?limit=5' : ''}`;
+        const q = c.method === 'GET' ? '?limit=5&page=1&per_page=5' : '';
+        const url = `${root}${c.path}${q}`;
         const r = await tryFetch(url, key, c.method);
         const orders = r.ok ? extractOrders(r.json) : null;
         out.push({ path: `${c.method} ${c.path}`, http: r.status, ok: r.ok, auth: r.auth || '-', found_orders: orders ? orders.length : (r.ok ? 'ok-?mảng' : 0), note: r.error || (r.text ? r.text.slice(0, 70) : '') });
@@ -112,7 +113,8 @@ export default async function handler(req, res) {
     // action=orders: thử lần lượt tới khi lấy được
     const limit = req.query.limit || 50;
     for (const c of candidates) {
-      const url = `${root}${c.path}${c.method === 'GET' ? `?limit=${limit}` : ''}`;
+      const q = c.method === 'GET' ? `?limit=${limit}&page=1&per_page=${limit}` : '';
+      const url = `${root}${c.path}${q}`;
       const r = await tryFetch(url, key, c.method);
       if (r.ok) {
         const orders = extractOrders(r.json);
