@@ -751,6 +751,27 @@ body[data-role="seller"] .no-seller{display:none !important}
           <button class="btn btn-green btn-sm" onclick="addPrice()">+ Thêm</button>
         </div>
       </div>
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:20px;max-width:720px;margin-top:16px">
+        <div style="font-size:14px;font-weight:700;margin-bottom:4px">💸 Chi phí vận hành (trừ vào lời tháng)</div>
+        <div style="font-size:11.5px;color:var(--text2);margin-bottom:14px;line-height:1.6">Các khoản không gắn vào đơn lẻ. App trừ vào tổng lời theo kỳ.</div>
+
+        <div style="font-size:12.5px;font-weight:600;margin-bottom:8px">📣 Quảng cáo theo ngày</div>
+        <div style="display:grid;grid-template-columns:1fr 1.2fr auto;gap:8px;align-items:end;margin-bottom:8px">
+          <div class="fl"><label>Ngày</label><input class="fi" id="ad-date" type="date"></div>
+          <div class="fl"><label>Số tiền ($)</label><input class="fi" id="ad-amount" type="number" step="0.01" placeholder="15.00"></div>
+          <button class="btn btn-green btn-sm" onclick="addAdCost()">+ Ghi</button>
+        </div>
+        <div id="ad-list" style="font-size:12px;max-height:140px;overflow:auto;margin-bottom:14px"></div>
+
+        <div class="divider"></div>
+        <div style="font-size:12.5px;font-weight:600;margin-bottom:8px">🏢 Chi phí cố định (lương, tiếp khách... — theo tháng)</div>
+        <div style="display:grid;grid-template-columns:1.5fr 1fr auto;gap:8px;align-items:end;margin-bottom:8px">
+          <div class="fl"><label>Tên khoản</label><input class="fi" id="oc-name" placeholder="vd: Lương NV văn phòng"></div>
+          <div class="fl"><label>Số tiền/tháng ($)</label><input class="fi" id="oc-amount" type="number" step="0.01" placeholder="500"></div>
+          <button class="btn btn-green btn-sm" onclick="addOpCost()">+ Thêm</button>
+        </div>
+        <div id="oc-list" style="font-size:12px"></div>
+      </div>
     </div>
   </div>
 
@@ -1263,11 +1284,48 @@ async function syncPriceSheet(){
     }
     if(!newMap.length){box.textContent='❌ Không đọc được dòng giá nào.\nCác cột: '+rows[0].join(', ');return;}
     cfg.priceMap=newMap;saveCfg();renderPriceList();applyFilter();updateCounts();
-    box.textContent=`✅ Đã lấy ${newMap.length} loại SP từ Sheet bảng giá xưởng.`;
+    const sample=newMap.slice(0,3).map(p=>`${p.style} → $${p.usd}/${p.vnd}đ`).join('\n');
+    box.textContent=`✅ Đã lấy ${newMap.length} loại SP.\nCột dùng: "${rows[0][si]}" (loại) + "${ui>=0?rows[0][ui]:'?'}" ($) + "${vi>=0?rows[0][vi]:'?'}" (đ)\nVí dụ:\n${sample}`;
     toast(`✅ Cập nhật ${newMap.length} loại SP`,'success');
   }catch(e){box.textContent='❌ Lỗi: '+e.message;}
 }
 function savePriceSheetUrl_load(){const el=document.getElementById('price-sheet-url');if(el)el.value=cfg.priceSheetUrl||'';}
+// ── CHI PHÍ VẬN HÀNH ──
+function addAdCost(){
+  const date=document.getElementById('ad-date').value;
+  const amount=parseFloat(document.getElementById('ad-amount').value)||0;
+  if(!date){toast('Chọn ngày','error');return;}
+  if(!amount){toast('Nhập số tiền','error');return;}
+  if(!cfg.adCosts)cfg.adCosts=[];
+  cfg.adCosts.push({date,amount,by:auth?auth.name:'',at:new Date().toISOString()});
+  saveCfg();renderAdList();renderDashboard&&renderDashboard();
+  document.getElementById('ad-amount').value='';
+  toast('✅ Đã ghi quảng cáo ngày '+date,'success');
+}
+function renderAdList(){
+  const el=document.getElementById('ad-list');if(!el)return;
+  const list=(cfg.adCosts||[]).slice().sort((a,b)=>b.date.localeCompare(a.date));
+  if(!list.length){el.innerHTML='<div style="color:var(--text3)">Chưa ghi quảng cáo nào.</div>';return;}
+  el.innerHTML=list.map(a=>`<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid var(--border2)"><span>📅 ${a.date}</span><span style="font-weight:600">$${(a.amount||0).toFixed(2)}</span><span style="color:var(--text3);font-size:11px">${a.by||''}</span></div>`).join('');
+}
+function addOpCost(){
+  const name=document.getElementById('oc-name').value.trim();
+  const amount=parseFloat(document.getElementById('oc-amount').value)||0;
+  if(!name){toast('Nhập tên khoản','error');return;}
+  if(!cfg.opCosts)cfg.opCosts=[];
+  cfg.opCosts.push({name,amount});
+  saveCfg();renderOpList();
+  document.getElementById('oc-name').value='';document.getElementById('oc-amount').value='';
+  toast('✅ Đã thêm "'+name+'"','success');
+}
+function delOpCost(i){cfg.opCosts.splice(i,1);saveCfg();renderOpList();}
+function renderOpList(){
+  const el=document.getElementById('oc-list');if(!el)return;
+  const list=cfg.opCosts||[];
+  if(!list.length){el.innerHTML='<div style="color:var(--text3)">Chưa có khoản nào.</div>';return;}
+  const total=list.reduce((a,c)=>a+(c.amount||0),0);
+  el.innerHTML=list.map((c,i)=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid var(--border2)"><span>${c.name}</span><span style="font-weight:600">$${(c.amount||0).toFixed(2)}/th</span><button class="btn btn-xs" style="color:var(--red)" onclick="delOpCost(${i})">✕</button></div>`).join('')+`<div style="display:flex;justify-content:space-between;padding:8px 0;font-weight:700;color:var(--accent)"><span>Tổng cố định/tháng</span><span>$${total.toFixed(2)}</span></div>`;
+}
 function addPrice(){
   const style=document.getElementById('pr-style').value.trim();
   const usd=parseFloat(document.getElementById('pr-usd').value)||0;
@@ -1475,7 +1533,7 @@ function goPage(page){
   if(page==='insight')renderInsight();
   if(page==='history')renderHistoryPage();
   if(page==='sysadmin')renderSysadmin();
-  if(page==='pricing'){renderPriceList();loadFees();savePriceSheetUrl_load();}
+  if(page==='pricing'){renderPriceList();loadFees();savePriceSheetUrl_load();renderAdList();renderOpList();}
 }
 
 // ── helper: orders in period ──
@@ -1562,11 +1620,20 @@ function renderPeriodStats(){
   ];
   el.innerHTML=periods.map(p=>{
     const s=agg(p.f);
+    // Chi phí vận hành trừ vào lời (QC theo ngày trong kỳ + lương cố định theo số tháng)
+    let adCost=0;(cfg.adCosts||[]).forEach(a=>{const d=new Date(a.date);if(!isNaN(d)&&p.f({created:a.date}))adCost+=a.amount||0;});
+    const opMonthly=(cfg.opCosts||[]).reduce((x,c)=>x+(c.amount||0),0);
+    // số tháng ước lượng theo kỳ
+    const monthsByLabel={'Hôm nay':1/30,'Hôm qua':1/30,'7 ngày qua':7/30,'30 ngày qua':1,['Năm nay ('+yearNow+')']:Math.max(1,now.getMonth()+1),['Năm ngoái ('+(yearNow-1)+')']:12};
+    const months=monthsByLabel[p.label]||0;
+    const opCost=opMonthly*months;
+    const netProfit=s.profit-adCost-opCost;
     return`<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px">
       <div style="font-size:12px;color:var(--text2);font-weight:600">${p.icon} ${p.label}</div>
       <div style="font-size:22px;font-weight:800;color:var(--accent);margin-top:6px">${s.n}<span style="font-size:12px;font-weight:600;color:var(--text3)"> đơn</span></div>
       <div style="font-size:13px;color:var(--text);margin-top:4px">💵 $${s.rev.toFixed(2)}</div>
-      <div style="font-size:12px;color:#b8860b;font-weight:600;margin-top:2px">💰 Lời $${s.profit.toFixed(2)}</div>
+      <div style="font-size:12px;color:#b8860b;font-weight:600;margin-top:2px">💰 Lời gộp $${s.profit.toFixed(2)}</div>
+      ${(adCost||opCost)?`<div style="font-size:11px;color:var(--red);margin-top:2px">− CP $${(adCost+opCost).toFixed(2)}</div><div style="font-size:12.5px;font-weight:700;color:#2e7d46;margin-top:2px">= Lời ròng $${netProfit.toFixed(2)}</div>`:''}
     </div>`;
   }).join('');
 }
@@ -1889,7 +1956,7 @@ async function cloudSaveCfg(){
   try{
     const headers={'Content-Type':'application/json'};
     if(auth&&auth.token)headers['X-Session']=auth.token;
-    const shared={skuMap:cfg.skuMap||[],priceMap:cfg.priceMap||[],fees:cfg.fees||{}};
+    const shared={skuMap:cfg.skuMap||[],priceMap:cfg.priceMap||[],fees:cfg.fees||{},adCosts:cfg.adCosts||[],opCosts:cfg.opCosts||[]};
     const r=await fetch('/api/data?op=config',{method:'POST',headers,body:JSON.stringify(shared)});
     return r.ok;
   }catch(e){return false;}
@@ -1899,7 +1966,7 @@ async function cloudLoadCfg(){
     const headers={'Content-Type':'application/json'};
     if(auth&&auth.token)headers['X-Session']=auth.token;
     const r=await fetch('/api/data?op=config',{headers});
-    if(r.ok){const c=await r.json();if(c&&Array.isArray(c.skuMap)){cfg.skuMap=c.skuMap;}if(c&&Array.isArray(c.priceMap)){cfg.priceMap=c.priceMap;}if(c&&c.fees){cfg.fees=c.fees;}localStorage.setItem(CFG_KEY,JSON.stringify(cfg));}
+    if(r.ok){const c=await r.json();if(c&&Array.isArray(c.skuMap)){cfg.skuMap=c.skuMap;}if(c&&Array.isArray(c.priceMap)){cfg.priceMap=c.priceMap;}if(c&&c.fees){cfg.fees=c.fees;}if(c&&Array.isArray(c.adCosts)){cfg.adCosts=c.adCosts;}if(c&&Array.isArray(c.opCosts)){cfg.opCosts=c.opCosts;}localStorage.setItem(CFG_KEY,JSON.stringify(cfg));}
   }catch(e){}
 }
 function openSettings(){const mb=document.getElementById('mrz-base');if(mb)mb.value=cfg.mrzBase||'';const mt=document.getElementById('mrz-token');if(mt)mt.value=cfg.mrzToken||'';const tu=document.getElementById('trk-sheet-url');if(tu)tu.value=cfg.trkSheetUrl||'';const wu=document.getElementById('mrz-webhook-url');if(wu)wu.value=location.origin+'/api/webhooks/merchize';document.getElementById('settings-modal').classList.add('open');}
