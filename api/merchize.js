@@ -1,128 +1,145 @@
-// Vercel Serverless — Merchize proxy: KÉO ĐƠN TỪ MERCHIZE về app
-// Yêu cầu đăng nhập (header X-Session).
+// Vercel Serverless — NHẬN webhook đơn hàng từ Merchize
+// Merchize tự gọi endpoint này mỗi khi có sự kiện đơn (tạo mới, cập nhật, thanh toán...).
 //
-// Cấu hình trên Vercel (Environment Variables):
-//   MERCHIZE_BASE_URL   = https://ten-store.merchize.store/bo-api   (có thể kèm hoặc bỏ /bo-api)
-//   MERCHIZE_API_KEY    = access token lấy từ Merchize dashboard → menu API
+// Cấu hình ở Merchize dashboard: Setting → Webhook → Add Webhook
+//   Endpoint URL: https://<vercel-url>/api/webhooks/merchize
+//   Chọn các sự kiện đơn hàng (order created, updated, paid...).
 //
-// LƯU Ý: token Merchize hết hạn hàng tháng, phải cập nhật lại định kỳ.
+// Bảo mật: Merchize gửi header "merchize-webhook-key" = secret nguyên bản.
+//   Đặt MERCHIZE_WEBHOOK_SECRET trên Vercel để app verify (so sánh timing-safe).
 //
-// Các action (?action=):
-//   orders  → lấy danh sách đơn (thử nhiều endpoint phổ biến, trả về cái nào chạy)
-//   probe   → CHẨN ĐOÁN: thử lần lượt các endpoint, báo cái nào trả dữ liệu (để biết đúng đường)
+// Đơn nhận được sẽ lưu vào database chung (pod:orders) — cả team thấy ngay.
 
-import { verify } from './auth.js';
+import crypto from 'crypto';
+import { hasRedis, kvGet, kvSet } from '../_redis.js';
 
-function getConfig(req, session) {
-  let base = process.env.MERCHIZE_BASE_URL || '';
-  let key = process.env.MERCHIZE_API_KEY || '';
-  // Cho phép admin truyền tạm qua header (test nhanh)
-  if (session.role === 'admin') {
-    if (req.headers['x-mrz-base']) base = req.headers['x-mrz-base'];
-    if (req.headers['x-mrz-key']) key = req.headers['x-mrz-key'];
-  }
-  // Chuẩn hoá: bỏ dấu / cuối
-  base = base.replace(/\/+$/, '');
-  return { base, key };
+function timingSafeEqual(a, b) {
+  const ba = Buffer.from(String(a || ''));
+  const bb = Buffer.from(String(b || ''));
+  if (ba.length !== bb.length) return false;
+  try { return crypto.timingSafeEqual(ba, bb); } catch (e) { return false; }
 }
 
-// Gọi 1 endpoint Merchize, thử cả cách xác thực qua header lẫn query; hỗ trợ GET/POST
-async function tryFetch(url, key, method = 'GET') {
-  const body = method === 'POST' ? JSON.stringify({ limit: 50, page: 1 }) : undefined;
-  const attempts = [
-    { headers: { 'Authorization': `Bearer ${key}`, 'Content-Type': 'application/json' }, url },
-    { headers: { 'X-API-KEY': key, 'Content-Type': 'application/json' }, url },
-    { headers: { 'Content-Type': 'application/json' }, url: url + (url.includes('?') ? '&' : '?') + 'api_key=' + encodeURIComponent(key) },
-  ];
-  let last = { ok: false, status: 0 };
-  for (const a of attempts) {
-    try {
-      const opts = { method, headers: a.headers };
-      if (body) opts.body = body;
-      const r = await fetch(a.url, opts);
-      const text = await r.text();
-      let json; try { json = JSON.parse(text); } catch (e) { json = null; }
-      if (r.ok && json) return { ok: true, status: r.status, json, auth: a.headers['Authorization'] ? 'bearer' : (a.headers['X-API-KEY'] ? 'x-api-key' : 'query') };
-      last = { ok: false, status: r.status, json, text: text.slice(0, 200) };
-    } catch (e) { last = { ok: false, status: 0, error: e.message }; }
-  }
-  return last;
+// Chuẩn hoá 1 đơn Merchize về format app
+function mapMerchizeOrder(o) {
+  const g = (...keys) => { for (const k of keys) { const v = k.split('.').reduce((x, p) => x && x[p], o); if (v !== undefined && v !== null) return v; } return undefined; };
+  const readable = g('code', 'order_number', 'number', 'name', 'reference');
+  const techId = g('id', '_id');
+  const id = String(readable || techId || ('MRZ-' + Math.random().toString(36).slice(2, 8)));
+  const items = (g('items', 'line_items', 'order_items', 'products') || []).map(it => ({
+    title: it.title || it.name || it.product_title || it.product_name || 'Sản phẩm',
+    sku: it.sku || it.variant_sku || it.variant_id || (it.variant || ''),
+    qty: it.quantity || it.qty || 1,
+    price: '$' + (parseFloat(it.price || it.unit_price || 0)).toFixed(2),
+    img: it.image || it.thumbnail || it.preview_url || it.image_url || '',
+    personalization: it.personalization || (Array.isArray(it.attributes) ? it.attributes.map(a => `${a.name}: ${a.option}`).join(', ') : '') || '',
+    supplier: 'Merchize', ptype: '— Chọn —', material: '— Chọn —', size: '— Chọn —',
+    designer: '— Chưa gán —', fulfiller: 'Merchize', confirmed: false,
+  }));
+  const cust = g('customer.name', 'customer_name', 'shipping_address.name', 'buyer_name') ||
+    [g('shipping_address.first_name'), g('shipping_address.last_name')].filter(Boolean).join(' ') || 'Unknown';
+  return {
+    id, orderNumber: String(readable || ''), external_id: String(g('external_number', 'external_id') || ''),
+    account: 'Merchize', shopId: String(g('store_id', 'shop_id') || 'merchize'), shopTitle: g('store_name', 'shop_name') || 'Merchize',
+    status: mapStatus(g('status', 'order_status', 'fulfillment_status')),
+    created: g('created', 'created_at', 'order_date') || new Date().toISOString(),
+    customer: cust,
+    country: g('shipping_address.country', 'customer.country', 'country') || '—',
+    email: g('customer.email', 'email', 'buyer_email') || '—',
+    address: [g('shipping_address.address1', 'address.address1'), g('shipping_address.city'), g('shipping_address.country')].filter(Boolean).join(', '),
+    total: '$' + (parseFloat(g('invoice.total', 'total', 'total_price', 'amount') || 0)).toFixed(2),
+    items, urgent: false, note: '', pushed: { merchize: true, sellerwix: false, sheet: false }, source: 'merchize',
+  };
 }
-
-// Trích mảng đơn từ nhiều kiểu response khác nhau
-function extractOrders(json) {
-  if (!json) return null;
-  if (Array.isArray(json)) return json;
-  if (Array.isArray(json.data)) return json.data;
-  if (json.data && Array.isArray(json.data.records)) return json.data.records;
-  if (Array.isArray(json.records)) return json.records;
-  if (Array.isArray(json.orders)) return json.orders;
-  if (json.data && Array.isArray(json.data.orders)) return json.data.orders;
-  return null;
+function mapStatus(s) {
+  const m = String(s || '').toLowerCase();
+  if (m.includes('cancel')) return 'cancelled';
+  if (m.includes('done') || m.includes('complete') || m.includes('fulfilled') || m.includes('delivered')) return 'done';
+  if (m.includes('process') || m.includes('production') || m.includes('printing')) return 'processing';
+  if (m.includes('pending') || m.includes('hold') || m.includes('review')) return 'pending';
+  return 'new';
 }
 
 export default async function handler(req, res) {
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Session, X-Mrz-Base, X-Mrz-Key');
-  if (req.method === 'OPTIONS') { res.status(204).end(); return; }
+  // GET = chẩn đoán: mở bằng trình duyệt để xem trạng thái
+  if (req.method === 'GET') {
+    let dbInfo = { configured: hasRedis(), orders: null };
+    if (hasRedis()) {
+      try { const c = await kvGet('pod:orders'); dbInfo.orders = c && c.orders ? c.orders.length : 0; }
+      catch (e) { dbInfo.error = e.message; }
+    }
+    res.status(200).json({
+      ok: true,
+      message: 'Webhook Merchize đang hoạt động. Dùng POST để gửi đơn.',
+      database: dbInfo,
+      secret_configured: !!process.env.MERCHIZE_WEBHOOK_SECRET,
+    });
+    return;
+  }
 
-  const session = verify(req.headers['x-session']);
-  if (!session) { res.status(401).json({ error: 'Chưa đăng nhập' }); return; }
+  // Merchize chỉ cần nhận HTTP 200
+  if (req.method !== 'POST') { res.status(405).json({ error: 'POST only' }); return; }
 
-  const { base, key } = getConfig(req, session);
-  if (!base || !key) { res.status(400).json({ error: 'Chưa cấu hình MERCHIZE_BASE_URL và MERCHIZE_API_KEY' }); return; }
-
-  const action = req.query.action || 'orders';
-
-  // Các đường dẫn endpoint phổ biến của Merchize bo-api để thử
-  // (/order trả 200 "order management service" → endpoint thật nằm dưới /order)
-  const candidates = [
-    { path: '/order/get-orders', method: 'GET' },
-    { path: '/order/getOrders', method: 'GET' },
-    { path: '/order/list-order', method: 'GET' },
-    { path: '/order/list-orders', method: 'GET' },
-    { path: '/order/get-list-order', method: 'GET' },
-    { path: '/order-list', method: 'GET' },
-    { path: '/order/lists', method: 'GET' },
-    { path: '/order/list', method: 'GET' },
-    { path: '/order/search', method: 'GET' },
-    { path: '/order/all', method: 'GET' },
-    { path: '/order/data', method: 'GET' },
-    { path: '/order/items', method: 'GET' },
-    { path: '/order/get-list', method: 'GET' },
-  ];
-  const sep = base.endsWith('/bo-api') ? '' : '/bo-api';
-  const root = base.endsWith('/bo-api') ? base : base + sep;
-
-  try {
-    if (action === 'probe') {
-      const out = [];
-      for (const c of candidates) {
-        const q = c.method === 'GET' ? '?limit=5&page=1&per_page=5' : '';
-        const url = `${root}${c.path}${q}`;
-        const r = await tryFetch(url, key, c.method);
-        const orders = r.ok ? extractOrders(r.json) : null;
-        out.push({ path: `${c.method} ${c.path}`, http: r.status, ok: r.ok, auth: r.auth || '-', found_orders: orders ? orders.length : (r.ok ? 'ok-?mảng' : 0), note: r.error || (r.text ? r.text.slice(0, 70) : '') });
-        if (orders && orders.length) break; // tìm được rồi thì dừng
-      }
-      res.status(200).json({ root, probe: out });
+  // Verify secret (nếu đã cấu hình). Merchize gửi qua header "merchize-webhook-key".
+  const secret = process.env.MERCHIZE_WEBHOOK_SECRET;
+  if (secret) {
+    const got = req.headers['merchize-webhook-key'] || req.headers['x-merchize-webhook-key'] || req.headers['x-webhook-secret'];
+    if (!timingSafeEqual(got, secret)) {
+      // Trả 200 (không phải 401) kèm cảnh báo, để Merchize không retry dồn — nhưng ghi rõ lý do
+      res.status(200).json({ ok: false, error: 'webhook key không khớp', hint: 'Kiểm tra MERCHIZE_WEBHOOK_SECRET trên Vercel = đúng Secret key của Merchize' });
       return;
     }
+  }
 
-    // action=orders: thử lần lượt tới khi lấy được
-    const limit = req.query.limit || 50;
-    for (const c of candidates) {
-      const q = c.method === 'GET' ? `?limit=${limit}&page=1&per_page=${limit}` : '';
-      const url = `${root}${c.path}${q}`;
-      const r = await tryFetch(url, key, c.method);
-      if (r.ok) {
-        const orders = extractOrders(r.json);
-        if (orders) { res.status(200).json({ ok: true, endpoint: `${c.method} ${c.path}`, count: orders.length, data: orders }); return; }
+  let body = req.body;
+  if (typeof body === 'string') { try { body = JSON.parse(body); } catch (e) { body = {}; } }
+
+  // Lấy (các) đơn từ payload — Merchize có thể gửi 1 đơn hoặc mảng, tuỳ event
+  let rawOrders = [];
+  if (body && body.data) rawOrders = Array.isArray(body.data) ? body.data : [body.data];
+  else if (body && body.order) rawOrders = [body.order];
+  else if (Array.isArray(body)) rawOrders = body;
+  else if (body && body.id) rawOrders = [body]; // payload chính là đơn
+
+  if (!rawOrders.length) { res.status(200).json({ ok: true, note: 'Không có đơn trong payload', received: true }); return; }
+
+  if (!hasRedis()) {
+    // Không có DB thì vẫn trả 200 để Merchize không retry, nhưng báo chưa lưu được
+    res.status(200).json({ ok: true, note: 'Chưa cấu hình database — đơn không được lưu' });
+    return;
+  }
+
+  try {
+    const KEY = 'pod:orders';
+    const current = (await kvGet(KEY)) || { orders: [] };
+    const byId = {};
+    current.orders.forEach((o, i) => { byId[o.id] = i; });
+
+    let added = 0, updated = 0;
+    for (const raw of rawOrders) {
+      const mapped = mapMerchizeOrder(raw);
+      if (byId[mapped.id] !== undefined) {
+        // giữ chỉnh sửa nội bộ của đơn cũ (trạng thái, designer, note, lark...)
+        const old = current.orders[byId[mapped.id]];
+        current.orders[byId[mapped.id]] = {
+          ...mapped,
+          status: old.status, urgent: old.urgent, note: old.note, pushed: old.pushed,
+          larkLink: old.larkLink, history: old.history || [],
+          items: mapped.items.map((it, i) => old.items && old.items[i] ? { ...it, designer: old.items[i].designer, fulfiller: old.items[i].fulfiller, confirmed: old.items[i].confirmed, larkLink: old.items[i].larkLink } : it),
+        };
+        updated++;
+      } else {
+        mapped.history = [{ t: Date.now(), by: 'Merchize (webhook)', act: 'Đơn tự động nhận từ Merchize' }];
+        current.orders.push(mapped);
+        added++;
       }
     }
-    res.status(404).json({ error: 'Không tìm thấy endpoint đơn hàng phù hợp. Dùng action=probe để chẩn đoán, hoặc gửi tài liệu API Merchize.' });
+    current.updatedAt = Date.now();
+    current.updatedBy = 'Merchize webhook';
+    await kvSet(KEY, current);
+    res.status(200).json({ ok: true, added, updated, total: current.orders.length });
   } catch (e) {
-    res.status(502).json({ error: e.message });
+    // vẫn trả 200 tránh Merchize retry dồn dập; log lỗi
+    res.status(200).json({ ok: false, error: e.message });
   }
 }
