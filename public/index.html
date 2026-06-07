@@ -760,7 +760,11 @@ body[data-role="seller"] .no-seller{display:none !important}
           <div style="font-size:12.5px;font-weight:600;margin-bottom:6px">💰 Lấy DOANH THU + giá + shop từ Merchize</div>
           <div style="font-size:11px;color:var(--text2);margin-bottom:8px;line-height:1.6">Merchize lưu: revenue (doanh thu Etsy), basecost (giá xưởng), tag (tên shop). App lấy tự động & chính xác cho từng đơn. Cần đã cấu hình API key Merchize.</div>
           <button class="btn btn-green btn-sm" onclick="syncMerchizePrices()">💰 Đồng bộ doanh thu + giá + shop</button>
-          <div id="mrz-price-box" style="display:none;margin-top:10px;background:#fff;border:1px solid var(--border2);border-radius:8px;padding:10px;font-size:11px;white-space:pre-wrap;max-height:160px;overflow:auto"></div>
+          <div style="margin-top:8px;display:flex;gap:6px;align-items:end">
+            <div class="fl" style="flex:1"><label style="font-size:11px">🔍 Chẩn đoán: nhập 1 mã đơn để xem dữ liệu thô Merchize</label><input class="fi" id="mrz-probe-code" placeholder="vd: 4077653402"></div>
+            <button class="btn btn-xs" onclick="probeMerchizeOrder()">Xem dữ liệu</button>
+          </div>
+          <div id="mrz-price-box" style="display:none;margin-top:10px;background:#fff;border:1px solid var(--border2);border-radius:8px;padding:10px;font-size:11px;white-space:pre-wrap;max-height:300px;overflow:auto"></div>
         </div>
         <div id="price-list"></div>
         <div class="divider"></div>
@@ -1492,6 +1496,35 @@ function loadFees(){
   set('fee-etsy',f.etsy);set('fee-pay',f.pay);set('fee-tax',f.tax);set('fee-flat',f.flat);
 }
 // Lấy giá basecost từng đơn qua API Merchize (giá khác nhau từng đơn)
+// Chẩn đoán: lấy dữ liệu thô 1 đơn Merchize để xem field tên shop/doanh thu
+async function probeMerchizeOrder(){
+  const box=document.getElementById('mrz-price-box');box.style.display='block';
+  const code=(document.getElementById('mrz-probe-code').value||'').trim();
+  if(!code){box.textContent='⚠️ Nhập mã đơn.';return;}
+  box.textContent='Đang lấy dữ liệu...';
+  try{
+    const r=await fetch('/api/merchize?action=details',{method:'POST',headers:mrzHeaders(),body:JSON.stringify({codes:[code]})});
+    const j=await r.json();
+    const data=j.data||[];
+    if(!data.length){box.textContent='❌ Không tìm thấy đơn '+code+' trên Merchize.\n'+JSON.stringify(j).slice(0,300);return;}
+    const md=data[0];
+    // hiện các field + giá trị (rút gọn) để tìm shop/doanh thu
+    const lines=[];
+    const scan=(obj,prefix='')=>{
+      for(const k in obj){
+        const v=obj[k];
+        if(v==null)continue;
+        if(typeof v==='object'&&!Array.isArray(v)){scan(v,prefix+k+'.');}
+        else if(Array.isArray(v)){lines.push(prefix+k+': ['+v.length+' phần tử]');if(v[0]&&typeof v[0]==='object')scan(v[0],prefix+k+'[0].');}
+        else lines.push(prefix+k+': '+String(v).slice(0,40));
+      }
+    };
+    scan(md);
+    // lọc field liên quan shop/tiền
+    const relevant=lines.filter(l=>/tag|shop|store|revenue|price|total|cost|value|amount/i.test(l));
+    box.textContent='📋 Field liên quan SHOP & TIỀN của đơn '+code+':\n\n'+(relevant.join('\n')||'(không thấy)')+'\n\n--- TẤT CẢ field ---\n'+lines.join('\n');
+  }catch(e){box.textContent='❌ Lỗi: '+e.message;}
+}
 async function syncMerchizePrices(){
   const box=document.getElementById('mrz-price-box');if(box){box.style.display='block';box.textContent='Đang lấy dữ liệu từ Merchize...';}
   const codes=orders.map(o=>o.orderNumber||o.external_id||o.id).filter(Boolean).slice(0,300);
@@ -1516,10 +1549,16 @@ async function syncMerchizePrices(){
         if(cost!=null&&o.items&&o.items[0]){o.items[0].basecostFromWorkshop=String(cost);upCost++;}
         // 3) TÊN SHOP (tag)
         const shop=findShopTag(md);
-        if(shop){o.shopTitle=shop;o.shopId=shop.toLowerCase().replace(/\s+/g,'');upShop++;}
+        if(shop){
+          o.shopTitle=shop;o.shopId=shop.toLowerCase().replace(/\s+/g,'');upShop++;
+          // tự thêm shop mới vào danh sách khai báo (để hiện ở bộ lọc)
+          if(!cfg.shops)cfg.shops=[];
+          if(!cfg.shops.includes(shop))cfg.shops.push(shop);
+        }
       });
     }
     localStorage.setItem('pod_orders',JSON.stringify(orders));
+    saveCfg(); // lưu danh sách shop mới phát hiện
     await cloudSaveAll();buildShopFilter();applyFilter();updateCounts();
     if(box)box.textContent=`✅ Đã đồng bộ từ Merchize:\n• Doanh thu: ${upRev} đơn\n• Basecost: ${upCost} đơn\n• Tên shop: ${upShop} đơn`+((upRev+upCost+upShop)===0?'\n⚠️ Không tìm thấy trường. Các trường có: '+sampleKeys:'');
     toast(`✅ Đồng bộ Merchize: ${upRev} doanh thu, ${upShop} shop`,'success');
@@ -1533,14 +1572,25 @@ function findRevenue(md){
   if(Array.isArray(md.items)&&md.items[0]){const it=md.items[0];for(const k of keys){if(it[k]!=null&&!isNaN(parseFloat(it[k])))return parseFloat(it[k]);}}
   return null;
 }
-// TÊN SHOP — Merchize lưu ở cột tag
+// TÊN SHOP — Merchize lưu ở tag (có thể nhiều tag: NeoPaws, etsy, etsy_NeoPaws)
 function findShopTag(md){
   if(!md)return null;
-  // tag có thể là chuỗi, hoặc mảng tag
-  let t=md.tag||md.tags||md.store_tag||md.shop_tag;
-  if(Array.isArray(t))t=t.find(x=>x&&typeof x==='string');
-  if(typeof t==='string'&&t.trim())return t.trim();
-  return null;
+  let raw=md.tag||md.tags||md.store_tag||md.shop_tag||md.store_name||md.shop_name;
+  // gom về mảng chuỗi
+  let arr=[];
+  if(Array.isArray(raw))arr=raw.filter(x=>typeof x==='string');
+  else if(typeof raw==='string')arr=raw.split(/[,;|]/).map(s=>s.trim());
+  arr=arr.map(s=>String(s).trim()).filter(Boolean);
+  if(!arr.length)return null;
+  // bỏ các tag chung chung không phải tên shop
+  const generic=/^(etsy|amazon|shopify|tiktok|unfulfilled|fulfilled|paid|us|valid|order|new)$/i;
+  // ưu tiên tag KHÔNG generic và KHÔNG chứa dấu _ (tên shop thuần, vd NeoPaws)
+  let pick=arr.find(t=>!generic.test(t)&&!t.includes('_'));
+  // nếu không có, lấy tag dạng etsy_XXX → tách lấy XXX
+  if(!pick){const u=arr.find(t=>t.includes('_'));if(u)pick=u.split('_').filter(p=>!generic.test(p)).join('_')||u;}
+  // cuối cùng lấy tag đầu không generic
+  if(!pick)pick=arr.find(t=>!generic.test(t));
+  return pick||null;
 }
 // Dò giá basecost trong object đơn Merchize (thử nhiều tên trường)
 function findPrice(md){
