@@ -1605,21 +1605,23 @@ function renderList(){
 function selectOrder(id){
   current=orders.find(o=>o.id===id);if(!current)return;
   const o=current;
-  set('d-oid',o.id);set('d-status',o.status,1);set('d-cust',o.customer);set('d-country',o.country);set('d-email',o.email);set('d-total',o.total);set('d-addr',o.address);set('d-note',o.note||'');
-  // Header nổi bật
-  const it0=o.items?.[0]||{};
+  // đảm bảo cấu trúc tối thiểu (đơn từ nguồn ngoài có thể thiếu trường)
+  if(!Array.isArray(o.items))o.items=[];
+  if(!o.pushed)o.pushed={};
+  try{
+  set('d-oid',o.id);set('d-status',o.status||'new',1);set('d-cust',o.customer||'—');set('d-country',o.country||'—');set('d-email',o.email||'—');set('d-total',o.total||'—');set('d-addr',o.address||'—');set('d-note',o.note||'');
+  const it0=o.items[0]||{};
   document.getElementById('d-pname').textContent=it0.title||'Sản phẩm';
   document.getElementById('d-pcode').textContent='#'+o.id;
   document.getElementById('d-pshop').textContent=o.shopTitle?('🏪 '+o.shopTitle):'';
   const th=document.getElementById('d-thumb');
   th.innerHTML=it0.img?`<img src="${it0.img}" onerror="this.style.display='none';this.parentElement.textContent='🖼️'">`:'🖼️';
   renderHistory(o);
-  // Link Lark cấp đơn
   const lk=document.getElementById('d-lark');if(lk)lk.value=o.larkLink||'';
   const lo=document.getElementById('d-lark-open');if(lo){if(o.larkLink){lo.style.display='';lo.href=o.larkLink;}else lo.style.display='none';}
   document.getElementById('d-time').textContent=fmtDate(o.created);
-  const fb=document.getElementById('btn-flag');fb.classList.toggle('on',o.urgent);
-  renderProds(o.items||[]);
+  const fb=document.getElementById('btn-flag');if(fb)fb.classList.toggle('on',!!o.urgent);
+  renderProds(o.items);
   if(cfg.merchizeKey)document.getElementById('mz-key').value=cfg.merchizeKey;
   if(cfg.sellerwixKey)document.getElementById('sw-key').value=cfg.sellerwixKey;
   if(cfg.sellerwixPid)document.getElementById('sw-pid').value=cfg.sellerwixPid;
@@ -1628,7 +1630,9 @@ function selectOrder(id){
   pushStat('mz-status',o.pushed?.merchize,'Merchize');
   pushStat('sw-status',o.pushed?.sellerwix,'Sellerwix');
   pushStat('gs-status',o.pushed?.sheet,'Google Sheet');
-  document.getElementById('file-list').innerHTML='';
+  const flEl=document.getElementById('file-list');if(flEl)flEl.innerHTML='';
+  }catch(e){console.error('selectOrder lỗi:',e);}
+  // luôn mở panel dù có lỗi nhỏ ở trên
   document.getElementById('overlay-bg').classList.add('open');
   document.getElementById('detail').classList.add('open');
 }
