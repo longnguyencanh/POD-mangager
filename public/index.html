@@ -906,7 +906,7 @@ body[data-role="seller"] .no-seller{display:none !important}
     <!-- Thông tin đơn -->
     <div class="sec-title">Thông tin đơn</div>
     <div class="fr c2">
-      <div class="fl"><label>Order ID</label><input class="fi" id="d-oid" readonly></div>
+      <div class="fl"><label>Mã đơn hàng (Etsy)</label><input class="fi" id="d-oid" readonly></div>
       <div class="fl"><label>Trạng thái</label>
         <select class="fi" id="d-status" onchange="onStatusChange()">
           <option value="new">🆕 Đơn mới</option>
@@ -1563,6 +1563,14 @@ async function syncMerchizePrices(opts){
         if(rev!=null&&rev>0){o.total='$'+rev.toFixed(2);upRev++;}
         const cost=findPrice(md);
         if(cost!=null&&o.items&&o.items[0]){o.items[0].basecostFromWorkshop=String(cost);upCost++;}
+        // Tiêu đề SP (seller product info) + size/variant từ Merchize
+        if(Array.isArray(md.items)&&md.items[0]&&o.items&&o.items[0]){
+          const mi=md.items[0];
+          const sellerTitle=mi.seller_product_info||mi.seller_title||mi.product_title||mi.title||mi.name;
+          if(sellerTitle)o.items[0].title=sellerTitle;
+          const variant=mi.variant_name||mi.variant||mi.variant_title||mi.options||(mi.size?sellerTitle+' - '+mi.size:'');
+          if(variant)o.items[0].variantName=typeof variant==='string'?variant:JSON.stringify(variant);
+        }
         const shop=findShopTag(md);
         if(shop){
           o.shopTitle=shop;o.shopId=shop.toLowerCase().replace(/\s+/g,'');upShop++;
@@ -2850,7 +2858,7 @@ function selectOrder(id){
   if(!Array.isArray(o.items))o.items=[];
   if(!o.pushed)o.pushed={};
   try{
-  set('d-oid',o.id);set('d-status',o.status||'new',1);set('d-cust',o.customer||'—');set('d-country',o.country||'—');set('d-email',o.email||'—');set('d-addr',o.address||'—');set('d-note',o.note||'');
+  set('d-oid',etsyCode(o));set('d-status',o.status||'new',1);set('d-cust',o.customer||'—');set('d-country',o.country||'—');set('d-email',o.email||'—');set('d-addr',o.address||'—');set('d-note',o.note||'');
   const dtotal=document.getElementById('d-total');if(dtotal)dtotal.value=(String(o.total||'').replace(/[^0-9.]/g,''))||'';
   const ds=document.getElementById('d-shop');if(ds){const shops=shopList();const cur=o.shopTitle||'';const opts=[...new Set([...shops,cur].filter(Boolean))];ds.innerHTML=opts.map(s=>`<option value="${s}">${s}</option>`).join('')||'<option value="">(chưa có shop)</option>';ds.value=cur;}
   const dt=document.getElementById('d-track');if(dt)dt.value=o.tracking||'(chưa có)';
@@ -2934,9 +2942,10 @@ function renderProds(items){
       </div>
       <div class="prod-fields">
         <div class="fr c21">
-          <div class="fl"><label>Tiêu đề</label><input class="fi" value="${esc(it.title)}" oninput="upd(${i},'title',this.value)"></div>
+          <div class="fl"><label>Tiêu đề SP (Seller product info)</label><input class="fi" value="${esc(it.title)}" oninput="upd(${i},'title',this.value)"></div>
           <div class="fl"><label>SL</label><input class="fi" type="number" min="1" value="${it.qty}" style="text-align:center" oninput="upd(${i},'qty',this.value)"></div>
         </div>
+        <div class="fr"><div class="fl"><label>📏 Size / Phân loại</label><input class="fi" value="${esc(it.variantName||it.title||'')}" readonly style="background:var(--bg);color:var(--text2)" title="Tên + size khách đặt (vd Racer Tank - M)"></div></div>
         <div class="fr"><div class="fl"><label>SKU ${isAuto?'🔒 (khoá — căn cứ tính thưởng)':''}</label><input class="fi" value="${esc(it.sku)}" ${isAuto?'readonly title="SKU từ '+(current.source==='etsy'?'Etsy':'Merchize')+' — không sửa được để đảm bảo tính thưởng chính xác" style="background:var(--bg);color:var(--text2);cursor:not-allowed"':`oninput="upd(${i},'sku',this.value)"`}></div></div>
       </div>
     </div>
