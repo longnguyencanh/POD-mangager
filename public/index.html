@@ -1302,6 +1302,37 @@ function logout(){
   auth=null;
   location.reload();
 }
+// ── QUÊN MẬT KHẨU (gửi qua Telegram) ──
+function openForgot(){
+  let m=document.getElementById('forgot-modal');
+  if(!m){
+    m=document.createElement('div');m.id='forgot-modal';m.className='modal-overlay';
+    m.innerHTML=`<div class="modal" style="max-width:360px">
+      <div class="modal-title" style="font-size:16px;margin-bottom:6px">🔐 Quên mật khẩu</div>
+      <div style="font-size:12px;color:var(--text2);margin-bottom:12px;line-height:1.6">Nhập tài khoản admin. Mật khẩu mới sẽ được gửi vào Telegram đã cấu hình.</div>
+      <input class="fi" id="forgot-user" placeholder="Tên đăng nhập admin" style="margin-bottom:10px">
+      <div id="forgot-msg" style="font-size:12px;margin-bottom:10px;min-height:16px"></div>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-green btn-sm" onclick="doForgot()">📤 Gửi mật khẩu mới</button>
+        <button class="btn btn-sm" onclick="document.getElementById('forgot-modal').classList.remove('open')">Đóng</button>
+      </div>
+    </div>`;
+    document.body.appendChild(m);
+    m.onclick=e=>{if(e.target===m)m.classList.remove('open');};
+  }
+  m.classList.add('open');
+}
+async function doForgot(){
+  const user=document.getElementById('forgot-user').value.trim();
+  const msg=document.getElementById('forgot-msg');
+  if(!user){msg.style.color='var(--red)';msg.textContent='Nhập tài khoản';return;}
+  msg.style.color='var(--text2)';msg.textContent='Đang gửi...';
+  try{
+    const r=await fetch('/api/auth',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'forgot',user})});
+    const j=await r.json();
+    msg.style.color='var(--green-d)';msg.textContent=j.message||'Đã gửi. Kiểm tra Telegram.';
+  }catch(e){msg.style.color='var(--red)';msg.textContent='Lỗi: '+e.message;}
+}
 function showProfile(){
   if(!auth)return;
   const RL={admin:'👑 Quản trị (Sếp)',seller:'🛒 Seller',design:'🎨 Design',support:'🎧 Support',staff:'👤 Nhân viên'};
