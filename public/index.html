@@ -2362,8 +2362,10 @@ function saveSettings(){saveMrzCfg();closeSettings();}
 function mrzHeaders(){
   const h={'Content-Type':'application/json'};
   if(auth&&auth.token)h['X-Session']=auth.token;
-  const base=document.getElementById('mrz-base').value.trim();
-  const tok=document.getElementById('mrz-token').value.trim();
+  // Ưu tiên ô input (nếu đang mở Cài đặt), nếu không lấy từ cfg đã lưu
+  const baseEl=document.getElementById('mrz-base');const tokEl=document.getElementById('mrz-token');
+  const base=(baseEl&&baseEl.value.trim())||cfg.mrzBase||'';
+  const tok=(tokEl&&tokEl.value.trim())||cfg.mrzToken||'';
   if(base)h['X-Mrz-Base']=base;
   if(tok)h['X-Mrz-Key']=tok;
   return h;
