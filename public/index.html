@@ -443,6 +443,12 @@ body[data-role="seller"] .no-seller{display:none !important}
       <select class="fi admin-only" id="emp-filter" onchange="onEmpFilter(this.value)" style="display:none;flex:1;min-width:160px">
         <option value="all">👥 Tất cả nhân viên</option>
       </select>
+      <select class="fi" id="sort-by" onchange="onSortChange(this.value)" style="flex:1;min-width:170px">
+        <option value="newest">🕐 Đơn mới nhất</option>
+        <option value="oldest">📜 Đơn lâu nhất</option>
+        <option value="rev_high">💰 Doanh thu cao nhất</option>
+        <option value="rev_low">💵 Doanh thu thấp nhất</option>
+      </select>
     </div>
 
     <div class="tabs">
@@ -2558,6 +2564,7 @@ function loadDemo(){
 // ── Lọc theo shop ──
 let shopFilter='all';
 let empFilter='all';
+let sortBy='newest';
 // Lấy viết tắt SKU của người đang đăng nhập
 // Khớp tên linh hoạt: bỏ hoa/thường + khoảng trắng, và chấp nhận khi tên này CHỨA tên kia
 // (vd tài khoản "Mr Huy" khớp với "Huy" trong bảng viết tắt)
@@ -2618,8 +2625,16 @@ function applyFilter(){
     if(searchQ)return o.id.includes(searchQ)||o.customer.toLowerCase().includes(searchQ)||(o.items?.[0]?.title||'').toLowerCase().includes(searchQ)||(o.external_id||'').includes(searchQ)||(o.items?.[0]?.sku||'').toLowerCase().includes(searchQ);
     return true;
   });
+  // Sắp xếp
+  const rev=o=>parseFloat(String(o.total||'').replace(/[^0-9.]/g,''))||0;
+  const tm=o=>{const d=new Date(o.created||o.saleDate||o.date||0);return isNaN(d)?0:d.getTime();};
+  if(sortBy==='newest')filtered.sort((a,b)=>tm(b)-tm(a));
+  else if(sortBy==='oldest')filtered.sort((a,b)=>tm(a)-tm(b));
+  else if(sortBy==='rev_high')filtered.sort((a,b)=>rev(b)-rev(a));
+  else if(sortBy==='rev_low')filtered.sort((a,b)=>rev(a)-rev(b));
   renderList();
 }
+function onSortChange(v){sortBy=v;curPage=1;renderList();}
 function visibleOrders(){
   // Đơn mà người hiện tại được phép thấy (nhân viên: lọc theo SKU; admin: tất cả)
   if(auth&&auth.role!=='admin'){const mine=myAbbrs();return orders.filter(o=>orderMatchesAbbrs(o,mine));}
