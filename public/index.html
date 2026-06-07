@@ -1572,31 +1572,33 @@ async function syncMerchizePrices(){
     toast(`✅ Đồng bộ Merchize: ${upRev} doanh thu, ${upShop} shop`,'success');
   }catch(e){if(box)box.textContent='❌ Lỗi: '+e.message;}
 }
-// DOANH THU (giá bán Etsy) — Merchize lưu ở cột revenue
+// DOANH THU (giá bán Etsy) — Merchize lưu ở invoice.amount/total/subtotal
 function findRevenue(md){
   if(!md)return null;
-  const keys=['revenue','total_revenue','sale_price','retail_price','selling_price','order_value','order_total','customer_paid'];
+  // ưu tiên invoice.amount (tổng khách trả)
+  if(md.invoice&&typeof md.invoice==='object'){
+    for(const k of ['amount','total','subtotal','grand_total']){if(md.invoice[k]!=null&&!isNaN(parseFloat(md.invoice[k])))return parseFloat(md.invoice[k]);}
+  }
+  const keys=['revenue','total_revenue','sale_price','retail_price','order_value','order_total','customer_paid','amount'];
   for(const k of keys){if(md[k]!=null&&!isNaN(parseFloat(md[k])))return parseFloat(md[k]);}
   if(Array.isArray(md.items)&&md.items[0]){const it=md.items[0];for(const k of keys){if(it[k]!=null&&!isNaN(parseFloat(it[k])))return parseFloat(it[k]);}}
   return null;
 }
-// TÊN SHOP — Merchize lưu ở tag (có thể nhiều tag: NeoPaws, etsy, etsy_NeoPaws)
+// TÊN SHOP — Merchize lưu ở field "identifier"
 function findShopTag(md){
   if(!md)return null;
+  // identifier là tên shop thật (vd NeoPaws)
+  if(md.identifier&&typeof md.identifier==='string'&&md.identifier.trim())return md.identifier.trim();
+  // dự phòng: tag/tags
   let raw=md.tag||md.tags||md.store_tag||md.shop_tag||md.store_name||md.shop_name;
-  // gom về mảng chuỗi
   let arr=[];
   if(Array.isArray(raw))arr=raw.filter(x=>typeof x==='string');
   else if(typeof raw==='string')arr=raw.split(/[,;|]/).map(s=>s.trim());
   arr=arr.map(s=>String(s).trim()).filter(Boolean);
   if(!arr.length)return null;
-  // bỏ các tag chung chung không phải tên shop
   const generic=/^(etsy|amazon|shopify|tiktok|unfulfilled|fulfilled|paid|us|valid|order|new)$/i;
-  // ưu tiên tag KHÔNG generic và KHÔNG chứa dấu _ (tên shop thuần, vd NeoPaws)
   let pick=arr.find(t=>!generic.test(t)&&!t.includes('_'));
-  // nếu không có, lấy tag dạng etsy_XXX → tách lấy XXX
   if(!pick){const u=arr.find(t=>t.includes('_'));if(u)pick=u.split('_').filter(p=>!generic.test(p)).join('_')||u;}
-  // cuối cùng lấy tag đầu không generic
   if(!pick)pick=arr.find(t=>!generic.test(t));
   return pick||null;
 }
