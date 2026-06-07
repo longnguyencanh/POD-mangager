@@ -1887,10 +1887,12 @@ function loadDemo(){
 // ── Lọc theo shop ──
 let shopFilter='all';
 let empFilter='all';
-// Lấy viết tắt SKU của người đang đăng nhập (theo tên trùng trong bảng skuMap)
+// Lấy viết tắt SKU của người đang đăng nhập (khớp tên linh hoạt: bỏ hoa/thường + khoảng trắng)
 function myAbbrs(){
   if(!auth)return[];
-  return (cfg.skuMap||[]).filter(m=>m.name===auth.name).map(m=>(m.abbr||'').toUpperCase()).filter(Boolean);
+  const norm=s=>(s||'').toLowerCase().replace(/\s+/g,' ').trim();
+  const me=norm(auth.name);
+  return (cfg.skuMap||[]).filter(m=>norm(m.name)===me).map(m=>(m.abbr||'').toUpperCase()).filter(Boolean);
 }
 // Đơn có SKU chứa 1 trong các viết tắt cho trước không
 function orderMatchesAbbrs(o,abbrs){
@@ -2134,6 +2136,8 @@ async function cloudLoad(){
     cloudOn=true;
     if(data&&Array.isArray(data.orders)&&data.orders.length){
       orders=data.orders;
+      // Đổi tên shop cũ "Merchize" → "Etsy 2"
+      orders.forEach(o=>{if(o.shopTitle==='Merchize'){o.shopTitle='Etsy 2';o.shopId='etsy2';}});
       localStorage.setItem('pod_orders',JSON.stringify(orders));
     }
     return true;
