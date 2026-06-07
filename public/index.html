@@ -1103,15 +1103,20 @@ function renderSkuMap(){
   if(!map.length){box.innerHTML='<div style="font-size:12px;color:var(--text3)">Chưa khai báo viết tắt nào</div>';return;}
   box.innerHTML=map.map((m,i)=>`<div style="display:flex;align-items:center;gap:8px;padding:7px 10px;background:var(--bg);border:1px solid var(--border);border-radius:8px;margin-bottom:5px"><span style="font-weight:700;color:var(--accent);min-width:50px">${m.abbr}</span><span style="flex:1">→ ${m.name}</span><button class="btn btn-xs" style="color:var(--red);border-color:#f0c0c0" onclick="delSkuMap(${i})">✕</button></div>`).join('');
 }
-function addSkuMap(){
+async function addSkuMap(){
   const abbr=document.getElementById('sk-abbr').value.trim().toUpperCase();
   const name=document.getElementById('sk-name').value.trim();
   if(!abbr||!name){toast('Nhập viết tắt và tên','error');return;}
   if(!cfg.skuMap)cfg.skuMap=[];
   if(cfg.skuMap.find(m=>m.abbr===abbr)){toast('Viết tắt này đã có','error');return;}
-  cfg.skuMap.push({abbr,name});saveCfg();
+  cfg.skuMap.push({abbr,name});
+  localStorage.setItem(CFG_KEY,JSON.stringify(cfg));
   document.getElementById('sk-abbr').value='';document.getElementById('sk-name').value='';
-  renderSkuMap();toast('✅ Đã thêm viết tắt '+abbr,'success');
+  renderSkuMap();
+  // Lưu lên cloud và BÁO rõ kết quả
+  const ok=await cloudSaveCfg();
+  if(ok)toast('✅ Đã thêm '+abbr+' và đồng bộ lên cloud','success');
+  else toast('⚠️ Đã thêm '+abbr+' (local) nhưng CHƯA lên cloud. Bấm "Đồng bộ lên cloud".','warn');
 }
 function delSkuMap(i){cfg.skuMap.splice(i,1);saveCfg();renderSkuMap();toast('Đã xoá','info');}
 
@@ -1630,10 +1635,10 @@ async function cloudSaveCfg(){
   try{
     const headers={'Content-Type':'application/json'};
     if(auth&&auth.token)headers['X-Session']=auth.token;
-    // chỉ lưu phần dùng chung, không lưu token nhạy cảm
     const shared={skuMap:cfg.skuMap||[]};
-    await fetch('/api/data?op=config',{method:'POST',headers,body:JSON.stringify(shared)});
-  }catch(e){}
+    const r=await fetch('/api/data?op=config',{method:'POST',headers,body:JSON.stringify(shared)});
+    return r.ok;
+  }catch(e){return false;}
 }
 async function cloudLoadCfg(){
   try{
