@@ -23,8 +23,25 @@ export default async function handler(req, res) {
   }
 
   const KEY = 'pod:orders';
+  const CFG_KEY = 'pod:config';
 
   try {
+    // ── CẤU HÌNH CHUNG (skuMap, v.v.) — dùng chung cả team ──
+    if (req.query.op === 'config') {
+      if (req.method === 'GET') {
+        const cfg = await kvGet(CFG_KEY);
+        res.status(200).json(cfg || {});
+        return;
+      }
+      if (req.method === 'POST') {
+        let body = req.body;
+        if (typeof body === 'string') { try { body = JSON.parse(body); } catch (e) { body = {}; } }
+        await kvSet(CFG_KEY, body || {});
+        res.status(200).json({ ok: true });
+        return;
+      }
+    }
+
     if (req.method === 'GET') {
       const data = await kvGet(KEY);
       res.status(200).json(data || { orders: [], updatedAt: null, updatedBy: null });
