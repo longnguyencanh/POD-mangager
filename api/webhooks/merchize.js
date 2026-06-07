@@ -41,16 +41,25 @@ function mapMerchizeOrder(o) {
   const cust = ship.full_name || ship.name || g('customer.name', 'customer_name', 'buyer_name') ||
     [ship.first_name, ship.last_name].filter(Boolean).join(' ') || 'Unknown';
   const status = g('status', 'order_status', 'fulfillment_status', 'payment_status');
+  // Tên shop: Merchize lưu ở "identifier" (vd NeoPaws). Dự phòng tag/store_name.
+  let shopName = g('identifier', 'store_name', 'shop_name');
+  if (!shopName) {
+    let tg = g('tag', 'tags');
+    if (Array.isArray(tg)) { const generic = /^(etsy|amazon|shopify|tiktok|unfulfilled|fulfilled|paid|us|valid|order|new)$/i; shopName = tg.find(t => typeof t === 'string' && !generic.test(t) && !t.includes('_')) || ''; }
+  }
+  if (!shopName) shopName = 'Chưa gán shop';
+  // Doanh thu: ưu tiên invoice.amount (tổng khách trả Etsy)
+  const revenue = parseFloat(g('invoice.amount', 'invoice.total', 'invoice.subtotal', 'total', 'total_price', 'amount') || 0);
   return {
     id, orderNumber: String(readable || ''), external_id: String(g('external_number', 'external_id') || ''),
-    account: 'Merchize', shopId: String(g('store_id', 'shop_id') || 'etsy2'), shopTitle: g('store_name', 'shop_name') || 'Etsy 2',
+    account: 'Merchize', shopId: String(shopName).toLowerCase().replace(/\s+/g, ''), shopTitle: shopName,
     status: mapStatus(status),
     created: g('created', 'created_at', 'order_date', 'event_time') || new Date().toISOString(),
     customer: cust,
     country: ship.country || g('customer.country', 'country') || '—',
     email: ship.email || g('customer.email', 'email', 'buyer_email') || '—',
     address: [ship.address || ship.address1, ship.city, ship.state, ship.country, ship.postal_code].filter(Boolean).join(', '),
-    total: '$' + (parseFloat(g('invoice.total', 'total', 'total_price', 'amount') || 0)).toFixed(2),
+    total: '$' + revenue.toFixed(2),
     items, urgent: false, note: '', pushed: { merchize: true, sellerwix: false, sheet: false }, source: 'merchize',
   };
 }
