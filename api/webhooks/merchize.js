@@ -61,14 +61,34 @@ function mapStatus(s) {
 }
 
 export default async function handler(req, res) {
+  // GET = chẩn đoán: mở bằng trình duyệt để xem trạng thái
+  if (req.method === 'GET') {
+    let dbInfo = { configured: hasRedis(), orders: null };
+    if (hasRedis()) {
+      try { const c = await kvGet('pod:orders'); dbInfo.orders = c && c.orders ? c.orders.length : 0; }
+      catch (e) { dbInfo.error = e.message; }
+    }
+    res.status(200).json({
+      ok: true,
+      message: 'Webhook Merchize đang hoạt động. Dùng POST để gửi đơn.',
+      database: dbInfo,
+      secret_configured: !!process.env.MERCHIZE_WEBHOOK_SECRET,
+    });
+    return;
+  }
+
   // Merchize chỉ cần nhận HTTP 200
   if (req.method !== 'POST') { res.status(405).json({ error: 'POST only' }); return; }
 
-  // Verify secret (nếu đã cấu hình)
+  // Verify secret (nếu đã cấu hình). Merchize gửi qua header "merchize-webhook-key".
   const secret = process.env.MERCHIZE_WEBHOOK_SECRET;
   if (secret) {
-    const got = req.headers['merchize-webhook-key'];
-    if (!timingSafeEqual(got, secret)) { res.status(401).json({ error: 'Sai webhook key' }); return; }
+    const got = req.headers['merchize-webhook-key'] || req.headers['x-merchize-webhook-key'] || req.headers['x-webhook-secret'];
+    if (!timingSafeEqual(got, secret)) {
+      // Trả 200 (không phải 401) kèm cảnh báo, để Merchize không retry dồn — nhưng ghi rõ lý do
+      res.status(200).json({ ok: false, error: 'webhook key không khớp', hint: 'Kiểm tra MERCHIZE_WEBHOOK_SECRET trên Vercel = đúng Secret key của Merchize' });
+      return;
+    }
   }
 
   let body = req.body;
