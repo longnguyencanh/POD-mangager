@@ -757,9 +757,9 @@ body[data-role="seller"] .no-seller{display:none !important}
           </div>
           <div id="price-sheet-box" style="display:none;margin-top:10px;background:#fff;border:1px solid var(--border2);border-radius:8px;padding:10px;font-size:11px;white-space:pre-wrap;max-height:160px;overflow:auto"></div>
           <div class="divider" style="margin:14px 0"></div>
-          <div style="font-size:12.5px;font-weight:600;margin-bottom:6px">💰 Lấy giá từng đơn qua API Merchize</div>
-          <div style="font-size:11px;color:var(--text2);margin-bottom:8px;line-height:1.6">Merchize là xưởng → lấy giá basecost chính xác từng đơn (size/màu khác giá). Cần đã cấu hình API key Merchize.</div>
-          <button class="btn btn-green btn-sm" onclick="syncMerchizePrices()">💰 Lấy giá basecost từ Merchize</button>
+          <div style="font-size:12.5px;font-weight:600;margin-bottom:6px">💰 Lấy DOANH THU + giá + shop từ Merchize</div>
+          <div style="font-size:11px;color:var(--text2);margin-bottom:8px;line-height:1.6">Merchize lưu: revenue (doanh thu Etsy), basecost (giá xưởng), tag (tên shop). App lấy tự động & chính xác cho từng đơn. Cần đã cấu hình API key Merchize.</div>
+          <button class="btn btn-green btn-sm" onclick="syncMerchizePrices()">💰 Đồng bộ doanh thu + giá + shop</button>
           <div id="mrz-price-box" style="display:none;margin-top:10px;background:#fff;border:1px solid var(--border2);border-radius:8px;padding:10px;font-size:11px;white-space:pre-wrap;max-height:160px;overflow:auto"></div>
         </div>
         <div id="price-list"></div>
@@ -1493,42 +1493,61 @@ function loadFees(){
 }
 // Lấy giá basecost từng đơn qua API Merchize (giá khác nhau từng đơn)
 async function syncMerchizePrices(){
-  const box=document.getElementById('mrz-price-box');if(box){box.style.display='block';box.textContent='Đang lấy giá từ Merchize...';}
-  // lấy mã đơn (ưu tiên mã Merchize RB-/RX-, hoặc external_number/mã Etsy)
-  const codes=orders.map(o=>o.orderNumber||o.external_id||o.id).filter(Boolean).slice(0,200);
+  const box=document.getElementById('mrz-price-box');if(box){box.style.display='block';box.textContent='Đang lấy dữ liệu từ Merchize...';}
+  const codes=orders.map(o=>o.orderNumber||o.external_id||o.id).filter(Boolean).slice(0,300);
   if(!codes.length){if(box)box.textContent='❌ Chưa có đơn nào.';return;}
-  let updated=0,sampleFields='';
+  let upRev=0,upCost=0,upShop=0,sampleKeys='';
   try{
-    // gọi theo lô 50
     for(let i=0;i<codes.length;i+=50){
       const batch=codes.slice(i,i+50);
       const r=await fetch('/api/merchize?action=details',{method:'POST',headers:mrzHeaders(),body:JSON.stringify({codes:batch})});
       if(!r.ok)continue;
       const j=await r.json();const data=j.data||[];
       data.forEach(md=>{
-        // tìm giá basecost trong nhiều tên trường có thể
-        const price=findPrice(md);
-        if(price==null)return;
-        // mã để khớp
         const mcode=String(md.code||md.external_number||md.order_number||'').toUpperCase();
         const o=orders.find(x=>[x.orderNumber,x.external_id,x.id,x.external_number].filter(Boolean).map(v=>String(v).toUpperCase()).includes(mcode));
-        if(o&&o.items&&o.items[0]){o.items[0].basecostFromWorkshop=String(price);updated++;if(!sampleFields)sampleFields=JSON.stringify(Object.keys(md).filter(k=>/cost|price|base/i.test(k)));}
+        if(!o)return;
+        if(!sampleKeys)sampleKeys=JSON.stringify(Object.keys(md).slice(0,30));
+        // 1) DOANH THU (revenue / giá bán Etsy)
+        const rev=findRevenue(md);
+        if(rev!=null&&rev>0){o.total='$'+rev.toFixed(2);upRev++;}
+        // 2) BASECOST (giá xưởng)
+        const cost=findPrice(md);
+        if(cost!=null&&o.items&&o.items[0]){o.items[0].basecostFromWorkshop=String(cost);upCost++;}
+        // 3) TÊN SHOP (tag)
+        const shop=findShopTag(md);
+        if(shop){o.shopTitle=shop;o.shopId=shop.toLowerCase().replace(/\s+/g,'');upShop++;}
       });
     }
     localStorage.setItem('pod_orders',JSON.stringify(orders));
-    await cloudSaveAll();applyFilter();updateCounts();
-    if(box)box.textContent=`✅ Đã lấy giá cho ${updated} đơn từ Merchize.`+(updated?'':'\n⚠️ Không tìm thấy trường giá. Các trường giá có thể: '+(sampleFields||'(không có)'));
-    toast(`✅ Lấy giá ${updated} đơn`,'success');
+    await cloudSaveAll();buildShopFilter();applyFilter();updateCounts();
+    if(box)box.textContent=`✅ Đã đồng bộ từ Merchize:\n• Doanh thu: ${upRev} đơn\n• Basecost: ${upCost} đơn\n• Tên shop: ${upShop} đơn`+((upRev+upCost+upShop)===0?'\n⚠️ Không tìm thấy trường. Các trường có: '+sampleKeys:'');
+    toast(`✅ Đồng bộ Merchize: ${upRev} doanh thu, ${upShop} shop`,'success');
   }catch(e){if(box)box.textContent='❌ Lỗi: '+e.message;}
+}
+// DOANH THU (giá bán Etsy) — Merchize lưu ở cột revenue
+function findRevenue(md){
+  if(!md)return null;
+  const keys=['revenue','total_revenue','sale_price','retail_price','selling_price','order_value','order_total','customer_paid'];
+  for(const k of keys){if(md[k]!=null&&!isNaN(parseFloat(md[k])))return parseFloat(md[k]);}
+  if(Array.isArray(md.items)&&md.items[0]){const it=md.items[0];for(const k of keys){if(it[k]!=null&&!isNaN(parseFloat(it[k])))return parseFloat(it[k]);}}
+  return null;
+}
+// TÊN SHOP — Merchize lưu ở cột tag
+function findShopTag(md){
+  if(!md)return null;
+  // tag có thể là chuỗi, hoặc mảng tag
+  let t=md.tag||md.tags||md.store_tag||md.shop_tag;
+  if(Array.isArray(t))t=t.find(x=>x&&typeof x==='string');
+  if(typeof t==='string'&&t.trim())return t.trim();
+  return null;
 }
 // Dò giá basecost trong object đơn Merchize (thử nhiều tên trường)
 function findPrice(md){
   if(!md)return null;
-  const keys=['base_cost','basecost','seller_price','production_cost','cost','price','base_price','supplier_price'];
+  const keys=['base_cost','basecost','production_cost','base_price','supplier_price','fulfillment_cost'];
   for(const k of keys){if(md[k]!=null&&!isNaN(parseFloat(md[k])))return parseFloat(md[k]);}
-  // tìm trong items
   if(Array.isArray(md.items)&&md.items[0]){const it=md.items[0];for(const k of keys){if(it[k]!=null&&!isNaN(parseFloat(it[k])))return parseFloat(it[k]);}}
-  // tìm trong line_items
   if(Array.isArray(md.line_items)&&md.line_items[0]){const it=md.line_items[0];for(const k of keys){if(it[k]!=null&&!isNaN(parseFloat(it[k])))return parseFloat(it[k]);}}
   return null;
 }
