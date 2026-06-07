@@ -1872,10 +1872,11 @@ function pushStat(id,done,name){const el=document.getElementById(id);if(done){el
 
 // ── PRODUCTS ──
 function renderProds(items){
+  const isAuto=current&&(current.source==='etsy'||current.source==='merchize');
   document.getElementById('prod-cnt').textContent=items.length;
   document.getElementById('prods-body').innerHTML=items.map((it,i)=>`
   <div class="prod-card">
-    <div class="prod-label">SẢN PHẨM ${i+1}<button class="btn btn-xs" style="color:var(--red);border-color:#f0c4bd" onclick="removeProduct(${i})">✕ Xoá</button></div>
+    <div class="prod-label">SẢN PHẨM ${i+1}<button class="btn btn-xs no-design no-support" style="color:var(--red);border-color:#f0c4bd" onclick="removeProduct(${i})">✕ Xoá</button></div>
     <div class="prod-top">
       <div class="prod-img-col">
         <div class="prod-img" onclick="uploadImg(${i})">${it.img?`<img src="${it.img}" onerror="this.style.display='none';this.parentElement.textContent='🖼️'">`:'🖼️'}</div>
@@ -1886,7 +1887,7 @@ function renderProds(items){
           <div class="fl"><label>Tiêu đề</label><input class="fi" value="${esc(it.title)}" oninput="upd(${i},'title',this.value)"></div>
           <div class="fl"><label>SL</label><input class="fi" type="number" min="1" value="${it.qty}" style="text-align:center" oninput="upd(${i},'qty',this.value)"></div>
         </div>
-        <div class="fr"><div class="fl"><label>SKU</label><input class="fi" value="${esc(it.sku)}" oninput="upd(${i},'sku',this.value)"></div></div>
+        <div class="fr"><div class="fl"><label>SKU ${isAuto?'🔒 (khoá — căn cứ tính thưởng)':''}</label><input class="fi" value="${esc(it.sku)}" ${isAuto?'readonly title="SKU từ '+(current.source==='etsy'?'Etsy':'Merchize')+' — không sửa được để đảm bảo tính thưởng chính xác" style="background:var(--bg);color:var(--text2);cursor:not-allowed"':`oninput="upd(${i},'sku',this.value)"`}></div></div>
       </div>
     </div>
     <div class="fr c2">
@@ -1909,7 +1910,10 @@ function renderProds(items){
     </div>
   </div>`).join('')+`<button class="add-prod" onclick="addProduct()">+ Thêm sản phẩm</button>`;
 }
-function upd(i,k,v){if(!current)return;current.items[i][k]=v;if(k==='designer')logHistory(current,`Gán designer: ${v}`);else if(k==='fulfiller')logHistory(current,`Gán fulfiller: ${v}`);if(k==='designer'||k==='fulfiller'||k==='larkLink')save();}
+function upd(i,k,v){if(!current)return;
+  // Khoá SKU của đơn tự động (Etsy/Merchize) — căn cứ tính thưởng, không cho sửa
+  if(k==='sku'&&(current.source==='etsy'||current.source==='merchize')){return;}
+  current.items[i][k]=v;if(k==='designer')logHistory(current,`Gán designer: ${v}`);else if(k==='fulfiller')logHistory(current,`Gán fulfiller: ${v}`);if(k==='designer'||k==='fulfiller'||k==='larkLink')save();}
 function confirmProd(i){if(!current)return;current.items[i].confirmed=!current.items[i].confirmed;renderProds(current.items);save();toast(current.items[i].confirmed?'✅ Đã xác nhận sản phẩm':'Bỏ xác nhận','success');}
 function addProduct(){if(!current)return;current.items.push({title:'',sku:'',qty:1,price:'',img:'',personalization:'',supplier:'— Chọn —',ptype:'— Chọn —',material:'— Chọn —',size:'— Chọn —',designer:'— Chưa gán —',fulfiller:'— Chưa gán —',confirmed:false});renderProds(current.items);toast('Đã thêm sản phẩm','info');}
 function removeProduct(i){if(!current||current.items.length<=1){toast('Đơn cần ít nhất 1 SP','error');return;}current.items.splice(i,1);renderProds(current.items);toast('Đã xoá sản phẩm','info');}
