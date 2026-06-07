@@ -196,3 +196,59 @@ Vào **⚙️ Cài đặt** → kéo xuống mục **🏭 Kéo đơn từ Merchi
 - `MERCHIZE_API_KEY` = Access Token
 
 > Nếu bấm "Kéo đơn về" mà báo không tìm thấy endpoint, bấm "Chẩn đoán kết nối" và gửi kết quả — Merchize có thể dùng đường dẫn API riêng cần khai báo thêm.
+
+---
+
+## 👥 4 VAI TRÒ (cập nhật)
+
+App hỗ trợ 4 vai trò, thêm trong **👥 Quản lý nhân viên**:
+
+| Chức năng | 👑 Admin | 🛒 Seller | 🎨 Design | 🎧 Support |
+|---|---|---|---|---|
+| Xem đơn | ✅ | ✅ | ✅ | ✅ |
+| Tạo/sửa đơn, gán người xử lý | ✅ | ✅ | — | — |
+| Hoàn thiện thiết kế + link Lark | ✅ | — | ✅ | — |
+| Gán designer/fulfiller, xác nhận SP | ✅ | ✅ | ✅ | — |
+| Đổi trạng thái | ✅ | ✅ | — | ✅ |
+| Gửi proof / mở case | ✅ | — | — | ✅ |
+| Đánh dấu thiếu info | ✅ | ✅ | ✅ | ✅ |
+| **Đẩy xưởng** | ✅ | ❌ | ❌ | ❌ |
+| **Xem lợi nhuận/thống kê/Shop Insight** | ✅ | ❌ | ❌ | ❌ |
+| Xoá đơn, cài đặt, quản lý NV | ✅ | ❌ | ❌ | ❌ |
+
+### File design qua Lark
+- Mỗi đơn có ô **🎨 File thiết kế (Lark)** — dán link Lark cho cả đơn
+- Mỗi sản phẩm có ô **link design riêng** — dán link Lark cho từng SP
+- Mọi vai trò **xem/mở link** được; Design + Admin **dán/sửa** link
+- App chỉ lưu *link* (không lưu file) — file nằm trên Lark, nhẹ và miễn phí
+
+Demo local: admin/abc13579 · seller/seller123 · design/design123 · support/support123
+
+---
+
+## 🔔 NHẬN ĐƠN TỪ MERCHIZE QUA WEBHOOK (tự động)
+
+Cách tốt nhất: Merchize tự đẩy đơn mới sang app, không cần bấm "Tải đơn".
+
+### Bước 1 — Đặt secret bảo mật (khuyên dùng)
+Trên Vercel → Environment Variables, thêm:
+- `MERCHIZE_WEBHOOK_SECRET` = một chuỗi bí mật bất kỳ (vd: `mrz-secret-2026-lionbay`)
+Rồi Redeploy.
+
+### Bước 2 — Lấy URL webhook trong app
+Mở app → ⚙️ Cài đặt → phần **🔔 Webhook** → copy URL dạng:
+`https://<vercel-url>/api/webhooks/merchize`
+
+### Bước 3 — Cấu hình ở Merchize
+Merchize dashboard → **Setting → Webhook → Add Webhook**:
+- Endpoint URL: dán URL vừa copy
+- Secret: điền đúng chuỗi `MERCHIZE_WEBHOOK_SECRET` đã đặt ở Bước 1
+- Chọn các sự kiện đơn hàng (order created, updated, paid...)
+- Test bằng "Webhook simulator" trong dashboard
+
+Sau đó: đơn mới ở Merchize sẽ **tự động về app**, cả team thấy ngay.
+
+### Về API Key (kéo đơn thủ công theo mã)
+- Dùng tab **API KEY** (không phải Access Token) vì API Key KHÔNG hết hạn → khỏi cập nhật hàng tháng
+- Cả hai gửi qua `Authorization: Bearer`
+- Endpoint kéo đơn: `POST /order/external/orders/list-orders-detail` (cần truyền mã đơn `code`/`external_number`) — dùng để tra cứu đơn cụ thể; đơn mới thì để webhook lo
