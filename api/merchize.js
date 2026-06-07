@@ -96,6 +96,32 @@ export default async function handler(req, res) {
   const root = base.endsWith('/bo-api') ? base : base + sep;
 
   try {
+    // action=details: lấy chi tiết theo DANH SÁCH MÃ ĐƠN (endpoint chính thức Merchize)
+    // POST /order/external/orders/list-orders-detail  body:{orders:[{code/external_number}]}
+    if (action === 'details') {
+      let codes = [];
+      try { const b = typeof req.body === 'string' ? JSON.parse(req.body) : req.body; codes = (b && b.codes) || []; } catch (e) {}
+      if (!codes.length) { res.status(400).json({ error: 'Thiếu danh sách mã đơn (codes)' }); return; }
+      const rootD = base.endsWith('/bo-api') ? base : base + '/bo-api';
+      const url = `${rootD}/order/external/orders/list-orders-detail`;
+      const orders = codes.map(c => {
+        const s = String(c).trim();
+        // nếu giống mã Merchize (RB-/RX-...) → code; ngược lại coi là external_number
+        return /^[A-Z]{2}-/i.test(s) ? { code: s } : { external_number: s };
+      });
+      const r = await fetch(url, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${key}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orders }),
+      });
+      const text = await r.text();
+      let json; try { json = JSON.parse(text); } catch (e) { json = null; }
+      if (!r.ok || !json) { res.status(502).json({ error: 'Merchize trả lỗi', http: r.status, sample: text.slice(0, 200) }); return; }
+      const data = json.data || json.orders || [];
+      res.status(200).json({ ok: true, count: Array.isArray(data) ? data.length : 0, data });
+      return;
+    }
+
     if (action === 'probe') {
       const out = [];
       for (const c of candidates) {
