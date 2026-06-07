@@ -828,9 +828,22 @@ body[data-role="seller"] .no-seller{display:none !important}
     <div style="display:flex;gap:8px">
       <button class="btn btn-sm" onclick="saveMrzCfg()">💾 Lưu cấu hình</button>
       <button class="btn btn-sm" onclick="probeMerchize()">🔍 Chẩn đoán</button>
-      <button class="btn btn-green btn-sm" onclick="pullMerchize()">⬇ Kéo đơn (theo mã)</button>
     </div>
     <div id="mrz-box" style="display:none;margin-top:10px;background:var(--bg);border:1px solid var(--border2);border-radius:9px;padding:10px;font-size:11px;font-family:monospace;white-space:pre-wrap;max-height:240px;overflow:auto"></div>
+
+    <div class="divider"></div>
+    <div class="modal-title" style="font-size:15px">📥 Lấy đơn cũ (mấy ngày trước)</div>
+    <div style="font-size:11.5px;color:var(--text2);margin:8px 0 12px;line-height:1.7">
+      Đơn cũ đã có trước khi cài webhook. Lấy về 1 lần:
+      <br>1. Vào Merchize → trang <b>Orders</b> → bấm <b>Export</b> tải file CSV về máy
+      <br>2. Tải file đó lên đây (cần đã điền API Key ở trên)
+      <br>3. App tự đọc mã đơn + gọi Merchize lấy chi tiết đầy đủ
+    </div>
+    <div class="fl" style="margin-bottom:10px">
+      <input type="file" id="mrz-file" accept=".csv,.txt,.xlsx,.xls" style="font-size:12px">
+    </div>
+    <button class="btn btn-green btn-sm" onclick="importMrzFile()">📥 Đọc file & lấy đơn về</button>
+    <div id="mrz-import-box" style="display:none;margin-top:10px;background:var(--bg);border:1px solid var(--border2);border-radius:9px;padding:10px;font-size:11px;white-space:pre-wrap;max-height:200px;overflow:auto"></div>
 
     <div class="divider"></div>
     <div class="modal-title" style="font-size:15px">🔔 Webhook — đơn tự động về (khuyên dùng)</div>
@@ -1522,6 +1535,69 @@ async function probeMerchize(){
     box.textContent=lines.join('\n');
   }catch(e){box.textContent='❌ '+e.message;}
 }
+// Đọc file CSV/Excel xuất từ Merchize → trích mã đơn → gọi API lấy chi tiết
+async function importMrzFile(){
+  const fileEl=document.getElementById('mrz-file');
+  const box=document.getElementById('mrz-import-box');
+  box.style.display='block';
+  if(!fileEl.files||!fileEl.files.length){box.textContent='⚠️ Chưa chọn file. Bấm "Choose File" để chọn file CSV xuất từ Merchize.';return;}
+  cfg.mrzBase=document.getElementById('mrz-base').value.trim();
+  cfg.mrzToken=document.getElementById('mrz-token').value.trim();
+  saveCfg();
+  if(!cfg.mrzBase||!cfg.mrzToken){box.textContent='⚠️ Cần điền Base URL + API Key ở trên trước (rồi bấm Lưu cấu hình).';return;}
+  const file=fileEl.files[0];
+  box.textContent='Đang đọc file...';
+  try{
+    const text=await file.text();
+    // Trích mã đơn: tìm các chuỗi dạng RB-xxxxx-xxxxx / RX-... hoặc cột "code"/"order"
+    const codes=extractCodesFromCSV(text);
+    if(!codes.length){box.textContent='❌ Không tìm thấy mã đơn nào trong file. File cần có cột mã đơn (code) dạng RB-xxxxx-xxxxx.';return;}
+    box.textContent=`Tìm thấy ${codes.length} mã đơn. Đang lấy chi tiết từ Merchize...`;
+    // gọi API theo lô 50 mã
+    let allData=[];
+    for(let i=0;i<codes.length;i+=50){
+      const batch=codes.slice(i,i+50);
+      const r=await fetch('/api/merchize?action=details',{method:'POST',headers:mrzHeaders(),body:JSON.stringify({codes:batch})});
+      const d=await r.json();
+      if(!r.ok){box.textContent='❌ '+(d.error||'Lỗi '+r.status)+(d.sample?'\n'+d.sample:'');return;}
+      allData=allData.concat(d.data||[]);
+      box.textContent=`Đã lấy ${allData.length}/${codes.length} đơn...`;
+    }
+    if(!allData.length){box.textContent='Kết nối OK nhưng không lấy được đơn nào. Kiểm tra lại API Key + mã đơn.';return;}
+    const mapped=allData.map(mapMerchizeOrder);
+    const ids=new Set(orders.map(o=>o.id));
+    let added=0;
+    mapped.forEach(o=>{if(!ids.has(o.id)){orders.push(o);added++;}});
+    localStorage.setItem('pod_orders',JSON.stringify(orders));
+    await cloudSaveAll();await cloudLoad();
+    buildShopFilter();applyFilter();updateCounts();
+    box.textContent=`✅ Đã lấy ${mapped.length} đơn (thêm mới ${added}). Đóng cửa sổ để xem.`;
+    toast(`✅ Đã lấy ${added} đơn cũ về app`,'success');
+  }catch(e){box.textContent='❌ '+e.message;}
+}
+// Trích mã đơn từ nội dung CSV
+function extractCodesFromCSV(text){
+  const codes=new Set();
+  // 1) tìm theo mẫu mã Merchize RB-/RX-... ở bất kỳ đâu
+  const m=text.match(/\b[A-Z]{2}-\d{3,}-\d{3,}\b/g);
+  if(m)m.forEach(c=>codes.add(c));
+  // 2) nếu không thấy, thử đọc cột "code"/"order code"/"order number"
+  if(!codes.size){
+    const lines=text.split(/\r?\n/).filter(Boolean);
+    if(lines.length>1){
+      const header=lines[0].split(',').map(h=>h.replace(/"/g,'').trim().toLowerCase());
+      let ci=header.findIndex(h=>h==='code'||h==='order code'||h==='order_code'||h==='order number'||h==='order_number'||h==='order id');
+      if(ci<0)ci=0;
+      for(let i=1;i<lines.length;i++){
+        const cells=lines[i].split(',');
+        const v=(cells[ci]||'').replace(/"/g,'').trim();
+        if(v)codes.add(v);
+      }
+    }
+  }
+  return [...codes];
+}
+
 async function pullMerchize(){
   // lưu cfg
   cfg.mrzBase=document.getElementById('mrz-base').value.trim();
