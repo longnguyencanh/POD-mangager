@@ -2078,7 +2078,7 @@ function renderHistoryPage(){
     const push=[o.pushed?.merchize?'🏭':'',o.pushed?.sellerwix?'🛒':'',o.pushed?.sheet?'📊':''].filter(Boolean).join(' ')||'—';
     const last=o.history?.length?o.history[o.history.length-1]:null;
     const when=last?fmtDate(last.t):fmtDate(new Date(o.created).getTime());
-    return`<tr style="cursor:pointer" onclick="selectOrder('${o.id}')"><td><b style="color:var(--accent)">${orderCode(o)}</b></td><td>${o.items?.[0]?.title||'—'}</td><td>${o.customer||'—'}</td><td>${o.shopTitle||'—'}</td><td><span class="pill ${pc}">${pl}</span></td><td>${push}</td><td style="font-size:11px;color:var(--text3)">${when}${last?'<br>'+last.by:''}</td></tr>`;
+    return`<tr style="cursor:pointer" onclick="selectOrder('${o.id}')"><td><b style="color:var(--accent)">${etsyCode(o)}</b></td><td>${o.items?.[0]?.title||'—'}${o.items?.[0]?.variantName?`<br><span style="font-size:11px;color:var(--text3)">📏 ${esc(o.items[0].variantName)}</span>`:''}</td><td>${o.customer||'—'}</td><td>${o.shopTitle||'—'}</td><td><span class="pill ${pc}">${pl}</span></td><td>${push}</td><td style="font-size:11px;color:var(--text3)">${when}${last?'<br>'+last.by:''}</td></tr>`;
   }).join('');
 }
 function exportHistoryCSV(){
@@ -2088,7 +2088,7 @@ function exportHistoryCSV(){
   list.forEach(o=>{
     const last=o.history?.length?o.history[o.history.length-1]:null;
     const push=[o.pushed?.merchize?'Merchize':'',o.pushed?.sellerwix?'Sellerwix':'',o.pushed?.sheet?'Sheet':''].filter(Boolean).join('|');
-    const row=[o.id,o.items?.[0]?.title||'',o.customer||'',o.shopTitle||'',STATUS_LABEL[o.status]||o.status,push,last?fmtDate(last.t):'',last?last.by:''].map(x=>`"${String(x).replace(/"/g,'""')}"`).join(',');
+    const row=[etsyCode(o),o.items?.[0]?.title||'',o.customer||'',o.shopTitle||'',STATUS_LABEL[o.status]||o.status,push,last?fmtDate(last.t):'',last?last.by:''].map(x=>`"${String(x).replace(/"/g,'""')}"`).join(',');
     csv+=row+'\n';
   });
   const blob=new Blob(['\ufeff'+csv],{type:'text/csv;charset=utf-8'});
