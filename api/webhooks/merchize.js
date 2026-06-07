@@ -64,15 +64,18 @@ export default async function handler(req, res) {
   // GET = chẩn đoán: mở bằng trình duyệt để xem trạng thái
   if (req.method === 'GET') {
     let dbInfo = { configured: hasRedis(), orders: null };
+    let lastPayload = null;
     if (hasRedis()) {
       try { const c = await kvGet('pod:orders'); dbInfo.orders = c && c.orders ? c.orders.length : 0; }
       catch (e) { dbInfo.error = e.message; }
+      try { lastPayload = await kvGet('pod:last_webhook'); } catch (e) {}
     }
     res.status(200).json({
       ok: true,
       message: 'Webhook Merchize đang hoạt động. Dùng POST để gửi đơn.',
       database: dbInfo,
       secret_configured: !!process.env.MERCHIZE_WEBHOOK_SECRET,
+      last_webhook: lastPayload,
     });
     return;
   }
@@ -85,7 +88,6 @@ export default async function handler(req, res) {
   if (secret) {
     const got = req.headers['merchize-webhook-key'] || req.headers['x-merchize-webhook-key'] || req.headers['x-webhook-secret'];
     if (!timingSafeEqual(got, secret)) {
-      // Trả 200 (không phải 401) kèm cảnh báo, để Merchize không retry dồn — nhưng ghi rõ lý do
       res.status(200).json({ ok: false, error: 'webhook key không khớp', hint: 'Kiểm tra MERCHIZE_WEBHOOK_SECRET trên Vercel = đúng Secret key của Merchize' });
       return;
     }
@@ -93,6 +95,19 @@ export default async function handler(req, res) {
 
   let body = req.body;
   if (typeof body === 'string') { try { body = JSON.parse(body); } catch (e) { body = {}; } }
+
+  // GHI LẠI payload nhận được (để chẩn đoán: mở GET sẽ thấy Merchize gửi gì)
+  if (hasRedis()) {
+    try {
+      await kvSet('pod:last_webhook', {
+        at: new Date().toISOString(),
+        headers_keys: Object.keys(req.headers || {}),
+        body_type: typeof body,
+        body_keys: body && typeof body === 'object' ? Object.keys(body) : null,
+        body_sample: JSON.stringify(body).slice(0, 800),
+      });
+    } catch (e) {}
+  }
 
   // Lấy (các) đơn từ payload — Merchize có thể gửi 1 đơn hoặc mảng, tuỳ event
   let rawOrders = [];
