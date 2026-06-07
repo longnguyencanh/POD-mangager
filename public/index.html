@@ -87,6 +87,16 @@ body{font-family:'Be Vietnam Pro',sans-serif;background:var(--bg);color:var(--te
 .hist-act{font-size:12.5px;color:var(--text);font-weight:500}
 .hist-meta{font-size:11px;color:var(--text3);margin-top:1px}
 .hist-filters{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:14px}
+.sa-alerts{display:flex;flex-direction:column;gap:8px}
+.sa-alert{display:flex;gap:10px;align-items:center;padding:10px 12px;border-radius:9px;font-size:13px}
+.sa-red{background:#fbeaea;color:#9a3a3a}
+.sa-orange{background:#fdf0e3;color:#9a6a2a}
+.sa-info{background:var(--accent-l);color:var(--text2)}
+.sa-conn{display:flex;flex-direction:column;gap:8px}
+.sa-conn-row{display:flex;align-items:center;gap:10px;font-size:13px;padding:5px 0}
+.sa-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0}
+.sa-dot.on{background:#5a8a6a;box-shadow:0 0 0 3px #5a8a6a22}
+.sa-dot.off{background:#c25a4a;box-shadow:0 0 0 3px #c25a4a22}
 .oi-meta{display:flex;align-items:center;gap:7px;margin-top:7px;flex-wrap:wrap}
 .pill{display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:12px;font-size:10.5px;font-weight:600}
 .p-new{background:var(--green-l);color:var(--green-d)}
@@ -331,7 +341,7 @@ body[data-role="seller"] .no-seller{display:none !important}
   <div class="sb-item" onclick="toast('Đang phát triển','info')"><span class="ic">🏭</span> Bảng giá</div>
   <div class="sb-item" onclick="toast('Đang phát triển','info')"><span class="ic">🚚</span> Nhà cung cấp</div>
   <div class="sb-sec">Quản trị</div>
-  <div class="sb-item" onclick="toast('Đang phát triển','info')"><span class="ic">📋</span> Quản trị hệ thống</div>
+  <div class="sb-item admin-only" id="nav-sysadmin" onclick="goPage('sysadmin')"><span class="ic">📋</span> Quản trị hệ thống</div>
   <div class="sb-item" onclick="goPage('analytics')"><span class="ic">💰</span> Phân tích lợi nhuận</div>
   <div class="sb-item admin-only" onclick="openUsers()"><span class="ic">👥</span> Quản lý nhân viên</div>
   <div class="sb-item admin-only" onclick="openSettings()"><span class="ic">⚙️</span> Cài đặt</div>
@@ -344,10 +354,8 @@ body[data-role="seller"] .no-seller{display:none !important}
   <!-- ════ PAGE: ĐƠN HÀNG ════ -->
   <div class="page active" id="page-orders">
     <div class="cfg-bar">
-      <input class="cfg-inp admin-only" type="password" id="printify-token" placeholder="🔑 Printify API Token" style="flex:1">
-      <input class="cfg-inp admin-only" type="text" id="printify-shop" placeholder="Shop ID" style="width:110px">
-      <span class="staff-only" style="flex:1;font-size:12px;color:var(--text3)">Nhấn Tải đơn để cập nhật đơn mới nhất</span>
-      <button class="btn btn-green btn-sm" onclick="fetchOrders()" id="fetch-btn">⟳ Tải đơn</button>
+      <span style="flex:1;font-size:12px;color:var(--text3)">Đơn tự động về từ Merchize (webhook). Nhấn <b>Đồng bộ đơn</b> để tải lại danh sách mới nhất.</span>
+      <button class="btn btn-green btn-sm" onclick="syncOrders()" id="fetch-btn">⟳ Đồng bộ đơn</button>
     </div>
 
     <div class="ph">
@@ -375,7 +383,7 @@ body[data-role="seller"] .no-seller{display:none !important}
     </div>
 
     <div class="order-list" id="order-list">
-      <div class="empty-state"><div class="ei">📭</div><div>Chưa có đơn hàng</div><div style="font-size:11px">Nhập token rồi nhấn <b>Tải đơn</b></div></div>
+      <div class="empty-state"><div class="ei">📭</div><div>Chưa có đơn hàng</div><div style="font-size:11px">Đơn sẽ tự về từ Merchize, hoặc nhấn <b>Đồng bộ đơn</b></div></div>
     </div>
   </div>
 
@@ -610,6 +618,49 @@ body[data-role="seller"] .no-seller{display:none !important}
     </div>
   </div>
 
+  <!-- ════ PAGE: QUẢN TRỊ HỆ THỐNG ════ -->
+  <div class="page" id="page-sysadmin">
+    <div class="ph">
+      <div class="ph-title">Quản trị hệ thống</div>
+      <div class="ph-sub">Cảnh báo · năng suất · nhật ký · trạng thái kết nối</div>
+    </div>
+    <div class="page-scroll">
+
+      <!-- Khối 1: Cảnh báo cần xử lý -->
+      <div class="block">
+        <div class="block-title">🔔 Cảnh báo cần xử lý</div>
+        <div id="sa-alerts" class="sa-alerts"></div>
+      </div>
+
+      <div class="block-grid2">
+        <!-- Khối 2: Năng suất hôm nay -->
+        <div class="block">
+          <div class="block-title">📊 Năng suất hôm nay</div>
+          <table class="mini-table">
+            <thead><tr><th>Nhân viên</th><th>Đơn xử lý</th><th>Đang ôm</th></tr></thead>
+            <tbody id="sa-productivity"></tbody>
+          </table>
+        </div>
+        <!-- Khối 4: Trạng thái kết nối -->
+        <div class="block">
+          <div class="block-title">🔌 Trạng thái kết nối</div>
+          <div id="sa-conn" class="sa-conn"></div>
+          <button class="btn btn-sm" style="margin-top:10px" onclick="renderSysadmin()">🔄 Làm mới</button>
+        </div>
+      </div>
+
+      <!-- Khối 3: Nhật ký hoạt động -->
+      <div class="block">
+        <div class="block-title">🕐 Nhật ký hoạt động gần đây</div>
+        <table class="mini-table">
+          <thead><tr><th>Thời gian</th><th>Người</th><th>Hành động</th><th>Đơn</th></tr></thead>
+          <tbody id="sa-activity"></tbody>
+        </table>
+      </div>
+
+    </div>
+  </div>
+
 </div>
 
 <!-- DETAIL OVERLAY -->
@@ -800,23 +851,42 @@ body[data-role="seller"] .no-seller{display:none !important}
     <div class="divider"></div>
 
     <!-- KÉO ĐƠN TỪ MERCHIZE -->
-    <div class="modal-title" style="font-size:16px;margin-top:4px">🏭 Kéo đơn từ Merchize</div>
+    <div class="modal-title" style="font-size:16px;margin-top:4px">🏭 Đơn từ Merchize</div>
     <div style="font-size:11.5px;color:var(--text2);margin-bottom:12px;line-height:1.6">
-      Lấy đơn có sẵn trong Merchize về app để quản lý/thống kê. Vào Merchize → menu <b>API</b> để lấy Base URL + Access Token. <span style="color:var(--orange)">Token Merchize hết hạn hàng tháng, nhớ cập nhật lại.</span>
+      Vào Merchize → menu <b>API</b> lấy <b>Base URL</b> + <b>API Key</b>. <span style="color:var(--green-d)">Dùng API Key (tab "API KEY") vì KHÔNG hết hạn — khỏi cập nhật hàng tháng.</span>
     </div>
     <div class="fl" style="margin-bottom:10px">
       <label>Base URL</label>
-      <input class="fi" type="text" id="mrz-base" placeholder="https://ten-store.merchize.store/bo-api">
+      <input class="fi" type="text" id="mrz-base" placeholder="https://bo-group-X-Y.merchize.com/xxxx/bo-api">
     </div>
     <div class="fl" style="margin-bottom:12px">
-      <label>Access Token (API Key)</label>
-      <input class="fi" type="password" id="mrz-token" placeholder="token từ menu API của Merchize">
+      <label>API Key (khuyên dùng, không hết hạn)</label>
+      <input class="fi" type="password" id="mrz-token" placeholder="dán API Key từ menu API của Merchize">
     </div>
     <div style="display:flex;gap:8px">
-      <button class="btn btn-sm" onclick="probeMerchize()">🔍 Chẩn đoán kết nối</button>
-      <button class="btn btn-green btn-sm" onclick="pullMerchize()">⬇ Kéo đơn về</button>
+      <button class="btn btn-sm" onclick="probeMerchize()">🔍 Chẩn đoán</button>
+      <button class="btn btn-green btn-sm" onclick="pullMerchize()">⬇ Kéo đơn (theo mã)</button>
     </div>
     <div id="mrz-box" style="display:none;margin-top:10px;background:var(--bg);border:1px solid var(--border2);border-radius:9px;padding:10px;font-size:11px;font-family:monospace;white-space:pre-wrap;max-height:240px;overflow:auto"></div>
+
+    <div class="divider"></div>
+    <div class="modal-title" style="font-size:15px">🔔 Webhook — đơn tự động về (khuyên dùng)</div>
+    <div style="font-size:11.5px;color:var(--text2);margin:8px 0 12px;line-height:1.7">
+      Cách tốt nhất: Merchize <b>tự đẩy đơn mới</b> sang app, không cần bấm gì. Làm 1 lần:
+      <br>1. Copy URL webhook bên dưới
+      <br>2. Vào Merchize → <b>Setting → Webhook → Add Webhook</b> → dán URL → chọn các sự kiện đơn hàng
+      <br>3. (Tuỳ chọn) đặt Webhook Secret để bảo mật
+    </div>
+    <div class="fl" style="margin-bottom:10px">
+      <label>URL webhook của app (copy sang Merchize)</label>
+      <div style="display:flex;gap:6px">
+        <input class="fi" type="text" id="mrz-webhook-url" readonly style="flex:1;font-size:11px">
+        <button class="btn btn-sm" onclick="copyWebhookUrl()">📋 Copy</button>
+      </div>
+    </div>
+    <div style="font-size:11px;color:var(--text3);line-height:1.6">
+      💡 Để bảo mật webhook: đặt biến <b>MERCHIZE_WEBHOOK_SECRET</b> trên Vercel = chuỗi bí mật bất kỳ, rồi điền đúng chuỗi đó vào ô Secret khi tạo webhook ở Merchize.
+    </div>
   </div>
 </div>
 
@@ -1077,7 +1147,7 @@ let analyticsPeriod='7d';
 
 function goPage(page){
   // Chặn staff vào trang analytics
-  if((page==='analytics'||page==='insight')&&(!auth||auth.role!=='admin')){toast('Bạn không có quyền xem trang này','error');return;}
+  if((page==='analytics'||page==='insight'||page==='sysadmin')&&(!auth||auth.role!=='admin')){toast('Bạn không có quyền xem trang này','error');return;}
   currentPage=page;
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.getElementById('page-'+page).classList.add('active');
@@ -1089,6 +1159,7 @@ function goPage(page){
   if(page==='analytics')renderAnalytics();
   if(page==='insight')renderInsight();
   if(page==='history')renderHistoryPage();
+  if(page==='sysadmin')renderSysadmin();
 }
 
 // ── helper: orders in period ──
@@ -1134,7 +1205,7 @@ function renderHome(){
     const pill=PILLS[o.status]||['p-done',o.status];
     const title=(o.items&&o.items[0]&&o.items[0].title)||'—';
     return '<tr style="cursor:pointer" onclick="goPage(\'orders\');setTimeout(function(){selectOrder(\''+o.id+'\')},100)">'+
-      '<td><b>#'+o.id+'</b></td><td>'+title+'</td><td>'+o.customer+'</td>'+
+      '<td><b>'+orderCode(o)+'</b></td><td>'+title+'</td><td>'+o.customer+'</td>'+
       '<td><span class="pill '+pill[0]+'">'+pill[1]+'</span></td>'+
       '<td style="color:var(--accent);font-weight:600">'+o.total+'</td></tr>';
   }).join('')||'<tr><td colspan="5" style="text-align:center;color:var(--text3);padding:20px">Chưa có đơn</td></tr>';
@@ -1229,7 +1300,7 @@ function renderAnalytics(){
   document.getElementById('a-factory-compare').innerHTML=Object.entries(fc).map(([f,n])=>`<div style="margin-bottom:14px"><div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:5px"><span style="font-weight:600">${f}</span><span style="color:var(--text3)">${n} đơn · ~$${(n*cost).toFixed(0)} chi phí</span></div><div class="bar-mini-track"><div class="bar-mini-fill" style="width:${n/maxF*100}%;background:#4a6ba0"></div></div></div>`).join('');
 
   // detail
-  document.getElementById('a-detail').innerHTML=list.slice(0,20).map(o=>{const t=numOf(o.total);const q=o.items.reduce((s,it)=>s+(parseInt(it.qty)||1),0);const c=cost*q+ship;const np=t-c-Math.max(0,t-c)*pct;return`<tr><td><b>#${o.id}</b></td><td>${o.items?.[0]?.title||'—'}</td><td>$${t.toFixed(2)}</td><td style="color:var(--orange)">$${c.toFixed(2)}</td><td style="color:var(--green-d);font-weight:600">$${np.toFixed(2)}</td></tr>`;}).join('')||'<tr><td colspan="5" style="text-align:center;color:var(--text3);padding:16px">Chưa có dữ liệu</td></tr>';
+  document.getElementById('a-detail').innerHTML=list.slice(0,20).map(o=>{const t=numOf(o.total);const q=o.items.reduce((s,it)=>s+(parseInt(it.qty)||1),0);const c=cost*q+ship;const np=t-c-Math.max(0,t-c)*pct;return`<tr><td><b>${orderCode(o)}</b></td><td>${o.items?.[0]?.title||'—'}</td><td>$${t.toFixed(2)}</td><td style="color:var(--orange)">$${c.toFixed(2)}</td><td style="color:var(--green-d);font-weight:600">$${np.toFixed(2)}</td></tr>`;}).join('')||'<tr><td colspan="5" style="text-align:center;color:var(--text3);padding:16px">Chưa có dữ liệu</td></tr>';
 }
 
 function exportCSV(){
@@ -1278,7 +1349,7 @@ function renderHistoryPage(){
     const push=[o.pushed?.merchize?'🏭':'',o.pushed?.sellerwix?'🛒':'',o.pushed?.sheet?'📊':''].filter(Boolean).join(' ')||'—';
     const last=o.history?.length?o.history[o.history.length-1]:null;
     const when=last?fmtDate(last.t):fmtDate(new Date(o.created).getTime());
-    return`<tr style="cursor:pointer" onclick="selectOrder('${o.id}')"><td><b style="color:var(--accent)">#${o.id}</b></td><td>${o.items?.[0]?.title||'—'}</td><td>${o.customer||'—'}</td><td>${o.shopTitle||'—'}</td><td><span class="pill ${pc}">${pl}</span></td><td>${push}</td><td style="font-size:11px;color:var(--text3)">${when}${last?'<br>'+last.by:''}</td></tr>`;
+    return`<tr style="cursor:pointer" onclick="selectOrder('${o.id}')"><td><b style="color:var(--accent)">${orderCode(o)}</b></td><td>${o.items?.[0]?.title||'—'}</td><td>${o.customer||'—'}</td><td>${o.shopTitle||'—'}</td><td><span class="pill ${pc}">${pl}</span></td><td>${push}</td><td style="font-size:11px;color:var(--text3)">${when}${last?'<br>'+last.by:''}</td></tr>`;
   }).join('');
 }
 function exportHistoryCSV(){
@@ -1300,6 +1371,71 @@ function drawChart(id,type,data,opts){
   const el=document.getElementById(id);if(!el)return;
   if(charts[id])charts[id].destroy();
   charts[id]=new Chart(el,{type,data,options:{responsive:true,maintainAspectRatio:false,...opts}});
+}
+
+// ══════════════════════════════════════════
+//  QUẢN TRỊ HỆ THỐNG
+// ══════════════════════════════════════════
+function renderSysadmin(){
+  const now=Date.now();const H=3600000;
+  // ── Khối 1: Cảnh báo ──
+  const alerts=[];
+  const stale=orders.filter(o=>o.status==='new'&&(now-new Date(o.created).getTime())>48*H);
+  if(stale.length)alerts.push({lv:'red',ic:'⏰',txt:`${stale.length} đơn mới tồn quá 48h chưa xử lý`});
+  const urgent=orders.filter(o=>o.urgent&&o.status!=='done');
+  if(urgent.length)alerts.push({lv:'red',ic:'🚩',txt:`${urgent.length} đơn gấp chưa hoàn tất`});
+  const missing=orders.filter(o=>o.status==='missing'||o.status==='missing_qty');
+  if(missing.length)alerts.push({lv:'orange',ic:'⚠️',txt:`${missing.length} đơn thiếu info/số lượng đang kẹt`});
+  const noDesign=orders.filter(o=>!o.larkLink&&!(o.items||[]).some(it=>it.larkLink)&&o.status!=='done'&&o.status!=='cancelled');
+  if(noDesign.length)alerts.push({lv:'orange',ic:'🎨',txt:`${noDesign.length} đơn chưa có file design (Lark)`});
+  const notPushed=orders.filter(o=>o.status==='done'&&!(o.pushed&&(o.pushed.merchize||o.pushed.sellerwix||o.pushed.sheet)));
+  if(notPushed.length)alerts.push({lv:'orange',ic:'🏭',txt:`${notPushed.length} đơn đã xử lý nhưng chưa đẩy xưởng`});
+  // token Merchize hết hạn hàng tháng
+  alerts.push({lv:'info',ic:'🔑',txt:'Nhắc: token Merchize hết hạn hàng tháng — kiểm tra định kỳ'});
+  const box=document.getElementById('sa-alerts');
+  box.innerHTML=alerts.length?alerts.map(a=>`<div class="sa-alert sa-${a.lv}"><span>${a.ic}</span><span>${a.txt}</span></div>`).join(''):'<div style="color:var(--green-d);font-size:13px">✅ Không có cảnh báo nào. Mọi thứ ổn!</div>';
+
+  // ── Khối 2: Năng suất hôm nay ──
+  const today0=new Date();today0.setHours(0,0,0,0);const t0=today0.getTime();
+  const prod={};
+  orders.forEach(o=>{
+    (o.history||[]).forEach(h=>{if(h.t>=t0){if(!prod[h.by])prod[h.by]={done:0,holding:0};prod[h.by].done++;}});
+  });
+  // đang ôm: đơn chưa done mà có người trong lịch sử gần nhất
+  orders.forEach(o=>{if(o.status!=='done'&&o.status!=='cancelled'&&o.history&&o.history.length){const last=o.history[o.history.length-1].by;if(!prod[last])prod[last]={done:0,holding:0};prod[last].holding++;}});
+  const pb=document.getElementById('sa-productivity');
+  const pe=Object.entries(prod).sort((a,b)=>b[1].done-a[1].done);
+  pb.innerHTML=pe.length?pe.map(([name,d])=>`<tr><td><b>${name}</b></td><td>${d.done}</td><td style="color:${d.holding>5?'var(--orange)':'var(--text2)'}">${d.holding}</td></tr>`).join(''):'<tr><td colspan="3" style="text-align:center;color:var(--text3);padding:14px">Chưa có hoạt động hôm nay</td></tr>';
+
+  // ── Khối 3: Nhật ký hoạt động (gộp toàn hệ thống) ──
+  const acts=[];
+  orders.forEach(o=>{(o.history||[]).forEach(h=>acts.push({t:h.t,by:h.by,act:h.act,code:orderCode(o)}));});
+  acts.sort((a,b)=>b.t-a.t);
+  const ab=document.getElementById('sa-activity');
+  ab.innerHTML=acts.length?acts.slice(0,30).map(a=>`<tr><td style="font-size:11px;color:var(--text3)">${fmtDate(a.t)}</td><td>${a.by}</td><td>${a.act}</td><td style="color:var(--accent)">${a.code}</td></tr>`).join(''):'<tr><td colspan="4" style="text-align:center;color:var(--text3);padding:14px">Chưa có hoạt động nào được ghi</td></tr>';
+
+  // ── Khối 4: Trạng thái kết nối ──
+  const cb=document.getElementById('sa-conn');
+  cb.innerHTML='<div style="font-size:12px;color:var(--text3)">Đang kiểm tra...</div>';
+  sysadminCheckConn();
+}
+async function sysadminCheckConn(){
+  const cb=document.getElementById('sa-conn');
+  const rows=[];
+  // Database
+  rows.push({name:'Database (đồng bộ chung)',ok:cloudOn,note:cloudOn?'đang hoạt động':'chưa bật (lưu cục bộ)'});
+  // Printify
+  let pf={ok:false,note:'chưa kiểm tra'};
+  try{
+    const headers={'Content-Type':'application/json'};if(auth&&auth.token)headers['X-Session']=auth.token;if(cfg.printifyToken)headers['Authorization']=`Bearer ${cfg.printifyToken}`;
+    const r=await fetch('/api/printify?action=accounts',{headers});
+    if(r.status===404)pf={ok:false,note:'chạy local (chưa deploy)'};
+    else{const d=await r.json();pf=r.ok?{ok:true,note:(d.accounts||[]).length+' shop'}:{ok:false,note:d.error||'lỗi'};}
+  }catch(e){pf={ok:false,note:'không kết nối'};}
+  rows.push({name:'Printify API',...pf});
+  // Lark (không kiểm tra tự động được — chỉ ghi nhận)
+  rows.push({name:'Lark (file design)',ok:true,note:'lưu link thủ công'});
+  cb.innerHTML=rows.map(r=>`<div class="sa-conn-row"><span class="sa-dot ${r.ok?'on':'off'}"></span><span style="flex:1">${r.name}</span><span style="font-size:11px;color:var(--text3)">${r.note}</span></div>`).join('');
 }
 
 // ══════════════════════════════════════════
@@ -1388,11 +1524,12 @@ function renderInsight(){
 
 function loadCfg(){
   try{const s=localStorage.getItem(CFG_KEY);if(s)cfg={...cfg,...JSON.parse(s)};}catch(e){}
-  if(cfg.printifyToken)document.getElementById('printify-token').value=cfg.printifyToken;
-  if(cfg.shopId)document.getElementById('printify-shop').value=cfg.shopId;
+  const pt=document.getElementById('printify-token');if(pt&&cfg.printifyToken)pt.value=cfg.printifyToken;
+  const ps=document.getElementById('printify-shop');if(ps&&cfg.shopId)ps.value=cfg.shopId;
 }
 function saveCfg(){localStorage.setItem(CFG_KEY,JSON.stringify(cfg));}
-function openSettings(){document.getElementById('s-pt').value=cfg.printifyToken||'';const mb=document.getElementById('mrz-base');if(mb)mb.value=cfg.mrzBase||'';const mt=document.getElementById('mrz-token');if(mt)mt.value=cfg.mrzToken||'';document.getElementById('settings-modal').classList.add('open');}
+function openSettings(){document.getElementById('s-pt').value=cfg.printifyToken||'';const mb=document.getElementById('mrz-base');if(mb)mb.value=cfg.mrzBase||'';const mt=document.getElementById('mrz-token');if(mt)mt.value=cfg.mrzToken||'';const wu=document.getElementById('mrz-webhook-url');if(wu)wu.value=location.origin+'/api/webhooks/merchize';document.getElementById('settings-modal').classList.add('open');}
+function copyWebhookUrl(){const el=document.getElementById('mrz-webhook-url');el.select();try{navigator.clipboard.writeText(el.value);}catch(e){document.execCommand('copy');}toast('✅ Đã copy URL webhook','success');}
 function closeSettings(){document.getElementById('settings-modal').classList.remove('open');}
 function saveSettings(){cfg.printifyToken=document.getElementById('s-pt').value.trim();const ti=document.getElementById('printify-token');if(ti)ti.value=cfg.printifyToken;saveCfg();closeSettings();toast('✅ Đã lưu','success');}
 async function checkAccounts(){  const box=document.getElementById('accounts-list');
@@ -1491,13 +1628,16 @@ async function pullMerchize(){
 // Chuyển đơn Merchize → định dạng app (linh hoạt theo nhiều tên trường)
 function mapMerchizeOrder(o){
   const g=(...keys)=>{for(const k of keys){const v=k.split('.').reduce((x,p)=>x&&x[p],o);if(v!==undefined&&v!==null)return v;}return undefined;};
-  const id=String(g('id','_id','code','order_code','order_number','number','name')||('MRZ-'+Math.random().toString(36).slice(2,8)));
+  // Mã đơn DỄ ĐỌC ưu tiên (order_number/code/name), mã kỹ thuật _id để dự phòng
+  const readable=g('order_number','number','order_code','code','name','reference');
+  const techId=g('id','_id');
+  const id=String(readable||techId||('MRZ-'+Math.random().toString(36).slice(2,8)));
   const items=(g('items','line_items','order_items','products')||[]).map(it=>({
-    title:it.title||it.name||it.product_title||it.product_name||'Sản phẩm',
+    title:it.title||it.name||it.product_title||it.product_name||it.product||'Sản phẩm',
     sku:it.sku||it.variant_sku||it.variant_id||'',
     qty:it.quantity||it.qty||1,
     price:'$'+(parseFloat(it.price||it.unit_price||0)).toFixed(2),
-    img:it.image||it.thumbnail||it.preview_url||'',
+    img:it.image||it.thumbnail||it.preview_url||it.image_url||it.mockup||'',
     personalization:it.personalization||it.note||'',
     supplier:'Merchize',ptype:'— Chọn —',material:'— Chọn —',size:it.size||'— Chọn —',
     designer:'— Chưa gán —',fulfiller:'Merchize',confirmed:false,
@@ -1505,7 +1645,7 @@ function mapMerchizeOrder(o){
   const cust=g('customer.name','customer_name','shipping_address.name','buyer_name','address.name')||
     [g('shipping_address.first_name','customer.first_name'),g('shipping_address.last_name','customer.last_name')].filter(Boolean).join(' ')||'Unknown';
   return{
-    id,external_id:String(g('external_number','external_id','reference')||''),
+    id,orderNumber:String(readable||''),external_id:String(g('external_number','external_id','reference')||''),
     account:'Merchize',shopId:String(g('store_id','shop_id')||'merchize'),shopTitle:g('store_name','shop_name')||'Merchize',
     status:mapMrzStatus(g('status','order_status','fulfillment_status')),
     created:g('created_at','created','createdAt','order_date')||new Date().toISOString(),
@@ -1526,35 +1666,22 @@ function mapMrzStatus(s){
   return 'new';
 }
 
-async function fetchOrders(){
-  setFetch(true);setConn(false,'Đang kết nối...');
-  document.getElementById('order-list').innerHTML='<div class="empty-state"><div class="spinner"></div><div>Đang tải đơn từ tất cả shop...</div></div>';
-  const tokenInput=document.getElementById('printify-token')?document.getElementById('printify-token').value.trim():'';
-  if(tokenInput){cfg.printifyToken=tokenInput;saveCfg();}
+async function syncOrders(){
+  setFetch(true);setConn(false,'Đang đồng bộ...');
+  document.getElementById('order-list').innerHTML='<div class="empty-state"><div class="spinner"></div><div>Đang đồng bộ đơn từ Merchize...</div></div>';
   try{
-    // Gọi gộp tất cả shop/token qua server
-    const headers={'Content-Type':'application/json'};
-    if(auth&&auth.token)headers['X-Session']=auth.token;
-    if(cfg.printifyToken)headers['Authorization']=`Bearer ${cfg.printifyToken}`;
-    let r=await fetch('/api/printify?action=allorders&limit=50',{headers});
-    if(r.status===404)throw new Error('local'); // mở file local → demo
-    const data=await r.json();
-    if(!r.ok)throw new Error(data.error||('Lỗi '+r.status));
-    const raw=data.data||[];
-    orders=raw.map(mapOrder);
-    localStorage.setItem('pod_orders',JSON.stringify(orders));
-    // Đẩy lên DB chung — server tự giữ lại chỉnh sửa cũ (trạng thái, designer, note...)
-    await cloudSaveAll();
-    // Đọc lại bản đã merge từ server để có dữ liệu thống nhất
-    await cloudLoad();
-    // cập nhật danh sách shop để lọc
-    buildShopFilter();
-    applyFilter();updateCounts();
+    const ok=await cloudLoad();
+    if(!ok){
+      // chưa có database (mở local hoặc chưa cấu hình) → demo
+      setConn(false,'Chưa kết nối DB — demo');toast('Chưa bật database — đang hiển thị dữ liệu demo','warn');loadDemo();
+      return;
+    }
+    buildShopFilter();applyFilter();updateCounts();
     const shops=[...new Set(orders.map(o=>o.shopTitle).filter(Boolean))];
-    setConn(true,`${orders.length} đơn — ${shops.length} shop`);
-    toast(`✅ Đã tải ${raw.length} đơn từ ${shops.length} shop`,'success');
+    setConn(true,`${orders.length} đơn${shops.length?' — '+shops.length+' shop':''}`);
+    toast(`✅ Đã đồng bộ ${orders.length} đơn`,'success');
   }catch(e){
-    setConn(false,'Lỗi — dùng demo');toast(`${e.message==='local'?'Mở qua server để lấy đơn thật':e.message} — load demo`,'warn');loadDemo();
+    setConn(false,'Lỗi đồng bộ');toast('Lỗi: '+e.message,'error');
   }finally{setFetch(false);}
 }
 function mapOrder(o){return{id:o.id||'',external_id:o.external_id||'',account:o._account||'',shopId:o._shopId||'',shopTitle:o._shopTitle||'',status:mapStatus(o.status),created:o.created_at||new Date().toISOString(),customer:[(o.address_to?.first_name||''),(o.address_to?.last_name||'')].join(' ').trim()||'Unknown',country:o.address_to?.country||'—',email:o.address_to?.email||'—',address:[o.address_to?.address1,o.address_to?.city,o.address_to?.country].filter(Boolean).join(', '),total:'$'+((o.total_price||0)/100).toFixed(2),items:(o.line_items||[]).map(li=>({title:li.title||'Sản phẩm',sku:li.sku||li.variant_id||'',qty:li.quantity||1,price:'$'+((li.price||0)/100).toFixed(2),img:li.preview_url||'',personalization:li.metadata?.label||'',supplier:'— Chọn —',ptype:'— Chọn —',material:'— Chọn —',size:'— Chọn —',designer:'— Chưa gán —',fulfiller:'— Chưa gán —',confirmed:false})),urgent:false,note:'',pushed:{merchize:false,sellerwix:false,sheet:false}};}
@@ -1597,7 +1724,7 @@ function renderList(){
     const[pc,pl]=PILLS[o.status]||['p-done',o.status];
     const img=o.items?.[0]?.img?`<img src="${o.items[0].img}" onerror="this.style.display='none';this.parentElement.textContent='🖼️'">`:'🖼️';
     const pi=[o.pushed?.merchize?'🏭':'',o.pushed?.sellerwix?'🛒':'',o.pushed?.sheet?'📊':''].filter(Boolean).join('');
-    return`<div class="oi" onclick="selectOrder('${o.id}')"><div class="oi-thumb">${img}</div><div class="oi-info"><div class="oi-name">${o.items?.[0]?.title||'Sản phẩm'}</div><div class="oi-id"><span class="oi-code">#${o.id}</span>${o.shopTitle?' · 🏪 '+o.shopTitle:''}</div><div class="oi-meta"><span class="pill ${pc}">${pl}</span>${o.urgent?'<span class="urgent-tag">🚩 Gấp</span>':''}${pi?`<span style="font-size:11px">${pi}</span>`:''}<span class="oi-price">${o.total}</span><span class="oi-time">${relTime(o.created)}</span></div></div></div>`;
+    return`<div class="oi" onclick="selectOrder('${o.id}')"><div class="oi-thumb">${img}</div><div class="oi-info"><div class="oi-name">${o.items?.[0]?.title||'Sản phẩm'}</div><div class="oi-id"><span class="oi-code">${orderCode(o)}</span>${o.shopTitle?' · 🏪 '+o.shopTitle:''}</div><div class="oi-meta"><span class="pill ${pc}">${pl}</span>${o.urgent?'<span class="urgent-tag">🚩 Gấp</span>':''}${pi?`<span style="font-size:11px">${pi}</span>`:''}<span class="oi-price">${o.total}</span><span class="oi-time">${relTime(o.created)}</span></div></div></div>`;
   }).join('');
 }
 
@@ -1612,7 +1739,7 @@ function selectOrder(id){
   set('d-oid',o.id);set('d-status',o.status||'new',1);set('d-cust',o.customer||'—');set('d-country',o.country||'—');set('d-email',o.email||'—');set('d-total',o.total||'—');set('d-addr',o.address||'—');set('d-note',o.note||'');
   const it0=o.items[0]||{};
   document.getElementById('d-pname').textContent=it0.title||'Sản phẩm';
-  document.getElementById('d-pcode').textContent='#'+o.id;
+  document.getElementById('d-pcode').textContent=orderCode(o);
   document.getElementById('d-pshop').textContent=o.shopTitle?('🏪 '+o.shopTitle):'';
   const th=document.getElementById('d-thumb');
   th.innerHTML=it0.img?`<img src="${it0.img}" onerror="this.style.display='none';this.parentElement.textContent='🖼️'">`:'🖼️';
@@ -1791,7 +1918,13 @@ async function cloudDelete(id){
 }
 function set(id,v,sel){const el=document.getElementById(id);if(!el)return;el.value=sel?v:(v||'');}
 function setConn(on,l){document.getElementById('conn-dot').classList.toggle('on',on);document.getElementById('conn-label').textContent=l;}
-function setFetch(l){const b=document.getElementById('fetch-btn');b.disabled=l;b.textContent=l?'⏳ Đang tải...':'⟳ Tải đơn';}
+function setFetch(l){const b=document.getElementById('fetch-btn');b.disabled=l;b.textContent=l?'⏳ Đang đồng bộ...':'⟳ Đồng bộ đơn';}
+// Mã đơn hiển thị: ưu tiên mã ngắn dễ đọc (external_id / order_number), KHÔNG có dấu #
+function orderCode(o){
+  if(!o)return '—';
+  const c=o.orderNumber||o.order_number||o.external_id||o.name||o.id||'';
+  return String(c);
+}
 function relTime(iso){if(!iso)return'—';const d=Date.now()-new Date(iso);if(d<3600000)return Math.floor(d/60000)+' phút trước';if(d<86400000)return Math.floor(d/3600000)+' giờ trước';if(d<604800000)return Math.floor(d/86400000)+' ngày trước';return new Date(iso).toLocaleDateString('vi-VN');}
 function fmtDate(iso){if(!iso)return'—';return new Date(iso).toLocaleString('vi-VN');}
 function esc(s){return(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
