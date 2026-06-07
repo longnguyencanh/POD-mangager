@@ -398,6 +398,7 @@ body[data-role="seller"] .no-seller{display:none !important}
   <div class="sb-item admin-only" id="nav-insight" onclick="goPage('insight')"><span class="ic">🔍</span> Shop Insight</div>
   <div class="sb-sec">Vận hành</div>
   <div class="sb-item" onclick="goPage('pricing')"><span class="ic">🏭</span> Bảng giá</div>
+  <div class="sb-item" onclick="goPage('costs')"><span class="ic">💸</span> Chi phí</div>
   <div class="sb-item" onclick="toast('Đang phát triển','info')"><span class="ic">🚚</span> Nhà cung cấp</div>
   <div class="sb-sec">Quản trị</div>
   <div class="sb-item admin-only" id="nav-sysadmin" onclick="goPage('sysadmin')"><span class="ic">📋</span> Quản trị hệ thống</div>
@@ -751,20 +752,29 @@ body[data-role="seller"] .no-seller{display:none !important}
           <button class="btn btn-green btn-sm" onclick="addPrice()">+ Thêm</button>
         </div>
       </div>
-      <div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:20px;max-width:720px;margin-top:16px">
-        <div style="font-size:14px;font-weight:700;margin-bottom:4px">💸 Chi phí vận hành (trừ vào lời tháng)</div>
-        <div style="font-size:11.5px;color:var(--text2);margin-bottom:14px;line-height:1.6">Các khoản không gắn vào đơn lẻ. App trừ vào tổng lời theo kỳ.</div>
+    </div>
+  </div>
 
-        <div style="font-size:12.5px;font-weight:600;margin-bottom:8px">📣 Quảng cáo theo ngày</div>
+  <!-- ════ PAGE: CHI PHÍ VẬN HÀNH ════ -->
+  <div class="page" id="page-costs">
+    <div class="ph">
+      <h1>💸 Chi phí vận hành</h1>
+      <p class="sub">Quảng cáo, lương, chi phí khác — app trừ vào lời để ra lời ròng.</p>
+    </div>
+    <div class="page-scroll">
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:20px;max-width:720px;margin-bottom:16px">
+        <div style="font-size:14px;font-weight:700;margin-bottom:4px">📣 Quảng cáo theo ngày</div>
+        <div style="font-size:11.5px;color:var(--text2);margin-bottom:14px;line-height:1.6">Ghi chi phí quảng cáo mỗi ngày. Quên ngày nào ghi bổ sung được (chỉ thêm, không sửa). Seller & admin đều ghi được.</div>
         <div style="display:grid;grid-template-columns:1fr 1.2fr auto;gap:8px;align-items:end;margin-bottom:8px">
           <div class="fl"><label>Ngày</label><input class="fi" id="ad-date" type="date"></div>
           <div class="fl"><label>Số tiền ($)</label><input class="fi" id="ad-amount" type="number" step="0.01" placeholder="15.00"></div>
           <button class="btn btn-green btn-sm" onclick="addAdCost()">+ Ghi</button>
         </div>
-        <div id="ad-list" style="font-size:12px;max-height:140px;overflow:auto;margin-bottom:14px"></div>
-
-        <div class="divider"></div>
-        <div style="font-size:12.5px;font-weight:600;margin-bottom:8px">🏢 Chi phí cố định (lương, tiếp khách... — theo tháng)</div>
+        <div id="ad-list" style="font-size:12px;max-height:220px;overflow:auto"></div>
+      </div>
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:20px;max-width:720px">
+        <div style="font-size:14px;font-weight:700;margin-bottom:4px">🏢 Chi phí cố định (theo tháng)</div>
+        <div style="font-size:11.5px;color:var(--text2);margin-bottom:14px;line-height:1.6">Lương nhân viên, tiếp khách, thuê văn phòng... Nhập từng khoản riêng.</div>
         <div style="display:grid;grid-template-columns:1.5fr 1fr auto;gap:8px;align-items:end;margin-bottom:8px">
           <div class="fl"><label>Tên khoản</label><input class="fi" id="oc-name" placeholder="vd: Lương NV văn phòng"></div>
           <div class="fl"><label>Số tiền/tháng ($)</label><input class="fi" id="oc-amount" type="number" step="0.01" placeholder="500"></div>
@@ -1533,7 +1543,8 @@ function goPage(page){
   if(page==='insight')renderInsight();
   if(page==='history')renderHistoryPage();
   if(page==='sysadmin')renderSysadmin();
-  if(page==='pricing'){renderPriceList();loadFees();savePriceSheetUrl_load();renderAdList();renderOpList();}
+  if(page==='pricing'){renderPriceList();loadFees();savePriceSheetUrl_load();}
+  if(page==='costs'){renderAdList();renderOpList();}
 }
 
 // ── helper: orders in period ──
