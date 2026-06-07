@@ -510,6 +510,10 @@ body[data-role="seller"] .no-seller{display:none !important}
       <div class="ph-sub">Sức khoẻ vận hành — trạng thái dòng chảy đơn hiện tại</div>
     </div>
     <div class="page-scroll">
+      <div class="block" style="margin-bottom:16px">
+        <div class="block-title">📈 Doanh số theo thời gian</div>
+        <div id="d-period-grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-top:8px"></div>
+      </div>
       <div class="stat-grid">
         <div class="stat-card"><span class="sc-ic">📦</span><div class="stat-label">Tổng đơn</div><div class="stat-value accent" id="d-total-orders">0</div><div class="stat-sub">trong hệ thống</div></div>
         <div class="stat-card"><span class="sc-ic">🏭</span><div class="stat-label">Đã đẩy xưởng</div><div class="stat-value green" id="d-pushed">0</div><div class="stat-sub">đang sản xuất</div></div>
@@ -1532,7 +1536,42 @@ function homeAction(i){
 // ══════════════════════════════════════════
 //  DASHBOARD
 // ══════════════════════════════════════════
+// Thống kê doanh số theo mốc thời gian (theo ngày đơn về)
+function renderPeriodStats(){
+  const el=document.getElementById('d-period-grid');if(!el)return;
+  const now=new Date();
+  const startOfDay=d=>{const x=new Date(d);x.setHours(0,0,0,0);return x;};
+  const today0=startOfDay(now);
+  const yest0=new Date(today0);yest0.setDate(yest0.getDate()-1);
+  const d7=new Date(today0);d7.setDate(d7.getDate()-6);     // 7 ngày gồm hôm nay
+  const d30=new Date(today0);d30.setDate(d30.getDate()-29); // 30 ngày
+  const yearNow=now.getFullYear();
+  const dateOf=o=>{const d=o.created||o.saleDate||o.date;return d?new Date(d):null;};
+  const inRange=(o,from,to)=>{const d=dateOf(o);if(!d||isNaN(d))return false;if(from&&d<from)return false;if(to&&d>=to)return false;return true;};
+  const num=o=>parseFloat(String(o.total||'').replace(/[^0-9.]/g,''))||0;
+  const prof=o=>{const p=(typeof profitFor==='function')?profitFor(o):null;return p||0;};
+  const agg=(filterFn)=>{const list=orders.filter(filterFn);return{n:list.length,rev:list.reduce((a,o)=>a+num(o),0),profit:list.reduce((a,o)=>a+prof(o),0)};};
+  const tomorrow=new Date(today0);tomorrow.setDate(tomorrow.getDate()+1);
+  const periods=[
+    {label:'Hôm nay',icon:'☀️',f:o=>inRange(o,today0,tomorrow)},
+    {label:'Hôm qua',icon:'🌙',f:o=>inRange(o,yest0,today0)},
+    {label:'7 ngày qua',icon:'📅',f:o=>inRange(o,d7,tomorrow)},
+    {label:'30 ngày qua',icon:'🗓️',f:o=>inRange(o,d30,tomorrow)},
+    {label:'Năm nay ('+yearNow+')',icon:'📆',f:o=>{const d=dateOf(o);return d&&!isNaN(d)&&d.getFullYear()===yearNow;}},
+    {label:'Năm ngoái ('+(yearNow-1)+')',icon:'📁',f:o=>{const d=dateOf(o);return d&&!isNaN(d)&&d.getFullYear()===yearNow-1;}},
+  ];
+  el.innerHTML=periods.map(p=>{
+    const s=agg(p.f);
+    return`<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px">
+      <div style="font-size:12px;color:var(--text2);font-weight:600">${p.icon} ${p.label}</div>
+      <div style="font-size:22px;font-weight:800;color:var(--accent);margin-top:6px">${s.n}<span style="font-size:12px;font-weight:600;color:var(--text3)"> đơn</span></div>
+      <div style="font-size:13px;color:var(--text);margin-top:4px">💵 $${s.rev.toFixed(2)}</div>
+      <div style="font-size:12px;color:#b8860b;font-weight:600;margin-top:2px">💰 Lời $${s.profit.toFixed(2)}</div>
+    </div>`;
+  }).join('');
+}
 function renderDashboard(){
+  renderPeriodStats();
   const total=orders.length;
   const pushed=orders.filter(o=>o.pushed?.merchize||o.pushed?.sellerwix||o.pushed?.sheet).length;
   const countries=[...new Set(orders.map(o=>o.country))].filter(c=>c&&c!=='—');
