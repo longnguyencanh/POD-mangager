@@ -1061,6 +1061,7 @@ async function enterApp(){
   const s=localStorage.getItem('pod_orders');
   if(s)try{orders=JSON.parse(s);buildShopFilter();applyFilter();updateCounts();}catch(e){}
   // Rồi đồng bộ từ DB chung (nếu đã deploy + cấu hình)
+  await cloudLoadCfg(); // tải bảng viết tắt SKU dùng chung
   const ok=await cloudLoad();
   if(ok){buildShopFilter();applyFilter();updateCounts();if(orders.length)setConn(true,`${orders.length} đơn (đồng bộ chung)`);}
 }
@@ -1620,7 +1621,28 @@ function renderInsight(){
 function loadCfg(){
   try{const s=localStorage.getItem(CFG_KEY);if(s)cfg={...cfg,...JSON.parse(s)};}catch(e){}
 }
-function saveCfg(){localStorage.setItem(CFG_KEY,JSON.stringify(cfg));}
+function saveCfg(){
+  localStorage.setItem(CFG_KEY,JSON.stringify(cfg));
+  // Đẩy cấu hình chung (skuMap...) lên database để cả team dùng chung
+  cloudSaveCfg();
+}
+async function cloudSaveCfg(){
+  try{
+    const headers={'Content-Type':'application/json'};
+    if(auth&&auth.token)headers['X-Session']=auth.token;
+    // chỉ lưu phần dùng chung, không lưu token nhạy cảm
+    const shared={skuMap:cfg.skuMap||[]};
+    await fetch('/api/data?op=config',{method:'POST',headers,body:JSON.stringify(shared)});
+  }catch(e){}
+}
+async function cloudLoadCfg(){
+  try{
+    const headers={'Content-Type':'application/json'};
+    if(auth&&auth.token)headers['X-Session']=auth.token;
+    const r=await fetch('/api/data?op=config',{headers});
+    if(r.ok){const c=await r.json();if(c&&Array.isArray(c.skuMap)){cfg.skuMap=c.skuMap;localStorage.setItem(CFG_KEY,JSON.stringify(cfg));}}
+  }catch(e){}
+}
 function openSettings(){const mb=document.getElementById('mrz-base');if(mb)mb.value=cfg.mrzBase||'';const mt=document.getElementById('mrz-token');if(mt)mt.value=cfg.mrzToken||'';const wu=document.getElementById('mrz-webhook-url');if(wu)wu.value=location.origin+'/api/webhooks/merchize';document.getElementById('settings-modal').classList.add('open');}
 function copyWebhookUrl(){const el=document.getElementById('mrz-webhook-url');el.select();try{navigator.clipboard.writeText(el.value);}catch(e){document.execCommand('copy');}toast('✅ Đã copy URL webhook','success');}
 function closeSettings(){document.getElementById('settings-modal').classList.remove('open');}
