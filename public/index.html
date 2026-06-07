@@ -466,6 +466,7 @@ body[data-role="seller"] .no-seller{display:none !important}
       <button class="btn btn-xs" onclick="bulkStatus('cancelled')">🔴 Huỷ</button>
       <button class="btn btn-xs" onclick="bulkStatus('done')">✓ Đã xử lý</button>
       <button class="btn btn-xs" onclick="bulkExport()">📊 Xuất Sheet đơn chọn</button>
+      <select class="fi" id="bulk-shop-sel" style="width:auto;padding:4px 8px;font-size:12px" onchange="if(this.value){bulkShop(this.value);this.value='';}"><option value="">🏪 Đổi shop...</option></select>
       <button class="btn btn-xs" onclick="bulkSel.clear();renderList()" style="margin-left:auto">✕ Bỏ chọn</button>
     </div>
 
@@ -740,11 +741,16 @@ body[data-role="seller"] .no-seller{display:none !important}
           <div style="font-size:12.5px;font-weight:600;margin-bottom:6px">🔗 Tự lấy bảng giá từ Sheet xưởng</div>
           <div style="font-size:11px;color:var(--text2);margin-bottom:8px;line-height:1.6">Xưởng có Sheet bảng giá (cột loại SP + cột giá). Dán link để app tự lấy về.</div>
           <input class="fi" id="price-sheet-url" placeholder="Dán link Google Sheet bảng giá..." style="margin-bottom:8px">
-          <div style="display:flex;gap:8px">
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
             <button class="btn btn-sm" onclick="savePriceSheetUrl()">💾 Lưu link</button>
             <button class="btn btn-green btn-sm" onclick="syncPriceSheet()">🔄 Lấy bảng giá về</button>
           </div>
           <div id="price-sheet-box" style="display:none;margin-top:10px;background:#fff;border:1px solid var(--border2);border-radius:8px;padding:10px;font-size:11px;white-space:pre-wrap;max-height:160px;overflow:auto"></div>
+          <div class="divider" style="margin:14px 0"></div>
+          <div style="font-size:12.5px;font-weight:600;margin-bottom:6px">💰 Lấy giá từng đơn qua API Merchize</div>
+          <div style="font-size:11px;color:var(--text2);margin-bottom:8px;line-height:1.6">Merchize là xưởng → lấy giá basecost chính xác từng đơn (size/màu khác giá). Cần đã cấu hình API key Merchize.</div>
+          <button class="btn btn-green btn-sm" onclick="syncMerchizePrices()">💰 Lấy giá basecost từ Merchize</button>
+          <div id="mrz-price-box" style="display:none;margin-top:10px;background:#fff;border:1px solid var(--border2);border-radius:8px;padding:10px;font-size:11px;white-space:pre-wrap;max-height:160px;overflow:auto"></div>
         </div>
         <div id="price-list"></div>
         <div class="divider"></div>
@@ -814,6 +820,17 @@ body[data-role="seller"] .no-seller{display:none !important}
       <div class="ph-sub">Cảnh báo · năng suất · nhật ký · trạng thái kết nối</div>
     </div>
     <div class="page-scroll">
+
+      <!-- Khối: Quản lý Shop -->
+      <div class="block">
+        <div class="block-title">🏪 Quản lý Shop</div>
+        <div style="font-size:11.5px;color:var(--text2);margin:6px 0 12px;line-height:1.6">Khai báo các shop của bạn. Danh sách này dùng chung cho: đổi shop đơn, quảng cáo theo shop, lời ròng theo shop.</div>
+        <div id="shop-list" style="margin-bottom:12px"></div>
+        <div style="display:flex;gap:8px;align-items:end;max-width:480px">
+          <div class="fl" style="flex:1"><label>Tên shop mới</label><input class="fi" id="shop-name" placeholder="vd: My Etsy Shop 3"></div>
+          <button class="btn btn-green btn-sm" onclick="addShop()">+ Thêm shop</button>
+        </div>
+      </div>
 
       <!-- Khối 1: Cảnh báo cần xử lý -->
       <div class="block">
@@ -893,10 +910,7 @@ body[data-role="seller"] .no-seller{display:none !important}
 
     <div class="fr c2">
       <div class="fl"><label>🏪 Shop</label>
-        <select class="fi" id="d-shop" onchange="changeShop(this.value)">
-          <option value="Etsy">Etsy</option>
-          <option value="Etsy 2">Etsy 2</option>
-        </select>
+        <select class="fi" id="d-shop" onchange="changeShop(this.value)"></select>
       </div>
       <div class="fl"><label>Mã vận đơn (tracking)</label><input class="fi" id="d-track" readonly style="color:#2e7d46;font-weight:600"></div>
     </div>
@@ -914,7 +928,7 @@ body[data-role="seller"] .no-seller{display:none !important}
     </div>
     <div class="fr c2">
       <div class="fl"><label>Email</label><input class="fi" id="d-email" readonly></div>
-      <div class="fl"><label>Tổng tiền</label><input class="fi" id="d-total" readonly style="color:var(--accent);font-weight:700"></div>
+      <div class="fl"><label>💵 Doanh thu / Giá bán ($) <span style="color:var(--text3);font-weight:400">— nhập tay</span></label><input class="fi" id="d-total" placeholder="vd: 28.35" oninput="changeTotal(this.value)" style="color:var(--accent);font-weight:700"></div>
     </div>
     <div class="fr">
       <div class="fl"><label>Địa chỉ giao hàng</label><input class="fi" id="d-addr" readonly></div>
@@ -1336,7 +1350,37 @@ async function fetchFxRate(){
   }catch(e){info.textContent='❌ Lỗi mạng khi lấy tỷ giá. Nhập tay giúp (vd 25400).';}
 }
 // ── CHI PHÍ VẬN HÀNH ──
-function shopList(){return [...new Set(orders.map(o=>o.shopTitle).filter(Boolean))];}
+function shopList(){
+  // gộp shop khai báo (cfg.shops) + shop xuất hiện trong đơn
+  const fromCfg=(cfg.shops||[]);
+  const fromOrders=[...new Set(orders.map(o=>o.shopTitle).filter(Boolean))];
+  return [...new Set([...fromCfg,...fromOrders])];
+}
+function addShop(){
+  const name=document.getElementById('shop-name').value.trim();
+  if(!name){toast('Nhập tên shop','error');return;}
+  if(!cfg.shops)cfg.shops=[];
+  if(cfg.shops.includes(name)){toast('Shop này đã có','error');return;}
+  cfg.shops.push(name);saveCfg();renderShopList();
+  document.getElementById('shop-name').value='';
+  toast('✅ Đã thêm shop "'+name+'"','success');
+}
+function delShop(name){
+  if(!confirm('Xoá shop "'+name+'" khỏi danh sách? (đơn đang dùng shop này không bị xoá)'))return;
+  cfg.shops=(cfg.shops||[]).filter(s=>s!==name);saveCfg();renderShopList();
+}
+function renderShopList(){
+  const el=document.getElementById('shop-list');if(!el)return;
+  const declared=cfg.shops||[];
+  const fromOrders=[...new Set(orders.map(o=>o.shopTitle).filter(Boolean))];
+  const all=[...new Set([...declared,...fromOrders])];
+  if(!all.length){el.innerHTML='<div style="color:var(--text3);font-size:12px">Chưa có shop nào.</div>';return;}
+  el.innerHTML=all.map(s=>{
+    const cnt=orders.filter(o=>o.shopTitle===s).length;
+    const canDel=declared.includes(s);
+    return`<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--border2)"><span style="font-weight:600">🏪 ${s}</span><span style="color:var(--text3);font-size:11px">${cnt} đơn</span>${canDel?`<button class="btn btn-xs" style="color:var(--red)" onclick="delShop('${s.replace(/'/g,"\\'")}')">✕</button>`:'<span style="font-size:10px;color:var(--text3)">(từ đơn)</span>'}</div>`;
+  }).join('');
+}
 function addAdCost(){
   const shop=document.getElementById('ad-shop').value;
   const date=document.getElementById('ad-date').value;
@@ -1434,6 +1478,47 @@ function loadFees(){
   const f=cfg.fees||{};
   const set=(id,v)=>{const el=document.getElementById(id);if(el)el.value=v||'';};
   set('fee-etsy',f.etsy);set('fee-pay',f.pay);set('fee-tax',f.tax);set('fee-flat',f.flat);
+}
+// Lấy giá basecost từng đơn qua API Merchize (giá khác nhau từng đơn)
+async function syncMerchizePrices(){
+  const box=document.getElementById('mrz-price-box');if(box){box.style.display='block';box.textContent='Đang lấy giá từ Merchize...';}
+  // lấy mã đơn (ưu tiên mã Merchize RB-/RX-, hoặc external_number/mã Etsy)
+  const codes=orders.map(o=>o.orderNumber||o.external_id||o.id).filter(Boolean).slice(0,200);
+  if(!codes.length){if(box)box.textContent='❌ Chưa có đơn nào.';return;}
+  let updated=0,sampleFields='';
+  try{
+    // gọi theo lô 50
+    for(let i=0;i<codes.length;i+=50){
+      const batch=codes.slice(i,i+50);
+      const r=await fetch('/api/merchize?action=details',{method:'POST',headers:mrzHeaders(),body:JSON.stringify({codes:batch})});
+      if(!r.ok)continue;
+      const j=await r.json();const data=j.data||[];
+      data.forEach(md=>{
+        // tìm giá basecost trong nhiều tên trường có thể
+        const price=findPrice(md);
+        if(price==null)return;
+        // mã để khớp
+        const mcode=String(md.code||md.external_number||md.order_number||'').toUpperCase();
+        const o=orders.find(x=>[x.orderNumber,x.external_id,x.id,x.external_number].filter(Boolean).map(v=>String(v).toUpperCase()).includes(mcode));
+        if(o&&o.items&&o.items[0]){o.items[0].basecostFromWorkshop=String(price);updated++;if(!sampleFields)sampleFields=JSON.stringify(Object.keys(md).filter(k=>/cost|price|base/i.test(k)));}
+      });
+    }
+    localStorage.setItem('pod_orders',JSON.stringify(orders));
+    await cloudSaveAll();applyFilter();updateCounts();
+    if(box)box.textContent=`✅ Đã lấy giá cho ${updated} đơn từ Merchize.`+(updated?'':'\n⚠️ Không tìm thấy trường giá. Các trường giá có thể: '+(sampleFields||'(không có)'));
+    toast(`✅ Lấy giá ${updated} đơn`,'success');
+  }catch(e){if(box)box.textContent='❌ Lỗi: '+e.message;}
+}
+// Dò giá basecost trong object đơn Merchize (thử nhiều tên trường)
+function findPrice(md){
+  if(!md)return null;
+  const keys=['base_cost','basecost','seller_price','production_cost','cost','price','base_price','supplier_price'];
+  for(const k of keys){if(md[k]!=null&&!isNaN(parseFloat(md[k])))return parseFloat(md[k]);}
+  // tìm trong items
+  if(Array.isArray(md.items)&&md.items[0]){const it=md.items[0];for(const k of keys){if(it[k]!=null&&!isNaN(parseFloat(it[k])))return parseFloat(it[k]);}}
+  // tìm trong line_items
+  if(Array.isArray(md.line_items)&&md.line_items[0]){const it=md.line_items[0];for(const k of keys){if(it[k]!=null&&!isNaN(parseFloat(it[k])))return parseFloat(it[k]);}}
+  return null;
 }
 function basecostFor(o){
   const list=cfg.priceMap||[];
@@ -1905,6 +1990,7 @@ function drawChart(id,type,data,opts){
 //  QUẢN TRỊ HỆ THỐNG
 // ══════════════════════════════════════════
 function renderSysadmin(){
+  renderShopList();
   const now=Date.now();const H=3600000;
   // ── Khối 1: Cảnh báo ──
   const alerts=[];
@@ -2066,7 +2152,7 @@ async function cloudSaveCfg(){
   try{
     const headers={'Content-Type':'application/json'};
     if(auth&&auth.token)headers['X-Session']=auth.token;
-    const shared={skuMap:cfg.skuMap||[],priceMap:cfg.priceMap||[],fees:cfg.fees||{},adCosts:cfg.adCosts||[],opCosts:cfg.opCosts||[],fxRate:cfg.fxRate||0,fxManual:cfg.fxManual||false};
+    const shared={skuMap:cfg.skuMap||[],priceMap:cfg.priceMap||[],fees:cfg.fees||{},adCosts:cfg.adCosts||[],opCosts:cfg.opCosts||[],fxRate:cfg.fxRate||0,fxManual:cfg.fxManual||false,shops:cfg.shops||[]};
     const r=await fetch('/api/data?op=config',{method:'POST',headers,body:JSON.stringify(shared)});
     return r.ok;
   }catch(e){return false;}
@@ -2076,7 +2162,7 @@ async function cloudLoadCfg(){
     const headers={'Content-Type':'application/json'};
     if(auth&&auth.token)headers['X-Session']=auth.token;
     const r=await fetch('/api/data?op=config',{headers});
-    if(r.ok){const c=await r.json();if(c&&Array.isArray(c.skuMap)){cfg.skuMap=c.skuMap;}if(c&&Array.isArray(c.priceMap)){cfg.priceMap=c.priceMap;}if(c&&c.fees){cfg.fees=c.fees;}if(c&&Array.isArray(c.adCosts)){cfg.adCosts=c.adCosts;}if(c&&Array.isArray(c.opCosts)){cfg.opCosts=c.opCosts;}if(c&&c.fxRate){cfg.fxRate=c.fxRate;cfg.fxManual=c.fxManual;}localStorage.setItem(CFG_KEY,JSON.stringify(cfg));}
+    if(r.ok){const c=await r.json();if(c&&Array.isArray(c.skuMap)){cfg.skuMap=c.skuMap;}if(c&&Array.isArray(c.priceMap)){cfg.priceMap=c.priceMap;}if(c&&c.fees){cfg.fees=c.fees;}if(c&&Array.isArray(c.adCosts)){cfg.adCosts=c.adCosts;}if(c&&Array.isArray(c.opCosts)){cfg.opCosts=c.opCosts;}if(c&&c.fxRate){cfg.fxRate=c.fxRate;cfg.fxManual=c.fxManual;}if(c&&Array.isArray(c.shops)){cfg.shops=c.shops;}localStorage.setItem(CFG_KEY,JSON.stringify(cfg));}
   }catch(e){}
 }
 function openSettings(){const mb=document.getElementById('mrz-base');if(mb)mb.value=cfg.mrzBase||'';const mt=document.getElementById('mrz-token');if(mt)mt.value=cfg.mrzToken||'';const tu=document.getElementById('trk-sheet-url');if(tu)tu.value=cfg.trkSheetUrl||'';const wu=document.getElementById('mrz-webhook-url');if(wu)wu.value=location.origin+'/api/webhooks/merchize';document.getElementById('settings-modal').classList.add('open');}
@@ -2271,14 +2357,34 @@ async function importEtsyFile(){
       });
     }
     if(!mapped.length){box.textContent='❌ Không đọc được đơn nào.';return;}
-    const ids=new Set(orders.map(o=>o.id));
-    let added=0;
-    mapped.forEach(o=>{if(!ids.has(o.id)){orders.push(o);added++;}});
+    let added=0,updated=0;
+    mapped.forEach(m=>{
+      const mid=String(m.id).toUpperCase();
+      const msku=(m.items[0].sku||'').toUpperCase();
+      // tìm đơn đã có: khớp mã Etsy (id/external_id/external_number) HOẶC khớp SKU
+      const exist=orders.find(o=>{
+        const keys=[o.id,o.orderNumber,o.external_id,o.external_number].filter(Boolean).map(v=>String(v).toUpperCase());
+        if(keys.includes(mid))return true;
+        if(msku&&o.items&&o.items[0]&&String(o.items[0].sku||'').toUpperCase()===msku)return true;
+        return false;
+      });
+      if(exist){
+        // cập nhật giá bán (doanh thu) + ngày + địa chỉ + mã Etsy, GIỮ tên SP đẹp của Merchize
+        if(m.total&&m.total!=='$0.00')exist.total=m.total;
+        if(m.created)exist.created=m.created;
+        if(m.customer&&m.customer!=='Unknown'&&(!exist.customer||exist.customer==='Unknown'))exist.customer=m.customer;
+        if(m.address&&(!exist.address||exist.address==='—'))exist.address=m.address;
+        if(m.country&&m.country!=='—')exist.country=m.country;
+        if(!exist.external_number&&/^\d{9,12}$/.test(mid))exist.external_number=m.id;
+        updated++;
+      }else{orders.push(m);added++;}
+    });
     localStorage.setItem('pod_orders',JSON.stringify(orders));
-    await cloudSaveAll();await cloudLoad();
+    await cloudSaveAll();
+    enrichEtsyNames();
     buildShopFilter();applyFilter();updateCounts();
-    box.textContent=`✅ Đọc ${mapped.length} đơn Etsy (thêm mới ${added}, ${mapped.length-added} đã có). Đóng cửa sổ để xem.`;
-    toast(`✅ Đã import ${added} đơn Etsy`,'success');
+    box.textContent=`✅ Đọc ${mapped.length} đơn Etsy: thêm mới ${added}, cập nhật giá/thông tin ${updated} đơn đã có. Đóng cửa sổ để xem.`;
+    toast(`✅ Import: +${added} mới, ${updated} cập nhật giá`,'success');
   }catch(e){box.textContent='❌ '+e.message;}
 }
 function mapEtsyStatus(s){const m=String(s||'').toLowerCase();if(m.includes('cancel'))return'cancelled';if(m.includes('ship')||m.includes('complete'))return'done';if(m.includes('paid'))return'pending';return'new';}
@@ -2536,7 +2642,7 @@ function toggleSelAll(){
 function updateBulkBar(){
   const bar=document.getElementById('bulk-bar');if(!bar)return;
   const n=bulkSel.size;
-  if(n>0&&auth&&auth.role==='admin'){bar.style.display='flex';document.getElementById('bulk-cnt').textContent=n;}
+  if(n>0&&auth&&auth.role==='admin'){bar.style.display='flex';document.getElementById('bulk-cnt').textContent=n;const bs=document.getElementById('bulk-shop-sel');if(bs)bs.innerHTML='<option value="">🏪 Đổi shop...</option>'+shopList().map(s=>`<option value="${s}">→ ${s}</option>`).join('');}
   else bar.style.display='none';
 }
 async function bulkStatus(st){
@@ -2556,6 +2662,14 @@ function bulkExport(){
   const sel=orders.filter(o=>bulkSel.has(o.id));
   exportSheetFor(sel);
   toast(`✅ Đã xuất ${sel.length} đơn đã chọn`,'success');
+}
+async function bulkShop(shop){
+  if(!bulkSel.size)return;
+  if(!confirm(`Đổi ${bulkSel.size} đơn sang shop "${shop}"?`))return;
+  let cnt=0;orders.forEach(o=>{if(bulkSel.has(o.id)){o.shopTitle=shop;cnt++;}});
+  localStorage.setItem('pod_orders',JSON.stringify(orders));
+  await cloudSaveAll();bulkSel.clear();buildShopFilter();applyFilter();updateCounts();
+  toast(`✅ Đã đổi ${cnt} đơn sang "${shop}"`,'success');
 }
 function renderList(){
   const el=document.getElementById('order-list');
@@ -2615,8 +2729,9 @@ function selectOrder(id){
   if(!Array.isArray(o.items))o.items=[];
   if(!o.pushed)o.pushed={};
   try{
-  set('d-oid',o.id);set('d-status',o.status||'new',1);set('d-cust',o.customer||'—');set('d-country',o.country||'—');set('d-email',o.email||'—');set('d-total',o.total||'—');set('d-addr',o.address||'—');set('d-note',o.note||'');
-  const ds=document.getElementById('d-shop');if(ds)ds.value=o.shopTitle||'Etsy';
+  set('d-oid',o.id);set('d-status',o.status||'new',1);set('d-cust',o.customer||'—');set('d-country',o.country||'—');set('d-email',o.email||'—');set('d-addr',o.address||'—');set('d-note',o.note||'');
+  const dtotal=document.getElementById('d-total');if(dtotal)dtotal.value=(String(o.total||'').replace(/[^0-9.]/g,''))||'';
+  const ds=document.getElementById('d-shop');if(ds){const shops=shopList();const cur=o.shopTitle||'';const opts=[...new Set([...shops,cur].filter(Boolean))];ds.innerHTML=opts.map(s=>`<option value="${s}">${s}</option>`).join('')||'<option value="">(chưa có shop)</option>';ds.value=cur;}
   const dt=document.getElementById('d-track');if(dt)dt.value=o.tracking||'(chưa có)';
   const it0=o.items[0]||{};
   document.getElementById('d-pname').textContent=it0.title||'Sản phẩm';
@@ -2759,6 +2874,7 @@ function markMissing(){if(!current)return;current.status='missing';document.getE
 function openCase(){if(current)logHistory(current,'Mở case hỗ trợ');save();toast('🔓 Mở case hỗ trợ (demo)','info');}
 function onStatusChange(){if(!current)return;const old=current.status;const nw=document.getElementById('d-status').value;current.status=nw;logHistory(current,`Đổi trạng thái: ${STATUS_LABEL[old]||old} → ${STATUS_LABEL[nw]||nw}`);save();applyFilter();updateCounts();}
 function changeShop(v){if(!current)return;const old=current.shopTitle;current.shopTitle=v;logHistory(current,`Đổi shop: ${old||'—'} → ${v}`);save();buildShopFilter();applyFilter();toast('✅ Đã đổi shop sang "'+v+'"','success');}
+function changeTotal(v){if(!current)return;const n=parseFloat(String(v).replace(/[^0-9.]/g,''))||0;current.total='$'+n.toFixed(2);save();applyFilter();}
 function saveOrder(){if(!current)return;current.note=document.getElementById('d-note').value;current.status=document.getElementById('d-status').value;logHistory(current,'Lưu thay đổi');save();applyFilter();updateCounts();toast('✅ Đã lưu thay đổi','success');closeDetail();}
 function deleteOrder(){if(!current)return;if(!confirm(`Xoá đơn #${current.id}?`))return;const delId=current.id;orders=orders.filter(o=>o.id!==delId);current=null;try{localStorage.setItem('pod_orders',JSON.stringify(orders));}catch(e){}cloudDelete(delId);applyFilter();updateCounts();closeDetail();toast('🗑 Đã xoá đơn','error');}
 
