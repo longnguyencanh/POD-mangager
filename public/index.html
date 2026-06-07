@@ -114,6 +114,7 @@ body.sb-collapsed .desk-hamb{display:block}
 .oi-name{font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .oi-id{font-size:11px;color:var(--text3);margin-top:2px}
 .oi-code{font-weight:700;color:var(--accent);font-size:12px}
+.oi-shop{font-size:11px;color:var(--green-d);font-weight:600;margin-top:2px}
 .d-header{display:flex;gap:16px;align-items:center;padding:16px;background:linear-gradient(135deg,var(--accent-l),var(--bg));border:1px solid var(--border);border-radius:14px;margin-bottom:18px}
 .d-header-thumb{width:88px;height:88px;border-radius:12px;overflow:hidden;background:var(--surface);border:1px solid var(--border2);display:flex;align-items:center;justify-content:center;font-size:34px;flex-shrink:0}
 .d-header-thumb img{width:100%;height:100%;object-fit:cover}
@@ -414,7 +415,7 @@ body[data-role="seller"] .no-seller{display:none !important}
   <!-- ════ PAGE: ĐƠN HÀNG ════ -->
   <div class="page active" id="page-orders">
     <div class="cfg-bar">
-      <span style="flex:1;font-size:12px;color:var(--text3)">Đơn tự động về từ Merchize (webhook). Nhấn <b>Đồng bộ đơn</b> để tải lại.</span>
+      <span style="flex:1;font-size:12px;color:var(--text3)">Ấn nút đồng bộ đơn và tải lại.</span>
       <button class="btn btn-sm admin-only" onclick="exportOrdersSheet()">📊 Xuất Sheet</button>
       <button class="btn btn-green btn-sm" onclick="syncOrders()" id="fetch-btn">⟳ Đồng bộ đơn</button>
     </div>
@@ -428,9 +429,12 @@ body[data-role="seller"] .no-seller{display:none !important}
       <span class="srch-ic">🔍</span>
       <input type="text" placeholder="Tìm theo Order ID, SKU, tên sản phẩm, khách..." oninput="filterOrders(this.value)">
     </div>
-    <div style="padding:10px 28px 0">
-      <select class="fi" id="shop-filter" onchange="onShopFilter(this.value)" style="display:none">
+    <div style="padding:10px 28px 0;display:flex;gap:8px;flex-wrap:wrap">
+      <select class="fi" id="shop-filter" onchange="onShopFilter(this.value)" style="display:none;flex:1;min-width:160px">
         <option value="all">🏪 Tất cả shop</option>
+      </select>
+      <select class="fi admin-only" id="emp-filter" onchange="onEmpFilter(this.value)" style="display:none;flex:1;min-width:160px">
+        <option value="all">👥 Tất cả nhân viên</option>
       </select>
     </div>
 
@@ -1882,6 +1886,18 @@ function loadDemo(){
 
 // ── Lọc theo shop ──
 let shopFilter='all';
+let empFilter='all';
+// Lấy viết tắt SKU của người đang đăng nhập (theo tên trùng trong bảng skuMap)
+function myAbbrs(){
+  if(!auth)return[];
+  return (cfg.skuMap||[]).filter(m=>m.name===auth.name).map(m=>(m.abbr||'').toUpperCase()).filter(Boolean);
+}
+// Đơn có SKU chứa 1 trong các viết tắt cho trước không
+function orderMatchesAbbrs(o,abbrs){
+  if(!abbrs.length)return false;
+  const skus=(o.items||[]).map(it=>(it.sku||'').toUpperCase());
+  return skus.some(sku=>abbrs.some(a=>sku.includes(a)));
+}
 function buildShopFilter(){
   const sel=document.getElementById('shop-filter');if(!sel)return;
   const shops=[...new Set(orders.map(o=>o.shopTitle).filter(Boolean))];
@@ -1889,13 +1905,38 @@ function buildShopFilter(){
   sel.style.display='';
   sel.innerHTML='<option value="all">🏪 Tất cả shop ('+orders.length+')</option>'+shops.map(s=>{const n=orders.filter(o=>o.shopTitle===s).length;return `<option value="${s}">${s} (${n})</option>`;}).join('');
   sel.value=shopFilter;
+  // Bộ lọc theo nhân viên/SKU (chỉ admin thấy — staff đã bị lọc cứng)
+  const esel=document.getElementById('emp-filter');
+  if(esel){
+    if(auth&&auth.role==='admin'&&(cfg.skuMap||[]).length){
+      esel.style.display='';
+      const map=cfg.skuMap||[];
+      esel.innerHTML='<option value="all">👥 Tất cả nhân viên</option>'+map.map(m=>`<option value="${m.abbr}">${m.name} (${m.abbr})</option>`).join('');
+      esel.value=empFilter;
+    }else esel.style.display='none';
+  }
 }
 function onShopFilter(v){shopFilter=v;applyFilter();}
+function onEmpFilter(v){empFilter=v;applyFilter();}
 
 // ── FILTER ──
 function setTab(el,tab){document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));el.classList.add('active');currentTab=tab;applyFilter();}
 function filterOrders(q){searchQ=q.toLowerCase();applyFilter();}
-function applyFilter(){filtered=orders.filter(o=>{if(shopFilter!=='all'&&o.shopTitle!==shopFilter)return false;if(currentTab!=='all'&&o.status!==currentTab)return false;if(searchQ)return o.id.includes(searchQ)||o.customer.toLowerCase().includes(searchQ)||(o.items?.[0]?.title||'').toLowerCase().includes(searchQ)||(o.external_id||'').includes(searchQ)||(o.items?.[0]?.sku||'').toLowerCase().includes(searchQ);return true;});renderList();}
+function applyFilter(){
+  const isStaffScoped=auth&&auth.role!=='admin';
+  const mine=isStaffScoped?myAbbrs():[];
+  filtered=orders.filter(o=>{
+    // Lọc cứng theo vai trò: nhân viên chỉ thấy đơn có SKU chứa viết tắt của mình
+    if(isStaffScoped){if(!orderMatchesAbbrs(o,mine))return false;}
+    // Bộ lọc nhân viên (admin chọn)
+    if(empFilter&&empFilter!=='all'){if(!orderMatchesAbbrs(o,[empFilter.toUpperCase()]))return false;}
+    if(shopFilter!=='all'&&o.shopTitle!==shopFilter)return false;
+    if(currentTab!=='all'&&o.status!==currentTab)return false;
+    if(searchQ)return o.id.includes(searchQ)||o.customer.toLowerCase().includes(searchQ)||(o.items?.[0]?.title||'').toLowerCase().includes(searchQ)||(o.external_id||'').includes(searchQ)||(o.items?.[0]?.sku||'').toLowerCase().includes(searchQ);
+    return true;
+  });
+  renderList();
+}
 function updateCounts(){const c={all:orders.length};orders.forEach(o=>{c[o.status]=(c[o.status]||0)+1;});['all','pending','processing','done','missing','missing_qty'].forEach(k=>{const el=document.getElementById('tc-'+k);if(el)el.textContent=c[k]||0;});document.getElementById('sb-cnt').textContent=orders.length;if(currentPage==='home')renderHome();else if(currentPage==='dashboard')renderDashboard();else if(currentPage==='analytics')renderAnalytics();}
 
 const PILLS={new:['p-new','🆕 Đơn mới'],pending:['p-pending','⏳ Chờ xử lý'],processing:['p-processing','⚙️ Đang xử lý'],not_sent:['p-notsent','📦 Chưa gửi'],producing:['p-producing','🏭 Chờ sản xuất'],shipped:['p-shipped','🟢 Đã gửi'],hold:['p-hold','🟠 Hold'],done:['p-done','✓ Đã xử lý'],missing:['p-missing','⚠ Thiếu info'],missing_qty:['p-missing','⚠ Thiếu SL'],cancelled:['p-cancelled','🔴 Huỷ']};
@@ -1907,7 +1948,7 @@ function renderList(){
     const[pc,pl]=PILLS[o.status]||['p-done',o.status];
     const img=o.items?.[0]?.img?`<img src="${o.items[0].img}" onerror="this.style.display='none';this.parentElement.textContent='🖼️'">`:'🖼️';
     const pi=[o.pushed?.merchize?'🏭':'',o.pushed?.sellerwix?'🛒':'',o.pushed?.sheet?'📊':''].filter(Boolean).join('');
-    return`<div class="oi" onclick="selectOrder('${o.id}')"><div class="oi-thumb">${img}</div><div class="oi-info"><div class="oi-name">${o.items?.[0]?.title||'Sản phẩm'}</div><div class="oi-id"><span class="oi-code">${orderCode(o)}</span>${o.shopTitle?' · 🏪 '+o.shopTitle:''}</div><div class="oi-meta"><span class="pill ${pc}">${pl}</span>${o.urgent?'<span class="urgent-tag">🚩 Gấp</span>':''}${pi?`<span style="font-size:11px">${pi}</span>`:''}<span class="oi-price">${o.total}</span><span class="oi-time">${relTime(o.created)}</span></div></div></div>`;
+    return`<div class="oi" onclick="selectOrder('${o.id}')"><div class="oi-thumb">${img}</div><div class="oi-info"><div class="oi-name">${o.items?.[0]?.title||'Sản phẩm'}</div><div class="oi-id"><span class="oi-code">${orderCode(o)}</span></div><div class="oi-shop">🏪 ${o.shopTitle||'—'}</div><div class="oi-meta"><span class="pill ${pc}">${pl}</span>${o.urgent?'<span class="urgent-tag">🚩 Gấp</span>':''}${pi?`<span style="font-size:11px">${pi}</span>`:''}<span class="oi-price">${o.total}</span><span class="oi-time">${relTime(o.created)}</span></div></div></div>`;
   }).join('');
 }
 
