@@ -218,9 +218,9 @@ textarea.fi{resize:vertical;min-height:70px;line-height:1.5}
 ::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px}
 
 /* settings modal */
-.modal-bg{display:none;position:fixed;inset:0;background:rgba(40,38,34,.4);z-index:500;align-items:center;justify-content:center}
+.modal-bg{display:none;position:fixed;inset:0;background:rgba(40,38,34,.4);z-index:500;align-items:center;justify-content:center;padding:20px;overflow-y:auto}
 .modal-bg.open{display:flex}
-.modal{background:var(--surface);border-radius:14px;padding:26px;width:440px;max-width:95vw;position:relative;box-shadow:0 20px 60px rgba(0,0,0,.2)}
+.modal{background:var(--surface);border-radius:14px;padding:26px;width:440px;max-width:95vw;max-height:90vh;overflow-y:auto;position:relative;box-shadow:0 20px 60px rgba(0,0,0,.2)}
 .modal-title{font-family:'Lora',serif;font-weight:600;font-size:18px;margin-bottom:18px}
 .modal-close{position:absolute;top:16px;right:16px;background:none;border:none;color:var(--text3);font-size:19px;cursor:pointer}
 
@@ -810,45 +810,7 @@ body[data-role="seller"] .no-seller{display:none !important}
 <div class="modal-bg" id="settings-modal">
   <div class="modal" style="width:520px">
     <button class="modal-close" onclick="closeSettings()">✕</button>
-    <div class="modal-title">⚙️ Cài đặt — Tài khoản Printify</div>
-
-    <div style="font-size:12px;color:var(--text2);margin-bottom:14px;line-height:1.6">
-      App hỗ trợ <b>nhiều tài khoản Printify</b> cùng lúc. Các token được giấu an toàn trên server (Vercel).
-    </div>
-
-    <!-- Danh sách tài khoản đã cấu hình trên server -->
-    <div class="fl" style="margin-bottom:14px">
-      <label>Tài khoản đang kết nối</label>
-      <div id="accounts-list" style="background:var(--bg);border:1px solid var(--border2);border-radius:9px;padding:10px;font-size:12px;min-height:44px">
-        <span style="color:var(--text3)">Nhấn "Kiểm tra" để xem danh sách shop...</span>
-      </div>
-      <button class="btn btn-sm" style="margin-top:8px" onclick="checkAccounts()">🔌 Kiểm tra kết nối tất cả tài khoản</button>
-      <button class="btn btn-sm" style="margin-top:8px" onclick="debugOrders()">🔍 Soi dữ liệu đơn (chẩn đoán)</button>
-      <div id="debug-box" style="display:none;margin-top:10px;background:var(--bg);border:1px solid var(--border2);border-radius:9px;padding:10px;font-size:11px;font-family:monospace;white-space:pre-wrap;max-height:240px;overflow:auto"></div>
-    </div>
-
-    <div class="divider"></div>
-
-    <!-- Hướng dẫn thêm token -->
-    <div class="fl" style="margin-bottom:10px">
-      <label>Cách thêm nhiều token</label>
-      <div style="font-size:11.5px;color:var(--text2);line-height:1.7;background:var(--accent-l);border-radius:9px;padding:12px">
-        Vào <b>Vercel → Settings → Environment Variables</b>, tạo biến <b>PRINTIFY_TOKENS</b> dạng JSON:
-        <pre style="background:#fff;border:1px solid var(--border);border-radius:6px;padding:8px;margin-top:6px;font-size:10.5px;overflow-x:auto;white-space:pre-wrap">[{"name":"Shop Vợ","token":"eyJ..."},
- {"name":"Shop Em","token":"eyJ..."}]</pre>
-        Mỗi tài khoản 1 dòng. Lưu xong nhấn <b>Redeploy</b>. App sẽ tự gộp đơn từ tất cả.
-      </div>
-    </div>
-
-    <!-- Token tạm (chỉ khi chưa cấu hình server) -->
-    <div class="fl" style="margin-bottom:14px">
-      <label>Hoặc nhập 1 token tạm (test nhanh)</label>
-      <input class="fi" type="password" id="s-pt" placeholder="eyJh... (lưu trên trình duyệt này thôi)">
-    </div>
-
-    <button class="btn btn-green" style="width:100%;justify-content:center" onclick="saveSettings()">💾 Lưu</button>
-
-    <div class="divider"></div>
+    <div class="modal-title">⚙️ Cài đặt — Kết nối Merchize</div>
 
     <!-- KÉO ĐƠN TỪ MERCHIZE -->
     <div class="modal-title" style="font-size:16px;margin-top:4px">🏭 Đơn từ Merchize</div>
@@ -864,6 +826,7 @@ body[data-role="seller"] .no-seller{display:none !important}
       <input class="fi" type="password" id="mrz-token" placeholder="dán API Key từ menu API của Merchize">
     </div>
     <div style="display:flex;gap:8px">
+      <button class="btn btn-sm" onclick="saveMrzCfg()">💾 Lưu cấu hình</button>
       <button class="btn btn-sm" onclick="probeMerchize()">🔍 Chẩn đoán</button>
       <button class="btn btn-green btn-sm" onclick="pullMerchize()">⬇ Kéo đơn (theo mã)</button>
     </div>
@@ -1424,16 +1387,20 @@ async function sysadminCheckConn(){
   const rows=[];
   // Database
   rows.push({name:'Database (đồng bộ chung)',ok:cloudOn,note:cloudOn?'đang hoạt động':'chưa bật (lưu cục bộ)'});
-  // Printify
-  let pf={ok:false,note:'chưa kiểm tra'};
+  // Webhook Merchize — gọi GET endpoint chẩn đoán
+  let wh={ok:false,note:'chưa kiểm tra'};
   try{
-    const headers={'Content-Type':'application/json'};if(auth&&auth.token)headers['X-Session']=auth.token;if(cfg.printifyToken)headers['Authorization']=`Bearer ${cfg.printifyToken}`;
-    const r=await fetch('/api/printify?action=accounts',{headers});
-    if(r.status===404)pf={ok:false,note:'chạy local (chưa deploy)'};
-    else{const d=await r.json();pf=r.ok?{ok:true,note:(d.accounts||[]).length+' shop'}:{ok:false,note:d.error||'lỗi'};}
-  }catch(e){pf={ok:false,note:'không kết nối'};}
-  rows.push({name:'Printify API',...pf});
-  // Lark (không kiểm tra tự động được — chỉ ghi nhận)
+    const r=await fetch('/api/webhooks/merchize',{method:'GET'});
+    if(r.status===404)wh={ok:false,note:'chạy local (chưa deploy)'};
+    else{const d=await r.json();
+      if(d&&d.database){
+        const n=d.database.orders;
+        wh={ok:!!d.database.configured,note:d.database.configured?`OK · ${n!=null?n+' đơn trong DB':'sẵn sàng'}${d.secret_configured?' · có secret':''}`:'DB chưa bật'};
+      }else wh={ok:r.ok,note:r.ok?'sẵn sàng':'lỗi'};
+    }
+  }catch(e){wh={ok:false,note:'không kết nối'};}
+  rows.push({name:'Webhook Merchize',...wh});
+  // Lark
   rows.push({name:'Lark (file design)',ok:true,note:'lưu link thủ công'});
   cb.innerHTML=rows.map(r=>`<div class="sa-conn-row"><span class="sa-dot ${r.ok?'on':'off'}"></span><span style="flex:1">${r.name}</span><span style="font-size:11px;color:var(--text3)">${r.note}</span></div>`).join('');
 }
@@ -1524,53 +1491,13 @@ function renderInsight(){
 
 function loadCfg(){
   try{const s=localStorage.getItem(CFG_KEY);if(s)cfg={...cfg,...JSON.parse(s)};}catch(e){}
-  const pt=document.getElementById('printify-token');if(pt&&cfg.printifyToken)pt.value=cfg.printifyToken;
-  const ps=document.getElementById('printify-shop');if(ps&&cfg.shopId)ps.value=cfg.shopId;
 }
 function saveCfg(){localStorage.setItem(CFG_KEY,JSON.stringify(cfg));}
-function openSettings(){document.getElementById('s-pt').value=cfg.printifyToken||'';const mb=document.getElementById('mrz-base');if(mb)mb.value=cfg.mrzBase||'';const mt=document.getElementById('mrz-token');if(mt)mt.value=cfg.mrzToken||'';const wu=document.getElementById('mrz-webhook-url');if(wu)wu.value=location.origin+'/api/webhooks/merchize';document.getElementById('settings-modal').classList.add('open');}
+function openSettings(){const mb=document.getElementById('mrz-base');if(mb)mb.value=cfg.mrzBase||'';const mt=document.getElementById('mrz-token');if(mt)mt.value=cfg.mrzToken||'';const wu=document.getElementById('mrz-webhook-url');if(wu)wu.value=location.origin+'/api/webhooks/merchize';document.getElementById('settings-modal').classList.add('open');}
 function copyWebhookUrl(){const el=document.getElementById('mrz-webhook-url');el.select();try{navigator.clipboard.writeText(el.value);}catch(e){document.execCommand('copy');}toast('✅ Đã copy URL webhook','success');}
 function closeSettings(){document.getElementById('settings-modal').classList.remove('open');}
-function saveSettings(){cfg.printifyToken=document.getElementById('s-pt').value.trim();const ti=document.getElementById('printify-token');if(ti)ti.value=cfg.printifyToken;saveCfg();closeSettings();toast('✅ Đã lưu','success');}
-async function checkAccounts(){  const box=document.getElementById('accounts-list');
-  box.innerHTML='<span class="spinner"></span> Đang kiểm tra...';
-  try{
-    const headers={'Content-Type':'application/json'};
-    if(auth&&auth.token)headers['X-Session']=auth.token;
-    if(cfg.printifyToken)headers['Authorization']=`Bearer ${cfg.printifyToken}`;
-    const r=await fetch('/api/printify?action=accounts',{headers});
-    if(r.status===404){box.innerHTML='<span style="color:var(--orange)">⚠️ Chưa chạy qua server (mở file local). Deploy lên Vercel để dùng nhiều token.</span>';return;}
-    const data=await r.json();
-    if(!r.ok)throw new Error(data.error||'Lỗi');
-    const accs=data.accounts||[];
-    if(!accs.length){box.innerHTML='<span style="color:var(--text3)">Chưa có tài khoản nào</span>';return;}
-    box.innerHTML=accs.map(a=>a.error
-      ?`<div style="padding:4px 0;color:var(--red)">❌ ${a.account}: ${a.error}</div>`
-      :`<div style="padding:4px 0;display:flex;justify-content:space-between"><span>✅ <b>${a.account}</b> · 🏪 ${a.title}</span><span style="color:var(--text3)">#${a.shopId}</span></div>`
-    ).join('');
-  }catch(e){box.innerHTML=`<span style="color:var(--red)">❌ ${e.message}</span>`;}
-}
-
-async function debugOrders(){
-  const box=document.getElementById('debug-box');
-  box.style.display='block';
-  box.textContent='Đang soi dữ liệu...';
-  try{
-    const headers={'Content-Type':'application/json'};
-    if(auth&&auth.token)headers['X-Session']=auth.token;
-    if(cfg.printifyToken)headers['Authorization']=`Bearer ${cfg.printifyToken}`;
-    const r=await fetch('/api/printify?action=debug',{headers});
-    if(r.status===404){box.textContent='⚠️ Chưa chạy qua server (mở file local).';return;}
-    const data=await r.json();
-    if(!r.ok)throw new Error(data.error||'Lỗi');
-    const lines=(data.debug||[]).map(d=>{
-      if(d.error)return `❌ ${d.account}: ${d.error}`;
-      return `🏪 ${d.shopTitle} (#${d.shopId})\n   kênh: ${d.channel||'?'}\n   HTTP: ${d.http_status}\n   số đơn API thấy: ${d.order_count}\n   trạng thái: ${d.statuses.join(', ')||'(không có)'}\n   mẫu: ${JSON.stringify(d.sample)}`;
-    });
-    box.textContent=lines.join('\n\n')||'Không có dữ liệu';
-  }catch(e){box.textContent='❌ '+e.message;}
-}
-
+function saveMrzCfg(){cfg.mrzBase=document.getElementById('mrz-base').value.trim();cfg.mrzToken=document.getElementById('mrz-token').value.trim();saveCfg();toast('✅ Đã lưu cấu hình Merchize','success');}
+function saveSettings(){saveMrzCfg();closeSettings();}
 // ── KÉO ĐƠN TỪ MERCHIZE ──
 function mrzHeaders(){
   const h={'Content-Type':'application/json'};
