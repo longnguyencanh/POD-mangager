@@ -218,9 +218,9 @@ textarea.fi{resize:vertical;min-height:70px;line-height:1.5}
 ::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px}
 
 /* settings modal */
-.modal-bg{display:none;position:fixed;inset:0;background:rgba(40,38,34,.4);z-index:500;align-items:center;justify-content:center}
+.modal-bg{display:none;position:fixed;inset:0;background:rgba(40,38,34,.4);z-index:500;align-items:center;justify-content:center;padding:20px;overflow-y:auto}
 .modal-bg.open{display:flex}
-.modal{background:var(--surface);border-radius:14px;padding:26px;width:440px;max-width:95vw;position:relative;box-shadow:0 20px 60px rgba(0,0,0,.2)}
+.modal{background:var(--surface);border-radius:14px;padding:26px;width:440px;max-width:95vw;max-height:90vh;overflow-y:auto;position:relative;box-shadow:0 20px 60px rgba(0,0,0,.2)}
 .modal-title{font-family:'Lora',serif;font-weight:600;font-size:18px;margin-bottom:18px}
 .modal-close{position:absolute;top:16px;right:16px;background:none;border:none;color:var(--text3);font-size:19px;cursor:pointer}
 
