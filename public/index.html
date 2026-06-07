@@ -1103,6 +1103,8 @@ body[data-role="seller"] .no-seller{display:none !important}
       <br><span style="color:var(--text3)">Đọc: mã đơn, khách, địa chỉ, SKU, số lượng, tiền, trạng thái. (Tên SP/ảnh bổ sung sau từ Merchize.)</span>
     </div>
     <div class="fl" style="margin-bottom:10px">
+      <label style="font-size:12px;color:var(--text2);font-weight:600;display:block;margin-bottom:4px">🏪 File này thuộc shop nào?</label>
+      <select class="fi" id="etsy-shop" style="margin-bottom:8px"></select>
       <input type="file" id="etsy-file" accept=".csv" style="font-size:12px">
     </div>
     <button class="btn btn-green btn-sm" onclick="importEtsyFile()">🛍️ Import đơn Etsy</button>
@@ -2175,7 +2177,7 @@ async function cloudLoadCfg(){
     if(r.ok){const c=await r.json();if(c&&Array.isArray(c.skuMap)){cfg.skuMap=c.skuMap;}if(c&&Array.isArray(c.priceMap)){cfg.priceMap=c.priceMap;}if(c&&c.fees){cfg.fees=c.fees;}if(c&&Array.isArray(c.adCosts)){cfg.adCosts=c.adCosts;}if(c&&Array.isArray(c.opCosts)){cfg.opCosts=c.opCosts;}if(c&&c.fxRate){cfg.fxRate=c.fxRate;cfg.fxManual=c.fxManual;}if(c&&Array.isArray(c.shops)){cfg.shops=c.shops;}localStorage.setItem(CFG_KEY,JSON.stringify(cfg));}
   }catch(e){}
 }
-function openSettings(){const mb=document.getElementById('mrz-base');if(mb)mb.value=cfg.mrzBase||'';const mt=document.getElementById('mrz-token');if(mt)mt.value=cfg.mrzToken||'';const tu=document.getElementById('trk-sheet-url');if(tu)tu.value=cfg.trkSheetUrl||'';const wu=document.getElementById('mrz-webhook-url');if(wu)wu.value=location.origin+'/api/webhooks/merchize';document.getElementById('settings-modal').classList.add('open');}
+function openSettings(){const mb=document.getElementById('mrz-base');if(mb)mb.value=cfg.mrzBase||'';const mt=document.getElementById('mrz-token');if(mt)mt.value=cfg.mrzToken||'';const tu=document.getElementById('trk-sheet-url');if(tu)tu.value=cfg.trkSheetUrl||'';const wu=document.getElementById('mrz-webhook-url');if(wu)wu.value=location.origin+'/api/webhooks/merchize';const es=document.getElementById('etsy-shop');if(es){const shops=shopList();es.innerHTML=shops.length?shops.map(s=>`<option value="${s}">${s}</option>`).join(''):'<option value="Etsy">Etsy</option>';}document.getElementById('settings-modal').classList.add('open');}
 function copyWebhookUrl(){const el=document.getElementById('mrz-webhook-url');el.select();try{navigator.clipboard.writeText(el.value);}catch(e){document.execCommand('copy');}toast('✅ Đã copy URL webhook','success');}
 function closeSettings(){document.getElementById('settings-modal').classList.remove('open');}
 // Đồng bộ tracking từ Google Sheet xưởng: dò mã đơn → lấy tracking
@@ -2333,6 +2335,7 @@ function parseCSV(text){
 async function importEtsyFile(){
   const fileEl=document.getElementById('etsy-file');
   const box=document.getElementById('etsy-import-box');
+  const chosenShop=(document.getElementById('etsy-shop')||{}).value||'Etsy';
   box.style.display='block';
   if(!fileEl.files||!fileEl.files.length){box.textContent='⚠️ Chưa chọn file. Bấm "Choose File" chọn file CSV Etsy.';return;}
   box.textContent='Đang đọc file Etsy...';
@@ -2354,7 +2357,7 @@ async function importEtsyFile(){
       const sku=ci.sku>=0?(r[ci.sku]||'').trim():'';
       mapped.push({
         id:String(r[ci.id]).trim(),orderNumber:String(r[ci.id]).trim(),external_id:String(r[ci.id]).trim(),
-        account:'Etsy',shopId:'etsy',shopTitle:'Etsy',
+        account:'Etsy',shopId:chosenShop.toLowerCase().replace(/\s+/g,''),shopTitle:chosenShop,
         status:mapEtsyStatus(ci.status>=0?r[ci.status]:''),
         created:etsyDate(ci.date>=0?r[ci.date]:''),
         customer:(ci.name>=0?r[ci.name]:'').trim()||'Unknown',
@@ -2379,8 +2382,9 @@ async function importEtsyFile(){
         return false;
       });
       if(exist){
-        // cập nhật giá bán (doanh thu) + ngày + địa chỉ + mã Etsy, GIỮ tên SP đẹp của Merchize
+        // cập nhật giá bán + shop đúng + ngày + địa chỉ + mã Etsy, GIỮ tên SP đẹp Merchize
         if(m.total&&m.total!=='$0.00')exist.total=m.total;
+        exist.shopTitle=chosenShop;exist.shopId=chosenShop.toLowerCase().replace(/\s+/g,'');
         if(m.created)exist.created=m.created;
         if(m.customer&&m.customer!=='Unknown'&&(!exist.customer||exist.customer==='Unknown'))exist.customer=m.customer;
         if(m.address&&(!exist.address||exist.address==='—'))exist.address=m.address;
@@ -2591,7 +2595,7 @@ function orderMatchesAbbrs(o,abbrs){
 }
 function buildShopFilter(){
   const sel=document.getElementById('shop-filter');if(!sel)return;
-  const shops=[...new Set(orders.map(o=>o.shopTitle).filter(Boolean))];
+  const shops=shopList(); // gộp shop khai báo + shop từ đơn
   if(!shops.length){sel.style.display='none';return;}
   sel.style.display='';
   sel.innerHTML='<option value="all">🏪 Tất cả shop ('+orders.length+')</option>'+shops.map(s=>{const n=orders.filter(o=>o.shopTitle===s).length;return `<option value="${s}">${s} (${n})</option>`;}).join('');
