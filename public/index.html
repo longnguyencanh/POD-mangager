@@ -846,6 +846,20 @@ body[data-role="seller"] .no-seller{display:none !important}
     <div id="mrz-import-box" style="display:none;margin-top:10px;background:var(--bg);border:1px solid var(--border2);border-radius:9px;padding:10px;font-size:11px;white-space:pre-wrap;max-height:200px;overflow:auto"></div>
 
     <div class="divider"></div>
+    <div class="modal-title" style="font-size:15px">🛍️ Import đơn từ Etsy (CSV)</div>
+    <div style="font-size:11.5px;color:var(--text2);margin:8px 0 12px;line-height:1.7">
+      Lấy đơn trực tiếp từ Etsy — nguồn gốc, đầy đủ mọi đơn:
+      <br>1. Etsy → <b>Shop Manager → Settings → Options → Download Data</b> → chọn <b>Orders CSV</b> → tải về
+      <br>2. Chọn file CSV đó ở đây → bấm Import
+      <br><span style="color:var(--text3)">Đọc: mã đơn, khách, địa chỉ, SKU, số lượng, tiền, trạng thái. (Tên SP/ảnh bổ sung sau từ Merchize.)</span>
+    </div>
+    <div class="fl" style="margin-bottom:10px">
+      <input type="file" id="etsy-file" accept=".csv" style="font-size:12px">
+    </div>
+    <button class="btn btn-green btn-sm" onclick="importEtsyFile()">🛍️ Import đơn Etsy</button>
+    <div id="etsy-import-box" style="display:none;margin-top:10px;background:var(--bg);border:1px solid var(--border2);border-radius:9px;padding:10px;font-size:11px;white-space:pre-wrap;max-height:200px;overflow:auto"></div>
+
+    <div class="divider"></div>
     <div class="modal-title" style="font-size:15px">🔔 Webhook — đơn tự động về (khuyên dùng)</div>
     <div style="font-size:11.5px;color:var(--text2);margin:8px 0 12px;line-height:1.7">
       Cách tốt nhất: Merchize <b>tự đẩy đơn mới</b> sang app, không cần bấm gì. Làm 1 lần:
@@ -1535,6 +1549,75 @@ async function probeMerchize(){
     box.textContent=lines.join('\n');
   }catch(e){box.textContent='❌ '+e.message;}
 }
+// Parser CSV chuẩn — xử lý dấu phẩy trong ngoặc kép
+function parseCSV(text){
+  const rows=[];let row=[];let cur='';let inQ=false;
+  for(let i=0;i<text.length;i++){
+    const c=text[i];
+    if(inQ){
+      if(c==='"'){if(text[i+1]==='"'){cur+='"';i++;}else inQ=false;}
+      else cur+=c;
+    }else{
+      if(c==='"')inQ=true;
+      else if(c===','){row.push(cur);cur='';}
+      else if(c==='\n'||c==='\r'){if(c==='\r'&&text[i+1]==='\n')i++;if(cur!==''||row.length){row.push(cur);rows.push(row);row=[];cur='';}}
+      else cur+=c;
+    }
+  }
+  if(cur!==''||row.length){row.push(cur);rows.push(row);}
+  return rows;
+}
+// Import đơn từ file CSV Etsy
+async function importEtsyFile(){
+  const fileEl=document.getElementById('etsy-file');
+  const box=document.getElementById('etsy-import-box');
+  box.style.display='block';
+  if(!fileEl.files||!fileEl.files.length){box.textContent='⚠️ Chưa chọn file. Bấm "Choose File" chọn file CSV Etsy.';return;}
+  box.textContent='Đang đọc file Etsy...';
+  try{
+    const text=await fileEl.files[0].text();
+    const rows=parseCSV(text);
+    if(rows.length<2){box.textContent='❌ File rỗng hoặc sai định dạng.';return;}
+    const header=rows[0].map(h=>h.trim());
+    const col=name=>header.findIndex(h=>h.toLowerCase()===name.toLowerCase());
+    const ci={
+      id:col('Order ID'),date:col('Sale Date'),name:col('Full Name'),
+      num:col('Number of Items'),total:col('Order Total'),status:col('Status'),sku:col('SKU'),
+      st1:col('Street 1'),city:col('Ship City'),state:col('Ship State'),zip:col('Ship Zipcode'),country:col('Ship Country'),
+    };
+    if(ci.id<0){box.textContent='❌ Không tìm thấy cột "Order ID". Đây có đúng file Etsy Orders CSV không?';return;}
+    const mapped=[];
+    for(let i=1;i<rows.length;i++){
+      const r=rows[i];if(!r[ci.id])continue;
+      const sku=ci.sku>=0?(r[ci.sku]||'').trim():'';
+      mapped.push({
+        id:String(r[ci.id]).trim(),orderNumber:String(r[ci.id]).trim(),external_id:String(r[ci.id]).trim(),
+        account:'Etsy',shopId:'etsy',shopTitle:'Etsy',
+        status:mapEtsyStatus(ci.status>=0?r[ci.status]:''),
+        created:etsyDate(ci.date>=0?r[ci.date]:''),
+        customer:(ci.name>=0?r[ci.name]:'').trim()||'Unknown',
+        country:(ci.country>=0?r[ci.country]:'').trim()||'—',
+        email:'—',
+        address:[ci.st1>=0?r[ci.st1]:'',ci.city>=0?r[ci.city]:'',ci.state>=0?r[ci.state]:'',ci.zip>=0?r[ci.zip]:'',ci.country>=0?r[ci.country]:''].filter(Boolean).join(', '),
+        total:'$'+(parseFloat((ci.total>=0?r[ci.total]:'0').replace(/[^0-9.]/g,''))||0).toFixed(2),
+        items:[{title:sku||'Sản phẩm',sku:sku,qty:parseInt(ci.num>=0?r[ci.num]:1)||1,price:'',img:'',personalization:'',supplier:'— Chọn —',ptype:'— Chọn —',material:'— Chọn —',size:'— Chọn —',designer:'— Chưa gán —',fulfiller:'— Chưa gán —',confirmed:false}],
+        urgent:false,note:'',pushed:{merchize:false,sellerwix:false,sheet:false},source:'etsy',
+      });
+    }
+    if(!mapped.length){box.textContent='❌ Không đọc được đơn nào.';return;}
+    const ids=new Set(orders.map(o=>o.id));
+    let added=0;
+    mapped.forEach(o=>{if(!ids.has(o.id)){orders.push(o);added++;}});
+    localStorage.setItem('pod_orders',JSON.stringify(orders));
+    await cloudSaveAll();await cloudLoad();
+    buildShopFilter();applyFilter();updateCounts();
+    box.textContent=`✅ Đọc ${mapped.length} đơn Etsy (thêm mới ${added}, ${mapped.length-added} đã có). Đóng cửa sổ để xem.`;
+    toast(`✅ Đã import ${added} đơn Etsy`,'success');
+  }catch(e){box.textContent='❌ '+e.message;}
+}
+function mapEtsyStatus(s){const m=String(s||'').toLowerCase();if(m.includes('cancel'))return'cancelled';if(m.includes('ship')||m.includes('complete'))return'done';if(m.includes('paid'))return'pending';return'new';}
+function etsyDate(s){if(!s)return new Date().toISOString();const m=String(s).match(/(\d{2})\/(\d{2})\/(\d{2})/);if(m)return new Date(2000+(+m[3]),(+m[1])-1,+m[2]).toISOString();return new Date().toISOString();}
+
 // Đọc file CSV/Excel xuất từ Merchize → trích mã đơn → gọi API lấy chi tiết
 async function importMrzFile(){
   const fileEl=document.getElementById('mrz-file');
