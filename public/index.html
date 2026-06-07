@@ -114,6 +114,9 @@ body.sb-collapsed .desk-hamb{display:block}
 .oi-name{font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .oi-id{font-size:11px;color:var(--text3);margin-top:2px}
 .oi-code{font-weight:700;color:var(--accent);font-size:12px}
+.oi-code-main{font-weight:800;color:var(--accent);font-size:14px;letter-spacing:.3px}
+.oi-short{font-size:12.5px;color:var(--text);font-weight:600;margin-top:2px}
+.oi-fullname{font-size:11.5px;color:var(--text2);font-style:italic;margin-top:1px}
 .oi-shop{font-size:11px;color:var(--green-d);font-weight:600;margin-top:2px}
 .oi-chk{width:17px;height:17px;flex-shrink:0;margin-right:4px;cursor:pointer;align-self:center}
 .oi-track{font-size:10.5px;color:#2e7d46;font-weight:600;background:#e3f3e8;padding:1px 6px;border-radius:8px}
@@ -831,6 +834,16 @@ body[data-role="seller"] .no-seller{display:none !important}
       </div>
     </div>
 
+    <div class="fr c2">
+      <div class="fl"><label>🏪 Shop</label>
+        <select class="fi" id="d-shop" onchange="changeShop(this.value)">
+          <option value="Etsy">Etsy</option>
+          <option value="Etsy 2">Etsy 2</option>
+        </select>
+      </div>
+      <div class="fl"><label>Mã vận đơn (tracking)</label><input class="fi" id="d-track" readonly style="color:#2e7d46;font-weight:600"></div>
+    </div>
+
     <div class="act-row">
       <button class="btn btn-flag" id="btn-flag" onclick="markUrgent()">🚩 Đánh dấu đơn gấp</button>
       <button class="btn btn-proof role-support" onclick="sendProof()">✈️ Gửi proof</button>
@@ -1149,13 +1162,23 @@ async function enterApp(){
 }
 // Ghép tên SP + ảnh từ đơn Merchize sang đơn Etsy có cùng SKU (Etsy không có tên SP)
 function enrichEtsyNames(){
-  // gom title+img theo SKU từ các đơn Merchize
+  // Ghép thông tin giữa đơn Etsy và Merchize theo SKU (1 đơn = 2 nguồn)
   const bySku={};
-  orders.forEach(o=>{if(o.source==='merchize')(o.items||[]).forEach(it=>{if(it.sku&&it.title&&it.title!==it.sku){bySku[it.sku.toUpperCase()]={title:it.title,img:it.img};}});});
-  if(!Object.keys(bySku).length)return;
-  orders.forEach(o=>{if(o.source==='etsy')(o.items||[]).forEach(it=>{
-    const m=it.sku&&bySku[it.sku.toUpperCase()];
-    if(m){if(!it.title||it.title===it.sku)it.title=m.title;if(!it.img&&m.img)it.img=m.img;}
+  orders.forEach(o=>{(o.items||[]).forEach(it=>{
+    if(!it.sku)return;const k=it.sku.toUpperCase();
+    if(!bySku[k])bySku[k]={};
+    if(it.title&&it.title!==it.sku&&!bySku[k].title)bySku[k].title=it.title;
+    if(it.img&&!bySku[k].img)bySku[k].img=it.img;
+  });});
+  // gom mã Etsy theo SKU từ đơn nguồn Etsy
+  orders.forEach(o=>{if(o.source==='etsy'){const code=etsyCode(o);(o.items||[]).forEach(it=>{if(it.sku){const k=it.sku.toUpperCase();if(/^\d{9,12}$/.test(code)&&!bySku[k].etsyCode)bySku[k].etsyCode=code;}});}});
+  // áp ngược: đơn nào thiếu tên SP / mã Etsy thì lấy từ bySku
+  orders.forEach(o=>{(o.items||[]).forEach(it=>{
+    const m=it.sku&&bySku[it.sku.toUpperCase()];if(!m)return;
+    if((!it.title||it.title===it.sku)&&m.title)it.title=m.title;
+    if(!it.img&&m.img)it.img=m.img;
+    // gắn mã Etsy vào đơn Merchize để etsyCode() hiển đúng
+    if(o.source==='merchize'&&m.etsyCode&&!o.external_number)o.external_number=m.etsyCode;
   });});
 }
 
@@ -2340,7 +2363,9 @@ function renderList(){
     const chk=isAdmin?`<input type="checkbox" class="oi-chk" ${bulkSel.has(o.id)?'checked':''} onclick="event.stopPropagation();toggleSel('${o.id}')">`:'';
     const trk=o.tracking?`<span class="oi-track" title="Tracking">📦 ${o.tracking}</span>`:'';
     const pf=profitFor(o);const pfb=pf!=null?`<span class="oi-profit" title="Lời = giá bán − basecost">💰 $${pf.toFixed(2)}</span>`:'';
-    return`<div class="oi" onclick="selectOrder('${o.id}')">${chk}<div class="oi-thumb">${img}</div><div class="oi-info"><div class="oi-name">${o.items?.[0]?.title||'Sản phẩm'}</div><div class="oi-id"><span class="oi-code">${orderCode(o)}</span></div><div class="oi-shop">🏪 ${o.shopTitle||'—'}</div><div class="oi-meta"><span class="pill ${pc}">${pl}</span>${o.urgent?'<span class="urgent-tag">🚩 Gấp</span>':''}${trk}${pfb}${pi?`<span style="font-size:11px">${pi}</span>`:''}<span class="oi-price">${o.total}</span><span class="oi-time">📅 ${fmtDateShort(o.created)}</span></div></div></div>`;
+    const fullName=o.items?.[0]?.title||'Sản phẩm';
+    const shortName=fullName.length>32?fullName.slice(0,32)+'…':fullName;
+    return`<div class="oi" onclick="selectOrder('${o.id}')">${chk}<div class="oi-thumb">${img}</div><div class="oi-info"><div class="oi-code-main">${etsyCode(o)}</div><div class="oi-short">${shortName}</div><div class="oi-fullname">${fullName}</div><div class="oi-shop">🏪 ${o.shopTitle||'—'}</div><div class="oi-meta"><span class="pill ${pc}">${pl}</span>${o.urgent?'<span class="urgent-tag">🚩 Gấp</span>':''}${trk}${pfb}${pi?`<span style="font-size:11px">${pi}</span>`:''}<span class="oi-price">${o.total}</span><span class="oi-time">📅 ${fmtDateShort(o.created)}</span></div></div></div>`;
   }).join('');
   updateBulkBar();renderPager();
 }
@@ -2375,6 +2400,8 @@ function selectOrder(id){
   if(!o.pushed)o.pushed={};
   try{
   set('d-oid',o.id);set('d-status',o.status||'new',1);set('d-cust',o.customer||'—');set('d-country',o.country||'—');set('d-email',o.email||'—');set('d-total',o.total||'—');set('d-addr',o.address||'—');set('d-note',o.note||'');
+  const ds=document.getElementById('d-shop');if(ds)ds.value=o.shopTitle||'Etsy';
+  const dt=document.getElementById('d-track');if(dt)dt.value=o.tracking||'(chưa có)';
   const it0=o.items[0]||{};
   document.getElementById('d-pname').textContent=it0.title||'Sản phẩm';
   document.getElementById('d-pcode').textContent=orderCode(o);
@@ -2515,6 +2542,7 @@ function sendProof(){if(!current)return;logHistory(current,'Gửi proof tới '+
 function markMissing(){if(!current)return;current.status='missing';document.getElementById('d-status').value='missing';logHistory(current,'Đánh dấu thiếu info');save();applyFilter();updateCounts();toast('⚠️ Đánh dấu thiếu info','warn');}
 function openCase(){if(current)logHistory(current,'Mở case hỗ trợ');save();toast('🔓 Mở case hỗ trợ (demo)','info');}
 function onStatusChange(){if(!current)return;const old=current.status;const nw=document.getElementById('d-status').value;current.status=nw;logHistory(current,`Đổi trạng thái: ${STATUS_LABEL[old]||old} → ${STATUS_LABEL[nw]||nw}`);save();applyFilter();updateCounts();}
+function changeShop(v){if(!current)return;const old=current.shopTitle;current.shopTitle=v;logHistory(current,`Đổi shop: ${old||'—'} → ${v}`);save();buildShopFilter();applyFilter();toast('✅ Đã đổi shop sang "'+v+'"','success');}
 function saveOrder(){if(!current)return;current.note=document.getElementById('d-note').value;current.status=document.getElementById('d-status').value;logHistory(current,'Lưu thay đổi');save();applyFilter();updateCounts();toast('✅ Đã lưu thay đổi','success');closeDetail();}
 function deleteOrder(){if(!current)return;if(!confirm(`Xoá đơn #${current.id}?`))return;const delId=current.id;orders=orders.filter(o=>o.id!==delId);current=null;try{localStorage.setItem('pod_orders',JSON.stringify(orders));}catch(e){}cloudDelete(delId);applyFilter();updateCounts();closeDetail();toast('🗑 Đã xoá đơn','error');}
 
@@ -2587,6 +2615,14 @@ function orderCode(o){
   if(!o)return '—';
   const c=o.orderNumber||o.order_number||o.external_id||o.name||o.id||'';
   return String(c);
+}
+// Mã đơn Etsy (dạng số). Ưu tiên các trường chứa số 9-12 chữ số.
+function etsyCode(o){
+  if(!o)return '—';
+  const cands=[o.external_id,o.orderNumber,o.id,o.external_number,o.order_number].filter(Boolean).map(String);
+  for(const c of cands){if(/^\d{9,12}$/.test(c.trim()))return c.trim();}
+  // không có mã số → trả mã bất kỳ
+  return cands[0]||'—';
 }
 function relTime(iso){if(!iso)return'—';const d=Date.now()-new Date(iso);if(d<3600000)return Math.floor(d/60000)+' phút trước';if(d<86400000)return Math.floor(d/3600000)+' giờ trước';if(d<604800000)return Math.floor(d/86400000)+' ngày trước';return new Date(iso).toLocaleDateString('vi-VN');}
 function fmtDate(iso){if(!iso)return'—';return new Date(iso).toLocaleString('vi-VN');}
