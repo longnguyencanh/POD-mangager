@@ -1503,8 +1503,16 @@ async function probeMerchizeOrder(){
   if(!code){box.textContent='⚠️ Nhập mã đơn.';return;}
   box.textContent='Đang lấy dữ liệu...';
   try{
-    const r=await fetch('/api/merchize?action=details',{method:'POST',headers:mrzHeaders(),body:JSON.stringify({codes:[code]})});
+    const r=await fetch('/api/merchize?action=details&debug=1',{method:'POST',headers:mrzHeaders(),body:JSON.stringify({codes:[code]})});
     const j=await r.json();
+    // Nếu lỗi xác thực → hiện chi tiết để chẩn đoán
+    if(j.error){
+      let msg='❌ '+j.error+'\n';
+      if(j.base)msg+='Base URL app gửi: '+j.base+'\n';
+      if(j.keyLen!=null)msg+='Độ dài API key: '+j.keyLen+' ký tự'+(j.keyLen===0?' ⚠️ KEY RỖNG!':'')+'\n';
+      if(j.tried){msg+='\nĐã thử các cách xác thực:\n'+j.tried.map(t=>`• ${t.method}: HTTP ${t.http||'?'} ${t.sample||t.error||''}`).join('\n');}
+      box.textContent=msg;return;
+    }
     const data=j.data||[];
     if(!data.length){box.textContent='❌ Không tìm thấy đơn '+code+' trên Merchize.\n'+JSON.stringify(j).slice(0,300);return;}
     const md=data[0];
