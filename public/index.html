@@ -75,6 +75,22 @@ body.sb-collapsed .desk-hamb{display:block}
   .hist-filters .fi,.hist-filters .btn{width:100% !important}
   .desk-collapse{display:none !important}
   .desk-hamb{display:none !important}
+  /* Font co giãn theo màn hình (iPhone + Samsung) */
+  h1,.ph-title{font-size:clamp(19px,5.5vw,26px) !important}
+  .stat-value{font-size:clamp(20px,6vw,28px) !important}
+  .stat-label{font-size:clamp(11px,3vw,13px) !important}
+  .block-title{font-size:clamp(13px,3.6vw,15px) !important}
+  .sub,.ph-sub,.stat-sub{font-size:clamp(10px,2.8vw,12px) !important}
+  .mini-table th,.mini-table td{font-size:clamp(11px,3vw,13px) !important;padding:6px 8px !important}
+  /* Thẻ thống kê: 2 cột trên điện thoại */
+  .stat-grid,.stats-grid,#d-period-grid,[id$="-period-grid"]{grid-template-columns:repeat(2,1fr) !important}
+  /* Kanban Idea: 1 cột cuộn dọc, mỗi cột full width */
+  #kanban-board{grid-template-columns:1fr !important;gap:14px !important}
+  /* Bảng thống kê / dashboard: card co lại */
+  .stat-card{padding:12px !important}
+  /* Idea modal: full width đáy màn hình trên mobile */
+  #idea-modal{padding:0 !important;align-items:flex-end !important}
+  #idea-modal .modal{width:100vw !important;max-width:100vw !important;border-radius:16px 16px 0 0 !important}
 }
 
 /* config strip */
@@ -273,6 +289,10 @@ textarea.fi{resize:vertical;min-height:70px;line-height:1.5}
 /* settings modal */
 .modal-bg{display:none;position:fixed;inset:0;background:rgba(40,38,34,.4);z-index:500;align-items:center;justify-content:center;padding:20px;overflow-y:auto}
 .modal-bg.open{display:flex}
+/* Idea modal: panel nhỏ góc phải-dưới, không che toàn màn */
+#idea-modal{background:transparent;align-items:flex-end;justify-content:flex-end;padding:20px}
+#idea-modal .modal{width:380px;max-width:92vw;box-shadow:0 12px 40px rgba(0,0,0,.25);animation:slideUp .2s ease}
+@keyframes slideUp{from{transform:translateY(20px);opacity:0}to{transform:translateY(0);opacity:1}}
 .modal{background:var(--surface);border-radius:14px;padding:26px;width:440px;max-width:95vw;max-height:90vh;overflow-y:auto;position:relative;box-shadow:0 20px 60px rgba(0,0,0,.2)}
 .modal-title{font-family:'Lora',serif;font-weight:600;font-size:18px;margin-bottom:18px}
 .modal-close{position:absolute;top:16px;right:16px;background:none;border:none;color:var(--text3);font-size:19px;cursor:pointer}
@@ -508,9 +528,9 @@ body[data-role="seller"] .no-seller{display:none !important}
       </div>
 
       <div class="block">
-        <div class="block-title">🕒 Đơn vừa thao tác gần đây</div>
+        <div class="block-title">🆕 Đơn mới hôm nay</div>
         <table class="mini-table">
-          <thead><tr><th>Mã đơn</th><th>Sản phẩm</th><th>Khách</th><th>Trạng thái</th><th>Tổng</th></tr></thead>
+          <thead><tr><th>Mã đơn (Etsy)</th><th>Sản phẩm</th><th>Shop</th><th>Trạng thái</th><th>Doanh thu</th></tr></thead>
           <tbody id="home-recent"></tbody>
         </table>
       </div>
@@ -838,18 +858,19 @@ body[data-role="seller"] .no-seller{display:none !important}
       </div>
     </div>
     <div class="page-scroll">
-      <div id="kanban-board" style="display:grid;grid-template-columns:repeat(5,minmax(220px,1fr));gap:12px;overflow-x:auto;padding-bottom:20px"></div>
+      <div id="kanban-board" style="display:grid;grid-template-columns:repeat(7,minmax(210px,1fr));gap:12px;overflow-x:auto;padding-bottom:20px"></div>
     </div>
   </div>
 
   <!-- Modal thêm/sửa Idea -->
-  <div class="modal-overlay" id="idea-modal">
+  <div class="modal-bg" id="idea-modal">
     <div class="modal" style="max-width:460px">
       <div class="modal-title" style="font-size:16px;margin-bottom:12px" id="idea-modal-title">💡 Thêm Idea</div>
       <input type="hidden" id="idea-id">
       <div class="fl" style="margin-bottom:8px"><label>Tiêu đề *</label><input class="fi" id="idea-title" placeholder="vd: Áo 4th July - thêm tên"></div>
       <div class="fl" style="margin-bottom:8px"><label>Link Etsy</label><input class="fi" id="idea-link" placeholder="https://etsy.com/listing/..."></div>
       <div class="fl" style="margin-bottom:8px"><label>Link ảnh tham khảo</label><input class="fi" id="idea-img" placeholder="Dán link ảnh..."></div>
+      <div class="fl" style="margin-bottom:8px"><label>🎨 Link file thiết kế (designer gắn vào)</label><input class="fi" id="idea-design" placeholder="Dán link Drive/Canva/Dropbox file đã làm..."></div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
         <div class="fl"><label>Giao cho (designer)</label><select class="fi" id="idea-assignee"></select></div>
         <div class="fl"><label>Độ ưu tiên</label><select class="fi" id="idea-priority"><option value="normal">Bình thường</option><option value="high">🔴 Cao</option><option value="low">Thấp</option></select></div>
@@ -858,6 +879,7 @@ body[data-role="seller"] .no-seller{display:none !important}
       <div class="fl" style="margin-bottom:12px"><label>Ghi chú</label><textarea class="fi" id="idea-note" rows="2" placeholder="vd: lấy hình khác, có tên các sự kiện ở trên ảnh"></textarea></div>
       <div style="display:flex;gap:8px">
         <button class="btn btn-green btn-sm" onclick="saveIdea()">💾 Lưu</button>
+        <button class="btn btn-sm" onclick="copyIdeaLink()" id="idea-share-btn">📋 Copy Idea (gửi NV)</button>
         <button class="btn btn-sm" onclick="document.getElementById('idea-modal').classList.remove('open')">Đóng</button>
         <button class="btn btn-sm admin-only" style="color:var(--red);margin-left:auto" id="idea-del-btn" onclick="delIdea()">🗑 Xoá</button>
       </div>
@@ -1310,6 +1332,7 @@ async function enterApp(){
   // Tự đồng bộ doanh thu đơn $0 (ngầm) khi mở app + định kỳ mỗi 10 phút
   setTimeout(autoSyncRevenue,3000);
   if(!window._autoSyncTimer)window._autoSyncTimer=setInterval(autoSyncRevenue,10*60*1000);
+  setTimeout(openIdeaFromHash,800);
 }
 // Ghép tên SP + ảnh từ đơn Merchize sang đơn Etsy có cùng SKU (Etsy không có tên SP)
 function enrichEtsyNames(){
@@ -1342,7 +1365,7 @@ function logout(){
 function openForgot(){
   let m=document.getElementById('forgot-modal');
   if(!m){
-    m=document.createElement('div');m.id='forgot-modal';m.className='modal-overlay';
+    m=document.createElement('div');m.id='forgot-modal';m.className='modal-bg';
     m.innerHTML=`<div class="modal" style="max-width:360px">
       <div class="modal-title" style="font-size:16px;margin-bottom:6px">🔐 Quên mật khẩu</div>
       <div style="font-size:12px;color:var(--text2);margin-bottom:12px;line-height:1.6">Nhập tài khoản admin. Mật khẩu mới sẽ được gửi vào Telegram đã cấu hình.</div>
@@ -1384,7 +1407,7 @@ function showProfile(){
     <button class="btn btn-sm" onclick="closeProfile()">Đóng</button>
   </div>`;
   let m=document.getElementById('profile-modal');
-  if(!m){m=document.createElement('div');m.id='profile-modal';m.className='modal-overlay';m.innerHTML=`<div class="modal" style="max-width:380px"><div class="modal-title" style="font-size:16px;margin-bottom:12px">👤 Thông tin tài khoản</div><div id="profile-body"></div></div>`;document.body.appendChild(m);m.onclick=e=>{if(e.target===m)closeProfile();};}
+  if(!m){m=document.createElement('div');m.id='profile-modal';m.className='modal-bg';m.innerHTML=`<div class="modal" style="max-width:380px"><div class="modal-title" style="font-size:16px;margin-bottom:12px">👤 Thông tin tài khoản</div><div id="profile-body"></div></div>`;document.body.appendChild(m);m.onclick=e=>{if(e.target===m)closeProfile();};}
   document.getElementById('profile-body').innerHTML=html;
   m.classList.add('open');
 }
@@ -1481,7 +1504,7 @@ async function fetchFxRate(){
   }catch(e){info.textContent='❌ Lỗi mạng khi lấy tỷ giá. Nhập tay giúp (vd 25400).';}
 }
 // ── IDEA / THIẾT KẾ (KANBAN) ──
-const IDEA_COLS=[['unsorted','📥 Chưa phân loại'],['idea','💡 Idea'],['doing','🎨 Đang làm'],['review','👀 Đợi duyệt'],['done','✅ Hoàn thành']];
+const IDEA_COLS=[['unsorted','📥 Chưa phân loại'],['idea','💡 Idea'],['doing','🎨 Đang làm'],['review','👀 Đợi duyệt'],['fix','🔧 Sửa'],['done','✅ Hoàn thành'],['listed','📋 Đã listing']];
 function renderIdeaBoard(){
   const board=document.getElementById('kanban-board');if(!board)return;
   const ideas=cfg.ideas||[];
@@ -1495,12 +1518,14 @@ function renderIdeaBoard(){
       const who=it.assignee?`<span style="font-size:10px;background:var(--accent-l);color:var(--accent);padding:1px 6px;border-radius:6px">👤 ${esc(it.assignee)}</span>`:'';
       const img=it.img?`<img src="${esc(it.img)}" style="width:100%;height:120px;object-fit:cover;border-radius:8px;margin-bottom:6px" onerror="this.style.display='none'">`:'';
       const link=it.link?`<a href="${esc(it.link)}" target="_blank" onclick="event.stopPropagation()" style="font-size:11px;color:var(--accent);word-break:break-all">🔗 Link Etsy</a>`:'';
+      const design=it.design?`<a href="${esc(it.design)}" target="_blank" onclick="event.stopPropagation()" style="font-size:11px;color:#fff;background:#2e7d46;padding:2px 8px;border-radius:6px;display:inline-block;margin-top:4px">🎨 File thiết kế</a>`:'';
       return`<div draggable="true" ondragstart="ideaDragStart(event,'${it.id}')" onclick="openIdeaModal('${it.id}')" style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:10px;cursor:pointer;box-shadow:0 1px 3px rgba(0,0,0,.06)">
         ${img}
         <div style="font-size:13px;font-weight:600;margin-bottom:4px">${esc(it.title)}</div>
         ${link?`<div style="margin-bottom:4px">${link}</div>`:''}
+        ${design?`<div style="margin-bottom:4px">${design}</div>`:''}
         ${it.note?`<div style="font-size:11px;color:var(--text2);margin-bottom:6px">${esc(it.note)}</div>`:''}
-        <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">${who}${pr}${dl}</div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">${who}${pr}${dl}<span onclick="event.stopPropagation();copyIdeaLinkById('${it.id}')" style="font-size:10px;color:var(--accent);cursor:pointer;margin-left:auto" title="Copy idea gửi nhân viên">📋 Copy</span></div>
       </div>`;
     }).join('')||'<div style="font-size:11px;color:var(--text3);text-align:center;padding:14px">Trống</div>';
     return`<div ondragover="event.preventDefault()" ondrop="ideaDrop(event,'${key}')" style="background:var(--bg);border-radius:12px;padding:10px;min-height:200px">
@@ -1532,6 +1557,7 @@ function openIdeaModal(id){
     document.getElementById('idea-title').value=it.title||'';
     document.getElementById('idea-link').value=it.link||'';
     document.getElementById('idea-img').value=it.img||'';
+    document.getElementById('idea-design').value=it.design||'';
     document.getElementById('idea-assignee').value=it.assignee||'';
     document.getElementById('idea-priority').value=it.priority||'normal';
     document.getElementById('idea-deadline').value=it.deadline||'';
@@ -1539,7 +1565,7 @@ function openIdeaModal(id){
     if(delBtn)delBtn.style.display='';
   }else{
     document.getElementById('idea-modal-title').textContent='💡 Thêm Idea';
-    ['idea-id','idea-title','idea-link','idea-img','idea-deadline','idea-note'].forEach(i=>document.getElementById(i).value='');
+    ['idea-id','idea-title','idea-link','idea-img','idea-design','idea-deadline','idea-note'].forEach(i=>document.getElementById(i).value='');
     document.getElementById('idea-priority').value='normal';
     if(delBtn)delBtn.style.display='none';
   }
@@ -1554,6 +1580,7 @@ function saveIdea(){
     title,
     link:document.getElementById('idea-link').value.trim(),
     img:document.getElementById('idea-img').value.trim(),
+    design:document.getElementById('idea-design').value.trim(),
     assignee:document.getElementById('idea-assignee').value,
     priority:document.getElementById('idea-priority').value,
     deadline:document.getElementById('idea-deadline').value,
@@ -1567,10 +1594,36 @@ function saveIdea(){
 }
 function delIdea(){
   const id=document.getElementById('idea-id').value;if(!id)return;
-  if(!confirm('Xoá idea này?'))return;
+  const it=(cfg.ideas||[]).find(x=>x.id===id);
+  const name=it?it.title:'';
+  if(!confirm('⚠️ XOÁ IDEA?\n\n"'+name+'"\n\nHành động này KHÔNG thể hoàn tác. Bạn có chắc chắn muốn xoá?'))return;
   cfg.ideas=(cfg.ideas||[]).filter(x=>x.id!==id);
   saveCfg();cloudSaveAll();renderIdeaBoard();
   document.getElementById('idea-modal').classList.remove('open');
+  toast('Đã xoá idea','info');
+}
+function copyIdeaLinkById(id){
+  const url=location.origin+'/#idea='+id;
+  navigator.clipboard.writeText(url).then(()=>toast('✅ Đã copy! Gửi cho NV — click vào sẽ mở thẳng idea này.','success')).catch(()=>prompt('Copy link gửi NV:',url));
+}
+function copyIdeaLink(){
+  const id=document.getElementById('idea-id').value;
+  if(!id){toast('Lưu idea trước rồi mới copy link','error');return;}
+  const url=location.origin+'/#idea='+id;
+  navigator.clipboard.writeText(url).then(()=>{
+    toast('✅ Đã copy! Gửi cho NV — click vào sẽ mở thẳng idea này để xử lý.','success');
+  }).catch(()=>{
+    prompt('Copy link này gửi nhân viên:',url);
+  });
+}
+// Mở idea từ link share (#idea=xxx) sau khi đăng nhập
+function openIdeaFromHash(){
+  const m=location.hash.match(/idea=([\w]+)/);
+  if(!m)return;
+  const id=m[1];
+  const it=(cfg.ideas||[]).find(x=>x.id===id);
+  if(it){goPage('idea');setTimeout(()=>openIdeaModal(id),300);}
+  history.replaceState(null,'',location.pathname);
 }
 // ── NHÀ CUNG CẤP (XƯỞNG) ──
 function addSupplier(){
@@ -2069,13 +2122,18 @@ function numOf(v){return parseFloat(String(v).replace(/[^0-9.]/g,''))||0;}
 //  TRANG CHỦ (HOME)
 // ══════════════════════════════════════════
 function renderHome(){
-  const today=orders.filter(o=>{const d=Date.now()-new Date(o.created);return d<86400000;});
-  const newToday=today.filter(o=>o.status==='new').length;
+  const startToday=new Date();startToday.setHours(0,0,0,0);
+  const today=orders.filter(o=>{const d=new Date(o.created);return !isNaN(d)&&d>=startToday;});
+  const newToday=today.length; // mọi đơn tạo hôm nay
+  const num=o=>parseFloat(String(o.total||'').replace(/[^0-9.]/g,''))||0;
+  const revToday=today.reduce((s,o)=>s+num(o),0);
   const urgent=orders.filter(o=>o.urgent).length;
   const missing=orders.filter(o=>o.status==='missing'||o.status==='missing_qty').length;
   const notPushed=orders.filter(o=>!o.pushed?.merchize&&!o.pushed?.sellerwix&&!o.pushed?.sheet&&o.status!=='done'&&o.status!=='cancelled').length;
 
-  document.getElementById('h-new').textContent=newToday;
+  const hNew=document.getElementById('h-new');if(hNew)hNew.textContent=newToday;
+  const hNewSub=hNew&&hNew.parentElement?hNew.parentElement.querySelector('.stat-sub'):null;
+  if(hNewSub)hNewSub.textContent=revToday>0?('💵 $'+revToday.toFixed(2)+' doanh thu'):'đơn về hôm nay';
   document.getElementById('h-urgent').textContent=urgent;
   document.getElementById('h-missing').textContent=missing;
   document.getElementById('h-notpushed').textContent=notPushed;
@@ -2093,16 +2151,17 @@ function renderHome(){
   else el.innerHTML=acts.map((a,i)=>`<div class="act-card" onclick="homeAction(${i})"><div class="act-icon ${a.cls}">${a.icon}</div><div class="act-body"><div class="act-name">${a.name}</div><div class="act-desc">${a.desc}</div></div><div class="act-count">${a.count}</div></div>`).join('');
   window._homeActs=acts;
 
-  // recent
-  const recent=[...orders].sort((a,b)=>new Date(b.created)-new Date(a.created)).slice(0,6);
-  document.getElementById('home-recent').innerHTML=recent.map(o=>{
+  // Đơn mới HÔM NAY (mọi đơn tạo hôm nay), kèm doanh thu
+  const todaySorted=[...today].sort((a,b)=>new Date(b.created)-new Date(a.created));
+  const hr=document.getElementById('home-recent');
+  if(hr)hr.innerHTML=todaySorted.map(o=>{
     const pill=PILLS[o.status]||['p-done',o.status];
     const title=(o.items&&o.items[0]&&o.items[0].title)||'—';
     return '<tr style="cursor:pointer" onclick="goPage(\'orders\');setTimeout(function(){selectOrder(\''+o.id+'\')},100)">'+
-      '<td><b>'+orderCode(o)+'</b></td><td>'+title+'</td><td>'+o.customer+'</td>'+
+      '<td><b>'+etsyCode(o)+'</b></td><td>'+title+'</td><td>🏪 '+(o.shopTitle||'—')+'</td>'+
       '<td><span class="pill '+pill[0]+'">'+pill[1]+'</span></td>'+
       '<td style="color:var(--accent);font-weight:600">'+o.total+'</td></tr>';
-  }).join('')||'<tr><td colspan="5" style="text-align:center;color:var(--text3);padding:20px">Chưa có đơn</td></tr>';
+  }).join('')||'<tr><td colspan="5" style="text-align:center;color:var(--text3);padding:20px">Chưa có đơn mới hôm nay</td></tr>';
 }
 function homeAction(i){
   const a=window._homeActs[i];if(!a)return;
