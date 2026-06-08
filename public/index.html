@@ -899,6 +899,7 @@ body[data-role="seller"] .no-seller{display:none !important}
       <div class="fl" style="margin-bottom:8px"><label>Link Etsy</label><input class="fi" id="idea-link" placeholder="https://etsy.com/listing/..."></div>
       <div class="fl" style="margin-bottom:8px"><label>Link ảnh tham khảo</label><input class="fi" id="idea-img" placeholder="Dán link ảnh..."></div>
       <div class="fl" style="margin-bottom:8px"><label>🎨 Link file thiết kế (designer gắn vào)</label><input class="fi" id="idea-design" placeholder="Dán link Drive/Canva/Dropbox file đã làm..."></div>
+      <div class="fl" style="margin-bottom:8px"><label>📁 Đường dẫn NAS (tự ghép từ SKU)</label><div style="display:flex;gap:6px"><input class="fi" id="idea-naspath" readonly style="background:var(--bg);font-size:11px" placeholder="(cài mẫu đường dẫn trong Cài đặt)"><button class="btn btn-xs" onclick="copyNasPath()" title="Copy để dán vào File Explorer">📋</button></div></div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
         <div class="fl"><label>Giao cho (designer)</label><select class="fi" id="idea-assignee"></select></div>
         <div class="fl"><label>Độ ưu tiên</label><select class="fi" id="idea-priority"><option value="normal">Bình thường</option><option value="high">🔴 Cao</option><option value="low">Thấp</option></select></div>
@@ -1208,6 +1209,14 @@ body[data-role="seller"] .no-seller{display:none !important}
       <button class="btn btn-green btn-sm" onclick="syncTracking()">🔄 Đồng bộ tracking</button>
     </div>
     <div id="trk-box" style="display:none;margin-top:10px;background:var(--bg);border:1px solid var(--border2);border-radius:9px;padding:10px;font-size:11px;white-space:pre-wrap;max-height:180px;overflow:auto"></div>
+
+    <div class="divider" style="margin:16px 0"></div>
+    <div style="font-size:13px;font-weight:700;margin-bottom:4px">📁 Đường dẫn NAS (cho Idea/Design)</div>
+    <div style="font-size:11px;color:var(--text2);margin-bottom:8px;line-height:1.6">Cài mẫu đường dẫn thư mục NAS. App tự ghép SKU (từ tiêu đề idea) vào cuối. Dùng <b>{SKU}</b> nếu muốn chèn giữa.<br>Ví dụ: <code>\\NAS\UPLOAD DESIGN\Design\</code></div>
+    <div class="fl" style="margin-bottom:8px">
+      <input class="fi" id="nas-path-tpl" placeholder="\\NAS\UPLOAD DESIGN\Design\">
+    </div>
+    <button class="btn btn-sm" onclick="saveNasPath()">💾 Lưu mẫu đường dẫn</button>
 
     <div class="divider"></div>
     <div class="modal-title" style="font-size:15px">🛍️ Import đơn từ Etsy (CSV)</div>
@@ -1703,7 +1712,20 @@ function openIdeaModal(id){
     document.getElementById('idea-priority').value='normal';
     if(delBtn)delBtn.style.display='none';
   }
+  // tự ghép đường dẫn NAS từ SKU (tiêu đề)
+  const npEl=document.getElementById('idea-naspath');
+  if(npEl){
+    const titleEl=document.getElementById('idea-title');
+    const updateNas=()=>{const sku=skuFromTitle(titleEl.value);npEl.value=sku?nasPathFor(sku):'';};
+    updateNas();
+    titleEl.oninput=updateNas;
+  }
   m.classList.add('open');
+}
+function copyNasPath(){
+  const v=(document.getElementById('idea-naspath')||{}).value||'';
+  if(!v){toast('Chưa có đường dẫn (cài mẫu trong Cài đặt + tiêu đề có SKU)','error');return;}
+  navigator.clipboard.writeText(v).then(()=>toast('✅ Đã copy đường dẫn! Dán vào File Explorer.','success')).catch(()=>prompt('Copy đường dẫn:',v));
 }
 function saveIdea(){
   const title=document.getElementById('idea-title').value.trim();
@@ -2698,7 +2720,7 @@ async function cloudSaveCfg(){
   try{
     const headers={'Content-Type':'application/json'};
     if(auth&&auth.token)headers['X-Session']=auth.token;
-    const shared={skuMap:cfg.skuMap||[],priceMap:cfg.priceMap||[],fees:cfg.fees||{},adCosts:cfg.adCosts||[],opCosts:cfg.opCosts||[],fxRate:cfg.fxRate||0,fxManual:cfg.fxManual||false,shops:cfg.shops||[],suppliers:cfg.suppliers||[],ideas:cfg.ideas||[],designLog:cfg.designLog||[]};
+    const shared={skuMap:cfg.skuMap||[],priceMap:cfg.priceMap||[],fees:cfg.fees||{},adCosts:cfg.adCosts||[],opCosts:cfg.opCosts||[],fxRate:cfg.fxRate||0,fxManual:cfg.fxManual||false,shops:cfg.shops||[],suppliers:cfg.suppliers||[],ideas:cfg.ideas||[],designLog:cfg.designLog||[],nasPathTpl:cfg.nasPathTpl||''};
     const r=await fetch('/api/data?op=config',{method:'POST',headers,body:JSON.stringify(shared)});
     return r.ok;
   }catch(e){return false;}
@@ -2708,10 +2730,10 @@ async function cloudLoadCfg(){
     const headers={'Content-Type':'application/json'};
     if(auth&&auth.token)headers['X-Session']=auth.token;
     const r=await fetch('/api/data?op=config',{headers});
-    if(r.ok){const c=await r.json();if(c&&Array.isArray(c.skuMap)){cfg.skuMap=c.skuMap;}if(c&&Array.isArray(c.priceMap)){cfg.priceMap=c.priceMap;}if(c&&c.fees){cfg.fees=c.fees;}if(c&&Array.isArray(c.adCosts)){cfg.adCosts=c.adCosts;}if(c&&Array.isArray(c.opCosts)){cfg.opCosts=c.opCosts;}if(c&&c.fxRate){cfg.fxRate=c.fxRate;cfg.fxManual=c.fxManual;}if(c&&Array.isArray(c.shops)){cfg.shops=c.shops;}if(c&&Array.isArray(c.suppliers)){cfg.suppliers=c.suppliers;}if(c&&Array.isArray(c.ideas)){cfg.ideas=c.ideas;}if(c&&Array.isArray(c.designLog)){cfg.designLog=c.designLog;}localStorage.setItem(CFG_KEY,JSON.stringify(cfg));}
+    if(r.ok){const c=await r.json();if(c&&Array.isArray(c.skuMap)){cfg.skuMap=c.skuMap;}if(c&&Array.isArray(c.priceMap)){cfg.priceMap=c.priceMap;}if(c&&c.fees){cfg.fees=c.fees;}if(c&&Array.isArray(c.adCosts)){cfg.adCosts=c.adCosts;}if(c&&Array.isArray(c.opCosts)){cfg.opCosts=c.opCosts;}if(c&&c.fxRate){cfg.fxRate=c.fxRate;cfg.fxManual=c.fxManual;}if(c&&Array.isArray(c.shops)){cfg.shops=c.shops;}if(c&&Array.isArray(c.suppliers)){cfg.suppliers=c.suppliers;}if(c&&Array.isArray(c.ideas)){cfg.ideas=c.ideas;}if(c&&Array.isArray(c.designLog)){cfg.designLog=c.designLog;}if(c&&typeof c.nasPathTpl==='string'){cfg.nasPathTpl=c.nasPathTpl;}localStorage.setItem(CFG_KEY,JSON.stringify(cfg));}
   }catch(e){}
 }
-function openSettings(){const mb=document.getElementById('mrz-base');if(mb)mb.value=cfg.mrzBase||'';const mt=document.getElementById('mrz-token');if(mt)mt.value=cfg.mrzToken||'';const tu=document.getElementById('trk-sheet-url');if(tu)tu.value=cfg.trkSheetUrl||'';const wu=document.getElementById('mrz-webhook-url');if(wu)wu.value=location.origin+'/api/webhooks/merchize';const es=document.getElementById('etsy-shop');if(es){const shops=shopList();es.innerHTML=shops.length?shops.map(s=>`<option value="${s}">${s}</option>`).join(''):'<option value="Etsy">Etsy</option>';}document.getElementById('settings-modal').classList.add('open');}
+function openSettings(){const mb=document.getElementById('mrz-base');if(mb)mb.value=cfg.mrzBase||'';const mt=document.getElementById('mrz-token');if(mt)mt.value=cfg.mrzToken||'';const tu=document.getElementById('trk-sheet-url');if(tu)tu.value=cfg.trkSheetUrl||'';const np=document.getElementById('nas-path-tpl');if(np)np.value=cfg.nasPathTpl||'';const wu=document.getElementById('mrz-webhook-url');if(wu)wu.value=location.origin+'/api/webhooks/merchize';const es=document.getElementById('etsy-shop');if(es){const shops=shopList();es.innerHTML=shops.length?shops.map(s=>`<option value="${s}">${s}</option>`).join(''):'<option value="Etsy">Etsy</option>';}document.getElementById('settings-modal').classList.add('open');}
 function copyWebhookUrl(){const el=document.getElementById('mrz-webhook-url');el.select();try{navigator.clipboard.writeText(el.value);}catch(e){document.execCommand('copy');}toast('✅ Đã copy URL webhook','success');}
 function closeSettings(){document.getElementById('settings-modal').classList.remove('open');}
 // Đồng bộ tracking từ Google Sheet xưởng: dò mã đơn → lấy tracking
@@ -2821,6 +2843,14 @@ function saveTrkCols(){
 }
 function resetTrkCols(){cfg.trkColOrder='';cfg.trkColTrack='';saveCfg();syncTracking();}
 function saveTrkCfg(){cfg.trkSheetUrl=document.getElementById('trk-sheet-url').value.trim();saveCfg();toast('✅ Đã lưu link Sheet tracking','success');}
+function saveNasPath(){cfg.nasPathTpl=document.getElementById('nas-path-tpl').value.trim();saveCfg();cloudSaveAll();toast('✅ Đã lưu mẫu đường dẫn NAS','success');}
+// Tạo đường dẫn NAS đầy đủ từ SKU
+function nasPathFor(sku){
+  const tpl=cfg.nasPathTpl||'';if(!tpl||!sku)return '';
+  if(tpl.includes('{SKU}'))return tpl.replace(/\{SKU\}/g,sku);
+  // nối vào cuối (đảm bảo có dấu \ ngăn cách)
+  return tpl.replace(/[\\\/]+$/,'')+'\\'+sku;
+}
 function saveMrzCfg(){cfg.mrzBase=document.getElementById('mrz-base').value.trim();cfg.mrzToken=document.getElementById('mrz-token').value.trim();saveCfg();toast('✅ Đã lưu cấu hình Merchize','success');}
 function saveSettings(){saveMrzCfg();closeSettings();}
 // ── KÉO ĐƠN TỪ MERCHIZE ──
