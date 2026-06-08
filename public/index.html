@@ -415,18 +415,18 @@ body[data-role="seller"] .no-seller{display:none !important}
     </div>
   </div>
   <div class="sb-sec">Tổng quan</div>
-  <div class="sb-item" id="nav-home" onclick="goPage('home')"><span class="ic">🏠</span> Trang chủ</div>
+  <div class="sb-item no-design" id="nav-home" onclick="goPage('home')"><span class="ic">🏠</span> Trang chủ</div>
   <div class="sb-item" id="nav-analytics" onclick="goPage('analytics')"><span class="ic">📊</span> Bảng thống kê</div>
-  <div class="sb-item" id="nav-dashboard" onclick="goPage('dashboard')"><span class="ic">📈</span> Dashboard</div>
+  <div class="sb-item no-design" id="nav-dashboard" onclick="goPage('dashboard')"><span class="ic">📈</span> Dashboard</div>
   <div class="sb-item role-design" id="nav-idea" onclick="goPage('idea')"><span class="ic">💡</span> Idea / Thiết kế</div>
   <div class="sb-sec">Quản lý</div>
   <div class="sb-item active" id="nav-orders" onclick="goPage('orders')"><span class="ic">📦</span> Đơn hàng <span class="sb-badge" id="sb-cnt">0</span></div>
-  <div class="sb-item" id="nav-history" onclick="goPage('history')"><span class="ic">🗂️</span> Lịch sử đơn</div>
+  <div class="sb-item no-design" id="nav-history" onclick="goPage('history')"><span class="ic">🗂️</span> Lịch sử đơn</div>
   <div class="sb-item admin-only" id="nav-insight" onclick="goPage('insight')"><span class="ic">🔍</span> Shop Insight</div>
   <div class="sb-sec">Vận hành</div>
-  <div class="sb-item" onclick="goPage('pricing')"><span class="ic">🏭</span> Bảng giá</div>
-  <div class="sb-item" onclick="goPage('costs')"><span class="ic">💸</span> Chi phí</div>
-  <div class="sb-item" onclick="goPage('suppliers')"><span class="ic">🚚</span> Nhà cung cấp</div>
+  <div class="sb-item no-design" onclick="goPage('pricing')"><span class="ic">🏭</span> Bảng giá</div>
+  <div class="sb-item no-design" onclick="goPage('costs')"><span class="ic">💸</span> Chi phí</div>
+  <div class="sb-item no-design" onclick="goPage('suppliers')"><span class="ic">🚚</span> Nhà cung cấp</div>
   <div class="sb-sec">Quản trị</div>
   <div class="sb-item admin-only" id="nav-sysadmin" onclick="goPage('sysadmin')"><span class="ic">📋</span> Quản trị hệ thống</div>
   <div class="sb-item" onclick="goPage('analytics')"><span class="ic">💰</span> Phân tích lợi nhuận</div>
@@ -1355,6 +1355,8 @@ async function enterApp(){
   setTimeout(autoSyncRevenue,3000);
   if(!window._autoSyncTimer)window._autoSyncTimer=setInterval(autoSyncRevenue,10*60*1000);
   setTimeout(openIdeaFromHash,800);
+  // Design (Ngân) vào thẳng trang Idea (vì Trang chủ/Dashboard đã ẩn)
+  if(auth&&auth.role==='design'&&!location.hash.includes('idea'))setTimeout(()=>goPage('idea'),200);
 }
 // Ghép tên SP + ảnh từ đơn Merchize sang đơn Etsy có cùng SKU (Etsy không có tên SP)
 function enrichEtsyNames(){
