@@ -858,6 +858,18 @@ body[data-role="seller"] .no-seller{display:none !important}
       </div>
     </div>
     <div class="page-scroll">
+      <div class="block" style="margin-bottom:16px">
+        <div class="block-title" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+          <span>📊 Năng suất thiết kế (mẫu hoàn thành)</span>
+          <select class="fi" id="design-report-range" style="width:auto;padding:4px 10px;font-size:12px" onchange="renderDesignReport()">
+            <option value="today">Hôm nay</option>
+            <option value="7">7 ngày qua</option>
+            <option value="30">30 ngày qua</option>
+          </select>
+        </div>
+        <div id="design-report" style="margin-top:10px"></div>
+        <div id="design-chart" style="margin-top:14px"></div>
+      </div>
       <div id="kanban-board" style="display:grid;grid-template-columns:repeat(7,minmax(210px,1fr));gap:12px;overflow-x:auto;padding-bottom:20px"></div>
     </div>
   </div>
@@ -1534,13 +1546,68 @@ function renderIdeaBoard(){
     </div>`;
   }).join('');
 }
+// Báo cáo năng suất thiết kế: đếm mẫu hoàn thành theo NV + biểu đồ ngày
+function renderDesignReport(){
+  const wrap=document.getElementById('design-report');if(!wrap)return;
+  const range=(document.getElementById('design-report-range')||{}).value||'today';
+  const log=cfg.designLog||[];
+  // mốc thời gian
+  const start=new Date();start.setHours(0,0,0,0);
+  if(range==='7')start.setDate(start.getDate()-6);
+  else if(range==='30')start.setDate(start.getDate()-29);
+  const inRange=log.filter(l=>{const d=new Date(l.at);return !isNaN(d)&&d>=start;});
+  if(!inRange.length){wrap.innerHTML='<div style="color:var(--text3);font-size:13px;padding:14px;text-align:center">Chưa có mẫu nào hoàn thành trong kỳ này.</div>';document.getElementById('design-chart').innerHTML='';return;}
+  // đếm theo người được giao + người kéo
+  const byAssignee={},byDragger={};
+  inRange.forEach(l=>{byAssignee[l.assignee]=(byAssignee[l.assignee]||0)+1;byDragger[l.by]=(byDragger[l.by]||0)+1;});
+  const total=inRange.length;
+  const mkTable=(obj,label)=>{
+    const rows=Object.entries(obj).sort((a,b)=>b[1]-a[1]);
+    return `<div style="flex:1;min-width:220px"><div style="font-size:12px;font-weight:600;color:var(--text2);margin-bottom:6px">${label}</div>`+
+      rows.map(([n,c])=>`<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border2);font-size:13px"><span>👤 ${esc(n)}</span><span style="font-weight:700;color:var(--accent)">${c} mẫu</span></div>`).join('')+'</div>';
+  };
+  wrap.innerHTML=`<div style="font-size:14px;font-weight:700;color:#2e7d46;margin-bottom:10px">Tổng: ${total} mẫu hoàn thành</div>
+    <div style="display:flex;gap:24px;flex-wrap:wrap">${mkTable(byAssignee,'Theo người được giao')}${mkTable(byDragger,'Theo người thao tác (kéo)')}</div>`;
+  // biểu đồ theo ngày (cột)
+  const byDay={};inRange.forEach(l=>{const d=new Date(l.at);const k=d.toISOString().slice(0,10);byDay[k]=(byDay[k]||0)+1;});
+  const days=Object.keys(byDay).sort();
+  const max=Math.max(...Object.values(byDay),1);
+  const chart=days.map(d=>{
+    const h=Math.round((byDay[d]/max)*100);
+    const label=d.slice(5).replace('-','/');
+    return `<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;min-width:28px">
+      <div style="font-size:11px;font-weight:700;color:var(--accent)">${byDay[d]}</div>
+      <div style="width:60%;background:linear-gradient(180deg,#5a9d6e,#2e7d46);border-radius:4px 4px 0 0;height:${Math.max(h,6)}px"></div>
+      <div style="font-size:10px;color:var(--text3)">${label}</div>
+    </div>`;
+  }).join('');
+  document.getElementById('design-chart').innerHTML=`<div style="font-size:12px;font-weight:600;color:var(--text2);margin-bottom:8px">📈 Mẫu hoàn thành theo ngày</div>
+    <div style="display:flex;align-items:flex-end;gap:4px;height:140px;background:var(--bg);border-radius:10px;padding:12px;overflow-x:auto">${chart}</div>`;
+}
 let _dragIdeaId=null;
 function ideaDragStart(e,id){_dragIdeaId=id;e.dataTransfer.effectAllowed='move';}
 function ideaDrop(e,col){
   e.preventDefault();
   if(!_dragIdeaId)return;
   const it=(cfg.ideas||[]).find(x=>x.id===_dragIdeaId);
-  if(it){it.status=col;saveCfg();cloudSaveAll();renderIdeaBoard();toast('✅ Đã chuyển sang "'+(IDEA_COLS.find(c=>c[0]===col)||[,col])[1]+'"','success');}
+  if(it){
+    const oldStatus=it.status;
+    it.status=col;
+    // Ghi nhận hoàn thành 1 mẫu khi kéo sang Hoàn thành / Đã listing (chỉ tính lần đầu vào nhóm này)
+    const doneCols=['done','listed'];
+    if(doneCols.includes(col)&&!doneCols.includes(oldStatus)){
+      if(!cfg.designLog)cfg.designLog=[];
+      cfg.designLog.push({
+        ideaId:it.id,title:it.title||'',
+        col,
+        assignee:it.assignee||'(chưa giao)',
+        by:auth?auth.name:'(?)',
+        at:new Date().toISOString(),
+      });
+    }
+    saveCfg();cloudSaveAll();renderIdeaBoard();renderDesignReport();
+    toast('✅ Đã chuyển sang "'+(IDEA_COLS.find(c=>c[0]===col)||[,col])[1]+'"','success');
+  }
   _dragIdeaId=null;
 }
 function openIdeaModal(id){
@@ -2106,7 +2173,7 @@ function goPage(page){
   if(page==='pricing'){renderPriceList();loadFees();savePriceSheetUrl_load();}
   if(page==='costs'){loadCostUI();renderAdList();renderOpList();}
   if(page==='suppliers'){renderSuppliers();}
-  if(page==='idea'){renderIdeaBoard();}
+  if(page==='idea'){renderIdeaBoard();renderDesignReport();}
 }
 
 // ── helper: orders in period ──
@@ -2564,7 +2631,7 @@ async function cloudSaveCfg(){
   try{
     const headers={'Content-Type':'application/json'};
     if(auth&&auth.token)headers['X-Session']=auth.token;
-    const shared={skuMap:cfg.skuMap||[],priceMap:cfg.priceMap||[],fees:cfg.fees||{},adCosts:cfg.adCosts||[],opCosts:cfg.opCosts||[],fxRate:cfg.fxRate||0,fxManual:cfg.fxManual||false,shops:cfg.shops||[],suppliers:cfg.suppliers||[],ideas:cfg.ideas||[]};
+    const shared={skuMap:cfg.skuMap||[],priceMap:cfg.priceMap||[],fees:cfg.fees||{},adCosts:cfg.adCosts||[],opCosts:cfg.opCosts||[],fxRate:cfg.fxRate||0,fxManual:cfg.fxManual||false,shops:cfg.shops||[],suppliers:cfg.suppliers||[],ideas:cfg.ideas||[],designLog:cfg.designLog||[]};
     const r=await fetch('/api/data?op=config',{method:'POST',headers,body:JSON.stringify(shared)});
     return r.ok;
   }catch(e){return false;}
@@ -2574,7 +2641,7 @@ async function cloudLoadCfg(){
     const headers={'Content-Type':'application/json'};
     if(auth&&auth.token)headers['X-Session']=auth.token;
     const r=await fetch('/api/data?op=config',{headers});
-    if(r.ok){const c=await r.json();if(c&&Array.isArray(c.skuMap)){cfg.skuMap=c.skuMap;}if(c&&Array.isArray(c.priceMap)){cfg.priceMap=c.priceMap;}if(c&&c.fees){cfg.fees=c.fees;}if(c&&Array.isArray(c.adCosts)){cfg.adCosts=c.adCosts;}if(c&&Array.isArray(c.opCosts)){cfg.opCosts=c.opCosts;}if(c&&c.fxRate){cfg.fxRate=c.fxRate;cfg.fxManual=c.fxManual;}if(c&&Array.isArray(c.shops)){cfg.shops=c.shops;}if(c&&Array.isArray(c.suppliers)){cfg.suppliers=c.suppliers;}if(c&&Array.isArray(c.ideas)){cfg.ideas=c.ideas;}localStorage.setItem(CFG_KEY,JSON.stringify(cfg));}
+    if(r.ok){const c=await r.json();if(c&&Array.isArray(c.skuMap)){cfg.skuMap=c.skuMap;}if(c&&Array.isArray(c.priceMap)){cfg.priceMap=c.priceMap;}if(c&&c.fees){cfg.fees=c.fees;}if(c&&Array.isArray(c.adCosts)){cfg.adCosts=c.adCosts;}if(c&&Array.isArray(c.opCosts)){cfg.opCosts=c.opCosts;}if(c&&c.fxRate){cfg.fxRate=c.fxRate;cfg.fxManual=c.fxManual;}if(c&&Array.isArray(c.shops)){cfg.shops=c.shops;}if(c&&Array.isArray(c.suppliers)){cfg.suppliers=c.suppliers;}if(c&&Array.isArray(c.ideas)){cfg.ideas=c.ideas;}if(c&&Array.isArray(c.designLog)){cfg.designLog=c.designLog;}localStorage.setItem(CFG_KEY,JSON.stringify(cfg));}
   }catch(e){}
 }
 function openSettings(){const mb=document.getElementById('mrz-base');if(mb)mb.value=cfg.mrzBase||'';const mt=document.getElementById('mrz-token');if(mt)mt.value=cfg.mrzToken||'';const tu=document.getElementById('trk-sheet-url');if(tu)tu.value=cfg.trkSheetUrl||'';const wu=document.getElementById('mrz-webhook-url');if(wu)wu.value=location.origin+'/api/webhooks/merchize';const es=document.getElementById('etsy-shop');if(es){const shops=shopList();es.innerHTML=shops.length?shops.map(s=>`<option value="${s}">${s}</option>`).join(''):'<option value="Etsy">Etsy</option>';}document.getElementById('settings-modal').classList.add('open');}
