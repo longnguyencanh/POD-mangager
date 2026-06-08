@@ -450,6 +450,10 @@ body[data-role="seller"] .no-seller{display:none !important}
   <div class="page active" id="page-orders">
     <div class="cfg-bar">
       <span style="flex:1;font-size:12px;color:var(--text3)">Ấn nút đồng bộ đơn và tải lại.</span>
+      <div style="position:relative">
+        <button class="btn btn-sm" onclick="toggleNotif()" title="Thông báo">🔔<span id="notif-badge" style="display:none;position:absolute;top:-4px;right:-4px;background:var(--red);color:#fff;font-size:9px;font-weight:700;min-width:16px;height:16px;border-radius:8px;padding:0 4px;line-height:16px;text-align:center"></span></button>
+        <div id="notif-panel" style="display:none;position:absolute;right:0;top:38px;width:300px;max-height:380px;overflow-y:auto;background:var(--surface);border:1px solid var(--border);border-radius:12px;box-shadow:0 8px 30px rgba(0,0,0,.18);z-index:200;padding:8px"></div>
+      </div>
       <button class="btn btn-sm admin-only" onclick="exportOrdersSheet()">📊 Xuất Sheet</button>
       <button class="btn btn-sm admin-only" onclick="syncMerchizePrices({onlyZero:true})">🔄 Làm mới doanh thu</button>
       <button class="btn btn-sm admin-only" onclick="addOrderByCode()">➕ Thêm đơn theo mã</button>
@@ -1371,6 +1375,9 @@ async function enterApp(){
   setTimeout(autoSyncRevenue,3000);
   if(!window._autoSyncTimer)window._autoSyncTimer=setInterval(autoSyncRevenue,10*60*1000);
   setTimeout(openIdeaFromHash,800);
+  setTimeout(detectChanges,1500);
+  // Cập nhật thông báo định kỳ
+  if(!window._notifTimer)window._notifTimer=setInterval(()=>{detectChanges();},2*60*1000);
   // Design (Ngân) vào thẳng trang Idea (vì Trang chủ/Dashboard đã ẩn)
   if(auth&&auth.role==='design'&&!location.hash.includes('idea'))setTimeout(()=>goPage('idea'),200);
 }
@@ -1396,6 +1403,62 @@ function enrichEtsyNames(){
   });});
 }
 
+// ── THÔNG BÁO ──
+// So sánh snapshot đơn để phát hiện đơn mới + đổi trạng thái → tạo notif
+function detectChanges(){
+  if(!cfg.notifs)cfg.notifs=[];
+  const prev=JSON.parse(localStorage.getItem('pod_order_snapshot')||'{}');
+  const now={};
+  let newNotifs=[];
+  orders.forEach(o=>{
+    const code=etsyCode(o);
+    now[o.id]={status:o.status,shop:o.shopTitle};
+    const old=prev[o.id];
+    if(!old){
+      // đơn mới (chỉ báo nếu đã có snapshot trước đó — tránh báo toàn bộ lần đầu)
+      if(Object.keys(prev).length)newNotifs.push({type:'new',orderId:o.id,code,shop:o.shopTitle,sku:(o.items&&o.items[0]&&o.items[0].sku)||'',at:new Date().toISOString(),text:`🆕 Đơn mới ${code} (${o.shopTitle||'—'})`});
+    }else if(old.status!==o.status){
+      const lbl=(PILLS[o.status]||[,o.status])[1];
+      newNotifs.push({type:'status',orderId:o.id,code,shop:o.shopTitle,sku:(o.items&&o.items[0]&&o.items[0].sku)||'',at:new Date().toISOString(),text:`🔄 Đơn ${code} → ${lbl}`});
+    }
+  });
+  if(newNotifs.length){
+    cfg.notifs=[...newNotifs,...cfg.notifs].slice(0,100); // giữ 100 mới nhất
+    saveCfg();
+  }
+  localStorage.setItem('pod_order_snapshot',JSON.stringify(now));
+  updateNotifBadge();
+}
+// Lọc notif theo vai trò: admin thấy hết, NV chỉ thấy đơn có SKU của mình
+function visibleNotifs(){
+  const all=cfg.notifs||[];
+  if(!auth||auth.role==='admin'||auth.role==='seller')return all;
+  // design/staff: chỉ notif có SKU khớp viết tắt của mình
+  const abbrs=(typeof myAbbrs==='function')?myAbbrs():[];
+  if(!abbrs.length)return all;
+  return all.filter(n=>{const s=(n.sku||'').toLowerCase();return abbrs.some(a=>s.includes(a.toLowerCase()));});
+}
+function updateNotifBadge(){
+  const badge=document.getElementById('notif-badge');if(!badge)return;
+  const seen=JSON.parse(localStorage.getItem('pod_notif_seen')||'0');
+  const list=visibleNotifs();
+  const unread=list.filter(n=>new Date(n.at).getTime()>seen).length;
+  if(unread>0){badge.style.display='';badge.textContent=unread>99?'99+':unread;}
+  else badge.style.display='none';
+}
+function toggleNotif(){
+  const p=document.getElementById('notif-panel');if(!p)return;
+  const open=p.style.display!=='none';
+  if(open){p.style.display='none';return;}
+  const list=visibleNotifs();
+  p.innerHTML='<div style="font-size:13px;font-weight:700;padding:6px 8px;border-bottom:1px solid var(--border2);display:flex;justify-content:space-between"><span>🔔 Thông báo</span>'+(list.length?'<span style="font-size:11px;color:var(--accent);cursor:pointer" onclick="clearNotifSeen()">Đánh dấu đã đọc</span>':'')+'</div>'+
+    (list.length?list.slice(0,50).map(n=>`<div onclick="selectOrder('${n.orderId}');document.getElementById('notif-panel').style.display='none'" style="padding:8px;border-bottom:1px solid var(--border2);cursor:pointer;font-size:12.5px"><div>${esc(n.text)}</div><div style="font-size:10px;color:var(--text3);margin-top:2px">${relTime(n.at)}</div></div>`).join(''):'<div style="padding:20px;text-align:center;color:var(--text3);font-size:12px">Chưa có thông báo</div>');
+  p.style.display='block';
+  // đánh dấu đã xem
+  localStorage.setItem('pod_notif_seen',JSON.stringify(Date.now()));
+  updateNotifBadge();
+}
+function clearNotifSeen(){localStorage.setItem('pod_notif_seen',JSON.stringify(Date.now()));updateNotifBadge();document.getElementById('notif-panel').style.display='none';}
 function logout(){
   localStorage.removeItem('pod_session');
   auth=null;
@@ -2769,7 +2832,7 @@ async function cloudSaveCfg(){
   try{
     const headers={'Content-Type':'application/json'};
     if(auth&&auth.token)headers['X-Session']=auth.token;
-    const shared={skuMap:cfg.skuMap||[],priceMap:cfg.priceMap||[],fees:cfg.fees||{},adCosts:cfg.adCosts||[],opCosts:cfg.opCosts||[],fxRate:cfg.fxRate||0,fxManual:cfg.fxManual||false,shops:cfg.shops||[],suppliers:cfg.suppliers||[],ideas:cfg.ideas||[],designLog:cfg.designLog||[],nasPathTpl:cfg.nasPathTpl||''};
+    const shared={skuMap:cfg.skuMap||[],priceMap:cfg.priceMap||[],fees:cfg.fees||{},adCosts:cfg.adCosts||[],opCosts:cfg.opCosts||[],fxRate:cfg.fxRate||0,fxManual:cfg.fxManual||false,shops:cfg.shops||[],suppliers:cfg.suppliers||[],ideas:cfg.ideas||[],designLog:cfg.designLog||[],nasPathTpl:cfg.nasPathTpl||'',notifs:cfg.notifs||[]};
     const r=await fetch('/api/data?op=config',{method:'POST',headers,body:JSON.stringify(shared)});
     return r.ok;
   }catch(e){return false;}
@@ -2779,7 +2842,7 @@ async function cloudLoadCfg(){
     const headers={'Content-Type':'application/json'};
     if(auth&&auth.token)headers['X-Session']=auth.token;
     const r=await fetch('/api/data?op=config',{headers});
-    if(r.ok){const c=await r.json();if(c&&Array.isArray(c.skuMap)){cfg.skuMap=c.skuMap;}if(c&&Array.isArray(c.priceMap)){cfg.priceMap=c.priceMap;}if(c&&c.fees){cfg.fees=c.fees;}if(c&&Array.isArray(c.adCosts)){cfg.adCosts=c.adCosts;}if(c&&Array.isArray(c.opCosts)){cfg.opCosts=c.opCosts;}if(c&&c.fxRate){cfg.fxRate=c.fxRate;cfg.fxManual=c.fxManual;}if(c&&Array.isArray(c.shops)){cfg.shops=c.shops;}if(c&&Array.isArray(c.suppliers)){cfg.suppliers=c.suppliers;}if(c&&Array.isArray(c.ideas)){cfg.ideas=c.ideas;}if(c&&Array.isArray(c.designLog)){cfg.designLog=c.designLog;}if(c&&typeof c.nasPathTpl==='string'){cfg.nasPathTpl=c.nasPathTpl;}localStorage.setItem(CFG_KEY,JSON.stringify(cfg));}
+    if(r.ok){const c=await r.json();if(c&&Array.isArray(c.skuMap)){cfg.skuMap=c.skuMap;}if(c&&Array.isArray(c.priceMap)){cfg.priceMap=c.priceMap;}if(c&&c.fees){cfg.fees=c.fees;}if(c&&Array.isArray(c.adCosts)){cfg.adCosts=c.adCosts;}if(c&&Array.isArray(c.opCosts)){cfg.opCosts=c.opCosts;}if(c&&c.fxRate){cfg.fxRate=c.fxRate;cfg.fxManual=c.fxManual;}if(c&&Array.isArray(c.shops)){cfg.shops=c.shops;}if(c&&Array.isArray(c.suppliers)){cfg.suppliers=c.suppliers;}if(c&&Array.isArray(c.ideas)){cfg.ideas=c.ideas;}if(c&&Array.isArray(c.designLog)){cfg.designLog=c.designLog;}if(c&&typeof c.nasPathTpl==='string'){cfg.nasPathTpl=c.nasPathTpl;}if(c&&Array.isArray(c.notifs)){cfg.notifs=c.notifs;}localStorage.setItem(CFG_KEY,JSON.stringify(cfg));}
   }catch(e){}
 }
 function openSettings(){const mb=document.getElementById('mrz-base');if(mb)mb.value=cfg.mrzBase||'';const mt=document.getElementById('mrz-token');if(mt)mt.value=cfg.mrzToken||'';const tu=document.getElementById('trk-sheet-url');if(tu)tu.value=cfg.trkSheetUrl||'';const np=document.getElementById('nas-path-tpl');if(np)np.value=cfg.nasPathTpl||'';const wu=document.getElementById('mrz-webhook-url');if(wu)wu.value=location.origin+'/api/webhooks/merchize';const es=document.getElementById('etsy-shop');if(es){const shops=shopList();es.innerHTML=shops.length?shops.map(s=>`<option value="${s}">${s}</option>`).join(''):'<option value="Etsy">Etsy</option>';}document.getElementById('settings-modal').classList.add('open');}
