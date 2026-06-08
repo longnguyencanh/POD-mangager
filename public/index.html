@@ -452,6 +452,7 @@ body[data-role="seller"] .no-seller{display:none !important}
       <span style="flex:1;font-size:12px;color:var(--text3)">Ấn nút đồng bộ đơn và tải lại.</span>
       <button class="btn btn-sm admin-only" onclick="exportOrdersSheet()">📊 Xuất Sheet</button>
       <button class="btn btn-sm admin-only" onclick="syncMerchizePrices({onlyZero:true})">🔄 Làm mới doanh thu</button>
+      <button class="btn btn-sm admin-only" onclick="addOrderByCode()">➕ Thêm đơn theo mã</button>
       <button class="btn btn-green btn-sm" onclick="syncOrders()" id="fetch-btn">⟳ Đồng bộ đơn</button>
     </div>
 
@@ -1980,6 +1981,54 @@ async function probeMerchizeOrder(){
     const relevant=lines.filter(l=>/tag|shop|store|revenue|price|total|cost|value|amount/i.test(l));
     box.textContent='📋 Field liên quan SHOP & TIỀN của đơn '+code+':\n\n'+(relevant.join('\n')||'(không thấy)')+'\n\n--- TẤT CẢ field ---\n'+lines.join('\n');
   }catch(e){box.textContent='❌ Lỗi: '+e.message;}
+}
+// Thêm đơn theo mã (kéo chủ động từ Merchize khi đơn chưa về qua webhook)
+async function addOrderByCode(){
+  const input=prompt('Nhập mã đơn Merchize (RP-...) hoặc mã Etsy (số), cách nhau bởi dấu phẩy:','');
+  if(!input)return;
+  const codes=input.split(',').map(s=>s.trim()).filter(Boolean);
+  if(!codes.length)return;
+  toast('Đang lấy đơn từ Merchize...','info');
+  try{
+    const r=await fetch('/api/merchize?action=details',{method:'POST',headers:mrzHeaders(),body:JSON.stringify({codes})});
+    const j=await r.json();
+    if(j.error){toast('❌ '+j.error,'error');return;}
+    const data=j.data||[];
+    if(!data.length){toast('❌ Không tìm thấy đơn trên Merchize','error');return;}
+    let added=0,updated=0;
+    data.forEach(md=>{
+      const code=String(md.code||md.external_number||'').toUpperCase();
+      const ext=String(md.external_number||'');
+      const exist=orders.find(o=>[o.id,o.orderNumber,o.external_id,o.external_number].filter(Boolean).map(v=>String(v).toUpperCase()).includes(code)||(ext&&[o.external_id,o.external_number].map(v=>String(v||'')).includes(ext)));
+      const rev=findRevenue(md);const cost=findPrice(md);const shop=findShopTag(md);
+      const mi=(md.items&&md.items[0])||{};
+      const title=mi.seller_product_info||mi.title||mi.name||'Sản phẩm';
+      if(exist){
+        if(rev)exist.total='$'+rev.toFixed(2);
+        if(shop)exist.shopTitle=shop;
+        updated++;
+      }else{
+        orders.push({
+          id:md._id||code||('mrz_'+Date.now()+Math.random().toString(36).slice(2,6)),
+          orderNumber:md.code||'',external_id:ext,external_number:ext,
+          source:'merchize',shopTitle:shop||'Chưa gán shop',shopId:(shop||'').toLowerCase().replace(/\s+/g,''),
+          status:md.order_status==='unfulfilled'?'producing':(md.order_status||'new'),
+          created:md.created||new Date().toISOString(),
+          customer:md.customer||(md.shipping&&md.shipping.name)||'',
+          country:(md.shipping&&md.shipping.country)||'',
+          total:rev?'$'+rev.toFixed(2):'$0.00',
+          tracking:'',
+          items:[{sku:mi.sku||'',title,img:mi.image||mi.thumbnail||'',qty:mi.quantity||1,basecostFromWorkshop:cost!=null?String(cost):''}],
+          pushed:{merchize:true},
+        });
+        if(shop){if(!cfg.shops)cfg.shops=[];if(!cfg.shops.includes(shop))cfg.shops.push(shop);}
+        added++;
+      }
+    });
+    localStorage.setItem('pod_orders',JSON.stringify(orders));
+    saveCfg();await cloudSaveAll();enrichEtsyNames();buildShopFilter();applyFilter();updateCounts();
+    toast(`✅ Thêm mới ${added}, cập nhật ${updated} đơn`,'success');
+  }catch(e){toast('❌ Lỗi: '+e.message,'error');}
 }
 async function syncMerchizePrices(opts){
   opts=opts||{};
