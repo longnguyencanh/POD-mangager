@@ -878,6 +878,12 @@ body[data-role="seller"] .no-seller{display:none !important}
         <div id="dr-detail" style="display:none;margin-top:10px">
           <div id="design-report"></div>
           <div id="design-chart" style="margin-top:14px"></div>
+          <div class="divider" style="margin:14px 0"></div>
+          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:8px">
+            <div style="font-size:12.5px;font-weight:700">💰 Thưởng theo đơn bán (5.000đ/đơn)</div>
+            <input class="fi" id="bonus-month" type="month" style="width:auto;padding:3px 8px;font-size:11px" onchange="renderBonusReport()">
+          </div>
+          <div id="bonus-report"></div>
         </div>
       </div>
       <div id="kanban-board" style="display:grid;grid-template-columns:repeat(7,minmax(210px,1fr));gap:12px;overflow-x:auto;padding-bottom:20px"></div>
@@ -889,7 +895,7 @@ body[data-role="seller"] .no-seller{display:none !important}
     <div class="modal" style="max-width:460px">
       <div class="modal-title" style="font-size:16px;margin-bottom:12px" id="idea-modal-title">💡 Thêm Idea</div>
       <input type="hidden" id="idea-id">
-      <div class="fl" style="margin-bottom:8px"><label>Tiêu đề *</label><input class="fi" id="idea-title" placeholder="vd: Áo 4th July - thêm tên"></div>
+      <div class="fl" style="margin-bottom:8px"><label>Tiêu đề * <span style="color:var(--text3);font-weight:400">(chứa SKU, vd: LN8626)</span></label><input class="fi" id="idea-title" placeholder="vd: LN8626 - Áo 4th July"></div>
       <div class="fl" style="margin-bottom:8px"><label>Link Etsy</label><input class="fi" id="idea-link" placeholder="https://etsy.com/listing/..."></div>
       <div class="fl" style="margin-bottom:8px"><label>Link ảnh tham khảo</label><input class="fi" id="idea-img" placeholder="Dán link ảnh..."></div>
       <div class="fl" style="margin-bottom:8px"><label>🎨 Link file thiết kế (designer gắn vào)</label><input class="fi" id="idea-design" placeholder="Dán link Drive/Canva/Dropbox file đã làm..."></div>
@@ -1558,12 +1564,50 @@ function renderIdeaBoard(){
     </div>`;
   }).join('');
 }
+// Trích SKU từ tiêu đề idea (vd "16LN2626", "LN8626", "mth290526015")
+function skuFromTitle(title){
+  if(!title)return '';
+  // tìm chuỗi chứa chữ+số liền (SKU): vd 16LN2626, LN8626, mth290526015, 01LN121225
+  const m=String(title).match(/[a-zA-Z]*\d*[a-zA-Z]+\d+[a-zA-Z0-9]*/);
+  return m?m[0].toUpperCase().trim():'';
+}
+// Báo cáo thưởng: mỗi đơn bán được mang SKU của mẫu designer làm → 5k/đơn
+const BONUS_PER_ORDER=5000;
+function renderBonusReport(){
+  const el=document.getElementById('bonus-report');if(!el)return;
+  const mEl=document.getElementById('bonus-month');
+  let month=mEl&&mEl.value?mEl.value:new Date().toISOString().slice(0,7);
+  if(mEl&&!mEl.value)mEl.value=month;
+  // Map SKU (lấy từ tiêu đề) → designer
+  const skuOwner={};
+  (cfg.ideas||[]).forEach(it=>{
+    const sku=skuFromTitle(it.title);
+    if(sku&&it.assignee)skuOwner[sku]=it.assignee;
+  });
+  if(!Object.keys(skuOwner).length){el.innerHTML='<div style="color:var(--text3);font-size:12px;padding:8px">Chưa có mẫu nào có SKU trong tiêu đề + người làm. Giao mẫu cho người làm để tính thưởng.</div>';return;}
+  const byDesigner={};
+  orders.forEach(o=>{
+    const d=new Date(o.created);if(isNaN(d)||d.toISOString().slice(0,7)!==month)return;
+    if(o.status==='cancelled')return;
+    (o.items||[]).forEach(it=>{
+      const sku=(it.sku||'').toUpperCase().trim();
+      const owner=skuOwner[sku];
+      if(owner){if(!byDesigner[owner])byDesigner[owner]={orders:0,skus:new Set()};byDesigner[owner].orders++;byDesigner[owner].skus.add(sku);}
+    });
+  });
+  const rows=Object.entries(byDesigner).sort((a,b)=>b[1].orders-a[1].orders);
+  if(!rows.length){el.innerHTML='<div style="color:var(--text3);font-size:12px;padding:8px">Chưa có đơn bán được cho mẫu nào trong tháng '+month+'.</div>';return;}
+  el.innerHTML='<table style="width:100%;border-collapse:collapse;font-size:12.5px"><tr style="text-align:left;color:var(--text3);font-size:11px"><th style="padding:6px">NGƯỜI THIẾT KẾ</th><th>SỐ MẪU BÁN</th><th>SỐ ĐƠN</th><th>THƯỞNG</th></tr>'+
+    rows.map(([n,d])=>`<tr style="border-top:1px solid var(--border2)"><td style="padding:8px 6px;font-weight:600">👤 ${esc(n)}</td><td>${d.skus.size}</td><td>${d.orders}</td><td style="font-weight:700;color:#2e7d46">${(d.orders*BONUS_PER_ORDER).toLocaleString('vi-VN')}đ</td></tr>`).join('')+
+    '</table><div style="font-size:11px;color:var(--text3);margin-top:8px">* 5.000đ × số đơn bán được (đơn mang SKU lấy từ tiêu đề mẫu, trừ đơn huỷ).</div>';
+}
 function toggleDesignReport(){
   const d=document.getElementById('dr-detail');const a=document.getElementById('dr-arrow');
   if(!d)return;
   const open=d.style.display!=='none';
   d.style.display=open?'none':'block';
   if(a)a.textContent=open?'▶':'▼';
+  if(!open)renderBonusReport();
 }
 // Báo cáo năng suất thiết kế: đếm mẫu hoàn thành theo NV + biểu đồ ngày
 function renderDesignReport(){
