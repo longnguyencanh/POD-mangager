@@ -893,20 +893,59 @@ body[data-role="seller"] .no-seller{display:none !important}
         </div>
       </div>
     </div>
-    <!-- Kanban board: mỗi cột cuộn dọc độc lập, board cuộn ngang -->
-    <div style="flex:1;overflow-x:auto;overflow-y:hidden;padding:0 28px 20px">
-      <div id="kanban-board" style="display:grid;grid-template-columns:repeat(6,minmax(230px,1fr));gap:12px;height:100%;align-items:start"></div>
+    <!-- Placeholder kéo thả nổi -->
+    <div style="flex:1;padding:0 28px 20px;display:flex;align-items:flex-start;justify-content:center">
+      <div style="margin-top:20px;text-align:center;color:var(--text3)">
+        <div style="font-size:32px;margin-bottom:8px;opacity:.4">⠿</div>
+        <div style="font-size:12px">Bảng Kanban đang hiển thị nổi — kéo tiêu đề để di chuyển</div>
+        <button onclick="resetKanbanPos()" style="margin-top:10px;background:none;border:1px solid var(--border2);border-radius:8px;padding:5px 14px;font-size:11.5px;color:var(--text2);cursor:pointer;font-family:inherit">↺ Đặt lại vị trí bảng</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════ FLOATING KANBAN PANEL ════ -->
+  <div id="kanban-float" style="position:fixed;top:80px;left:220px;z-index:150;display:none;width:calc(100vw - 240px);max-width:1400px;box-shadow:0 8px 40px rgba(0,0,0,.18);border-radius:14px;overflow:hidden;border:1px solid var(--border2);background:var(--bg)">
+    <!-- Drag handle header -->
+    <div id="kanban-drag-handle" style="background:var(--surface);border-bottom:1px solid var(--border);padding:9px 14px;display:flex;align-items:center;gap:10px;cursor:grab;user-select:none;flex-shrink:0">
+      <span style="font-size:16px;color:var(--text3);letter-spacing:2px;cursor:grab">⠿⠿</span>
+      <span style="font-size:12.5px;font-weight:700;color:var(--text)">📋 Kanban Board</span>
+      <span style="font-size:11px;color:var(--text3);margin-left:4px">— kéo để di chuyển</span>
+      <div style="margin-left:auto;display:flex;gap:6px;align-items:center">
+        <!-- Thu nhỏ / mở rộng chiều cao -->
+        <button onclick="toggleKanbanHeight()" id="kanban-height-btn" title="Thu/mở chiều cao" style="background:none;border:1px solid var(--border2);border-radius:6px;padding:3px 8px;font-size:11px;cursor:pointer;color:var(--text2);font-family:inherit">↕ Chiều cao</button>
+        <button onclick="toggleKanbanWidth()" id="kanban-width-btn" title="Thu/mở chiều rộng" style="background:none;border:1px solid var(--border2);border-radius:6px;padding:3px 8px;font-size:11px;cursor:pointer;color:var(--text2);font-family:inherit">↔ Rộng hơn</button>
+      </div>
+    </div>
+    <!-- Board scroll ngang -->
+    <div style="overflow-x:auto;overflow-y:hidden;padding:12px 14px 16px" id="kanban-scroll-wrap">
+      <div id="kanban-board" style="display:grid;grid-template-columns:repeat(6,minmax(220px,1fr));gap:10px;align-items:start"></div>
     </div>
   </div>
 
   <!-- Modal thêm/sửa Idea -->
   <div class="modal-bg" id="idea-modal">
     <div class="modal" style="max-width:460px">
-      <div class="modal-title" style="font-size:16px;margin-bottom:12px" id="idea-modal-title">💡 Thêm Idea</div>
+      <div class="modal-title" style="font-size:16px;margin-bottom:8px" id="idea-modal-title">💡 Thêm Idea</div>
+      <!-- Thanh chuyển cột nhanh — chỉ hiện khi đang SỬA idea -->
+      <div id="idea-status-bar" style="display:none;margin-bottom:14px">
+        <div style="font-size:10px;color:var(--text3);font-weight:600;letter-spacing:.8px;text-transform:uppercase;margin-bottom:6px">Chuyển sang cột</div>
+        <div style="display:flex;gap:5px;flex-wrap:wrap" id="idea-status-btns"></div>
+      </div>
       <input type="hidden" id="idea-id">
       <div class="fl" style="margin-bottom:8px"><label>Tiêu đề * <span style="color:var(--text3);font-weight:400">(chứa SKU, vd: LN8626)</span></label><input class="fi" id="idea-title" placeholder="vd: LN8626 - Áo 4th July"></div>
-      <div class="fl" style="margin-bottom:8px"><label>Link Etsy</label><input class="fi" id="idea-link" placeholder="https://etsy.com/listing/..."></div>
-      <div class="fl" style="margin-bottom:8px"><label>Link ảnh tham khảo</label><input class="fi" id="idea-img" placeholder="Dán link ảnh..."></div>
+      <div class="fl" style="margin-bottom:8px">
+        <label>Link Etsy <span id="etsy-fetch-status" style="font-weight:400;font-size:10px;color:var(--text3);margin-left:6px"></span></label>
+        <input class="fi" id="idea-link" placeholder="https://etsy.com/listing/..." oninput="autoFetchEtsyImg(this.value)">
+      </div>
+      <div class="fl" style="margin-bottom:8px">
+        <label>Link ảnh tham khảo</label>
+        <div style="display:flex;gap:6px;align-items:center">
+          <input class="fi" id="idea-img" placeholder="Tự điền khi dán link Etsy..." style="flex:1">
+          <div id="idea-img-preview" style="width:44px;height:44px;border-radius:8px;border:1px solid var(--border);background:var(--bg);overflow:hidden;flex-shrink:0;display:none">
+            <img id="idea-img-thumb" style="width:100%;height:100%;object-fit:cover" src="">
+          </div>
+        </div>
+      </div>
       <div class="fl" style="margin-bottom:8px"><label>🎨 Link file thiết kế (designer gắn vào)</label><input class="fi" id="idea-design" placeholder="Dán link Drive/Canva/Dropbox file đã làm..."></div>
       <div class="fl" style="margin-bottom:8px"><label>📁 Đường dẫn NAS (tự ghép từ SKU)</label><div style="display:flex;gap:6px"><input class="fi" id="idea-naspath" readonly style="background:var(--bg);font-size:11px" placeholder="(cài mẫu đường dẫn trong Cài đặt)"><button class="btn btn-xs" onclick="copyNasPath()" title="Copy để dán vào File Explorer">📋</button></div></div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
@@ -1781,11 +1820,18 @@ function openIdeaModal(id){
     document.getElementById('idea-deadline').value=it.deadline||'';
     document.getElementById('idea-note').value=it.note||'';
     if(delBtn)delBtn.style.display='';
+    // hiện preview nếu đã có ảnh
+    updateIdeaImgPreview(it.img||'');
+    // hiện thanh chuyển cột
+    renderIdeaStatusBar(it.id, it.status||'idea');
   }else{
     document.getElementById('idea-modal-title').textContent='💡 Thêm Idea';
     ['idea-id','idea-title','idea-link','idea-img','idea-design','idea-deadline','idea-note'].forEach(i=>document.getElementById(i).value='');
     document.getElementById('idea-priority').value='normal';
     if(delBtn)delBtn.style.display='none';
+    updateIdeaImgPreview('');
+    document.getElementById('etsy-fetch-status').textContent='';
+    document.getElementById('idea-status-bar').style.display='none';
   }
   // tự ghép đường dẫn NAS từ SKU (tiêu đề)
   const npEl=document.getElementById('idea-naspath');
@@ -1795,9 +1841,102 @@ function openIdeaModal(id){
     updateNas();
     titleEl.oninput=updateNas;
   }
+  // cập nhật preview khi tay nhập link ảnh
+  document.getElementById('idea-img').oninput=function(){updateIdeaImgPreview(this.value);};
   m.classList.add('open');
 }
-function copyNasPath(){
+
+// Hiện/ẩn preview ảnh nhỏ bên cạnh ô link ảnh
+function updateIdeaImgPreview(url){
+  const box=document.getElementById('idea-img-preview');
+  const thumb=document.getElementById('idea-img-thumb');
+  if(!box||!thumb)return;
+  if(url){box.style.display='block';thumb.src=url;}
+  else{box.style.display='none';thumb.src='';}
+}
+
+// Tự động fetch ảnh từ link Etsy khi người dùng dán vào
+let _etsyFetchTimer=null;
+async function autoFetchEtsyImg(val){
+  clearTimeout(_etsyFetchTimer);
+  const imgEl=document.getElementById('idea-img');
+  const statusEl=document.getElementById('etsy-fetch-status');
+  if(!val||!val.includes('etsy.com/listing/')){statusEl.textContent='';return;}
+  // Nếu ô ảnh đã có nội dung (người dùng tự điền) → không ghi đè
+  if(imgEl.value&&!imgEl.dataset.autoFilled){return;}
+  _etsyFetchTimer=setTimeout(async()=>{
+    statusEl.textContent='⏳ Đang lấy ảnh...';
+    try{
+      // Trích listing ID
+      const m=val.match(/listing\/(\d+)/);
+      if(!m){statusEl.textContent='';return;}
+      const listingId=m[1];
+      // Dùng allorigins proxy để bypass CORS, lấy HTML Etsy và trích og:image
+      const proxy=`https://api.allorigins.win/raw?url=${encodeURIComponent('https://www.etsy.com/listing/'+listingId)}`;
+      const res=await fetch(proxy,{signal:AbortSignal.timeout(8000)});
+      const html=await res.text();
+      // Lấy og:image (ảnh chính listing Etsy, độ phân giải cao)
+      const ogMatch=html.match(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i)
+                 ||html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image["']/i);
+      if(ogMatch&&ogMatch[1]){
+        const imgUrl=ogMatch[1].replace(/&amp;/g,'&');
+        imgEl.value=imgUrl;
+        imgEl.dataset.autoFilled='1';
+        updateIdeaImgPreview(imgUrl);
+        statusEl.innerHTML='<span style="color:var(--green)">✅ Đã lấy ảnh!</span>';
+        setTimeout(()=>statusEl.textContent='',3000);
+      }else{
+        statusEl.innerHTML='<span style="color:var(--text3)">Không tìm thấy ảnh</span>';
+        setTimeout(()=>statusEl.textContent='',3000);
+      }
+    }catch(e){
+      statusEl.innerHTML='<span style="color:var(--text3)">Không thể lấy ảnh tự động</span>';
+      setTimeout(()=>statusEl.textContent='',3000);
+    }
+  },700);// debounce 700ms sau khi ngừng gõ
+}
+// Xoá flag autoFilled khi người dùng tự sửa ô ảnh
+document.addEventListener('DOMContentLoaded',()=>{
+  const imgEl=document.getElementById('idea-img');
+  if(imgEl)imgEl.addEventListener('input',function(){if(this.dataset.autoFilled)delete this.dataset.autoFilled;});
+});
+function renderIdeaStatusBar(id, currentStatus){
+  const bar=document.getElementById('idea-status-bar');
+  const btns=document.getElementById('idea-status-btns');
+  if(!bar||!btns)return;
+  bar.style.display='block';
+  const cols=[
+    ['idea','💡 Idea','#f0f7f3','#3a7a55'],
+    ['doing','🎨 Đang làm','#fdf4ea','#b8720a'],
+    ['review','👀 Đợi duyệt','#eef2fb','#4a6ba0'],
+    ['fix','🔧 Sửa','#fdf0f0','#b04a3a'],
+    ['done','✅ Hoàn thành','#eaf7ef','#2e7d46'],
+    ['listed','📋 Đã listing','#f3f0fc','#6a4aaa'],
+  ];
+  btns.innerHTML=cols.map(([key,label,bg,color])=>{
+    const active=key===currentStatus;
+    return`<button onclick="moveIdeaToCol('${id}','${key}')"
+      style="padding:5px 10px;border-radius:20px;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit;transition:.15s;
+             border:1.5px solid ${active?color:'transparent'};
+             background:${active?bg:'var(--bg)'};
+             color:${active?color:'var(--text3)'};
+             box-shadow:${active?`0 0 0 2px ${color}33`:''}"
+      id="status-btn-${key}">${label}</button>`;
+  }).join('');
+}
+function moveIdeaToCol(id, newStatus){
+  const it=(cfg.ideas||[]).find(x=>x.id===id);
+  if(!it)return;
+  const old=it.status||'idea';
+  if(old===newStatus){return;}
+  it.status=newStatus;
+  saveCfg();cloudSaveAll();renderIdeaBoard();
+  // cập nhật lại thanh mà không đóng modal
+  renderIdeaStatusBar(id, newStatus);
+  const colLabel={'idea':'💡 Idea','doing':'🎨 Đang làm','review':'👀 Đợi duyệt','fix':'🔧 Sửa','done':'✅ Hoàn thành','listed':'📋 Đã listing'};
+  toast(`↪ Đã chuyển sang ${colLabel[newStatus]||newStatus}`,'success');
+}
+
   const v=(document.getElementById('idea-naspath')||{}).value||'';
   if(!v){toast('Chưa có đường dẫn (cài mẫu trong Cài đặt + tiêu đề có SKU)','error');return;}
   navigator.clipboard.writeText(v).then(()=>toast('✅ Đã copy đường dẫn! Dán vào File Explorer.','success')).catch(()=>prompt('Copy đường dẫn:',v));
@@ -2385,7 +2524,8 @@ function goPage(page){
   if(page==='pricing'){renderPriceList();loadFees();savePriceSheetUrl_load();}
   if(page==='costs'){loadCostUI();renderAdList();renderOpList();}
   if(page==='suppliers'){renderSuppliers();}
-  if(page==='idea'){renderIdeaBoard();renderDesignReport();}
+  if(page==='idea'){renderIdeaBoard();renderDesignReport();showKanbanFloat();}
+  else{hideKanbanFloat();}
 }
 
 // ── helper: orders in period ──
@@ -3673,7 +3813,115 @@ function relTime(iso){if(!iso)return'—';const d=Date.now()-new Date(iso);if(d<
 function fmtDate(iso){if(!iso)return'—';return new Date(iso).toLocaleString('vi-VN');}
 function esc(s){return(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 function sleep(ms){return new Promise(r=>setTimeout(r,ms));}
-function toast(m,t='info'){const w=document.getElementById('toast-wrap');const e=document.createElement('div');e.className=`toast ${t}`;e.innerHTML=`<span>${{success:'✅',error:'❌',info:'ℹ️',warn:'⚠️'}[t]||''}</span><span>${m}</span>`;w.appendChild(e);setTimeout(()=>e.remove(),3500);}
-</script>
+
+// ════ FLOATING KANBAN PANEL ════
+let _kfPos={x:null,y:null};
+let _kfHeightMode=0; // 0=normal, 1=tall
+let _kfWideMode=false;
+
+function showKanbanFloat(){
+  const kf=document.getElementById('kanban-float');
+  if(!kf)return;
+  kf.style.display='block';
+  // restore saved position
+  if(_kfPos.x!==null){kf.style.left=_kfPos.x+'px';kf.style.top=_kfPos.y+'px';}
+  else{
+    const sb=document.querySelector('.sb');
+    const sbW=sb?sb.offsetWidth:210;
+    kf.style.left=(sbW+12)+'px';
+    kf.style.top='72px';
+  }
+  applyKanbanHeight();
+  initKanbanDrag();
+}
+function hideKanbanFloat(){
+  const kf=document.getElementById('kanban-float');
+  if(kf)kf.style.display='none';
+}
+function resetKanbanPos(){
+  _kfPos={x:null,y:null};
+  const kf=document.getElementById('kanban-float');
+  if(!kf)return;
+  const sb=document.querySelector('.sb');
+  const sbW=sb?sb.offsetWidth:210;
+  kf.style.left=(sbW+12)+'px';
+  kf.style.top='72px';
+  kf.style.width='calc(100vw - '+(sbW+24)+'px)';
+  _kfWideMode=false;
+}
+function toggleKanbanHeight(){
+  _kfHeightMode=(_kfHeightMode+1)%3;
+  applyKanbanHeight();
+}
+function applyKanbanHeight(){
+  const wrap=document.getElementById('kanban-scroll-wrap');
+  const btn=document.getElementById('kanban-height-btn');
+  if(!wrap)return;
+  const heights=['340px','540px','82vh'];
+  const labels=['↕ Chiều cao','↕ Cao hơn','↕ Tối đa'];
+  wrap.style.maxHeight=heights[_kfHeightMode];
+  wrap.style.overflowY='hidden';
+  if(btn)btn.textContent=labels[_kfHeightMode];
+}
+function toggleKanbanWidth(){
+  _kfWideMode=!_kfWideMode;
+  const kf=document.getElementById('kanban-float');
+  const btn=document.getElementById('kanban-width-btn');
+  if(!kf)return;
+  if(_kfWideMode){kf.style.width='calc(100vw - 28px)';kf.style.left='14px';if(btn)btn.textContent='↔ Thu hẹp';}
+  else{
+    const sb=document.querySelector('.sb');
+    const sbW=sb?sb.offsetWidth:210;
+    kf.style.width='calc(100vw - '+(sbW+24)+'px)';
+    kf.style.left=(sbW+12)+'px';
+    if(btn)btn.textContent='↔ Rộng hơn';
+  }
+}
+function initKanbanDrag(){
+  const handle=document.getElementById('kanban-drag-handle');
+  const panel=document.getElementById('kanban-float');
+  if(!handle||!panel||handle._dragBound)return;
+  handle._dragBound=true;
+  let dragging=false,ox=0,oy=0;
+  handle.addEventListener('mousedown',e=>{
+    if(e.target.tagName==='BUTTON'||e.target.tagName==='SELECT')return;
+    dragging=true;
+    ox=e.clientX-panel.getBoundingClientRect().left;
+    oy=e.clientY-panel.getBoundingClientRect().top;
+    handle.style.cursor='grabbing';
+    e.preventDefault();
+  });
+  document.addEventListener('mousemove',e=>{
+    if(!dragging)return;
+    let nx=e.clientX-ox, ny=e.clientY-oy;
+    nx=Math.max(0,Math.min(nx,window.innerWidth-panel.offsetWidth));
+    ny=Math.max(0,Math.min(ny,window.innerHeight-60));
+    panel.style.left=nx+'px';
+    panel.style.top=ny+'px';
+    _kfPos={x:nx,y:ny};
+  });
+  document.addEventListener('mouseup',()=>{dragging=false;handle.style.cursor='grab';});
+  // touch support
+  handle.addEventListener('touchstart',e=>{
+    if(e.target.tagName==='BUTTON')return;
+    const t=e.touches[0];
+    dragging=true;
+    ox=t.clientX-panel.getBoundingClientRect().left;
+    oy=t.clientY-panel.getBoundingClientRect().top;
+    e.preventDefault();
+  },{passive:false});
+  document.addEventListener('touchmove',e=>{
+    if(!dragging)return;
+    const t=e.touches[0];
+    let nx=t.clientX-ox, ny=t.clientY-oy;
+    nx=Math.max(0,Math.min(nx,window.innerWidth-panel.offsetWidth));
+    ny=Math.max(0,Math.min(ny,window.innerHeight-60));
+    panel.style.left=nx+'px';
+    panel.style.top=ny+'px';
+    _kfPos={x:nx,y:ny};
+  },{passive:true});
+  document.addEventListener('touchend',()=>{dragging=false;});
+}
+
 </body>
 </html>
