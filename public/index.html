@@ -85,7 +85,8 @@ body.sb-collapsed .desk-hamb{display:block}
   /* Thẻ thống kê: 2 cột trên điện thoại */
   .stat-grid,.stats-grid,#d-period-grid,[id$="-period-grid"]{grid-template-columns:repeat(2,1fr) !important}
   /* Kanban Idea: 1 cột cuộn dọc, mỗi cột full width */
-  #kanban-board{grid-template-columns:1fr !important;gap:14px !important}
+  #kanban-board{grid-template-columns:1fr !important;gap:14px !important;height:auto !important}
+  #kanban-board > div{max-height:none !important}
   /* Bảng thống kê / dashboard: card co lại */
   .stat-card{padding:12px !important}
   /* Idea modal: full width đáy màn hình trên mobile */
@@ -862,14 +863,14 @@ body[data-role="seller"] .no-seller{display:none !important}
 
   <!-- ════ PAGE: IDEA / THIẾT KẾ (KANBAN) ════ -->
   <div class="page" id="page-idea">
-    <div class="ph">
+    <div class="ph" style="padding-bottom:10px">
       <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
         <div><h1>💡 Idea / Thiết kế</h1><p class="sub">Bảng giao việc thiết kế cho team. Kéo thẻ qua các cột theo tiến độ.</p></div>
-        <button class="btn btn-green btn-sm admin-only" onclick="openIdeaModal()">+ Thêm Idea</button>
       </div>
     </div>
-    <div class="page-scroll">
-      <div class="block" style="margin-bottom:12px;padding:10px 14px">
+    <!-- Thanh năng suất (thu gọn) -->
+    <div style="padding:0 28px 10px;flex-shrink:0">
+      <div class="block" style="margin-bottom:0;padding:10px 14px">
         <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
           <div style="font-size:13px;font-weight:600;cursor:pointer" onclick="toggleDesignReport()"><span id="dr-arrow">▶</span> 📊 Năng suất: <span id="dr-summary" style="color:#2e7d46;font-weight:700">—</span></div>
           <select class="fi" id="design-report-range" style="width:auto;padding:3px 8px;font-size:11px" onchange="renderDesignReport()">
@@ -891,7 +892,10 @@ body[data-role="seller"] .no-seller{display:none !important}
           <div id="bonus-report"></div>
         </div>
       </div>
-      <div id="kanban-board" style="display:grid;grid-template-columns:repeat(7,minmax(210px,1fr));gap:12px;overflow-x:auto;padding-bottom:20px"></div>
+    </div>
+    <!-- Kanban board: mỗi cột cuộn dọc độc lập, board cuộn ngang -->
+    <div style="flex:1;overflow-x:auto;overflow-y:hidden;padding:0 28px 20px">
+      <div id="kanban-board" style="display:grid;grid-template-columns:repeat(6,minmax(230px,1fr));gap:12px;height:100%;align-items:start"></div>
     </div>
   </div>
 
@@ -1607,14 +1611,18 @@ async function fetchFxRate(){
   }catch(e){info.textContent='❌ Lỗi mạng khi lấy tỷ giá. Nhập tay giúp (vd 25400).';}
 }
 // ── IDEA / THIẾT KẾ (KANBAN) ──
-const IDEA_COLS=[['unsorted','📥 Chưa phân loại'],['idea','💡 Idea'],['doing','🎨 Đang làm'],['review','👀 Đợi duyệt'],['fix','🔧 Sửa'],['done','✅ Hoàn thành'],['listed','📋 Đã listing']];
+const IDEA_COLS=[['idea','💡 Idea'],['doing','🎨 Đang làm'],['review','👀 Đợi duyệt'],['fix','🔧 Sửa'],['done','✅ Hoàn thành'],['listed','📋 Đã listing']];
 function renderIdeaBoard(){
   const board=document.getElementById('kanban-board');if(!board)return;
   const ideas=cfg.ideas||[];
   const isAdmin=auth&&auth.role==='admin';
   // designer thấy hết nhưng nổi bật việc của mình
   board.innerHTML=IDEA_COLS.map(([key,label])=>{
-    const items=ideas.filter(x=>(x.status||'unsorted')===key);
+    const items=ideas.filter(x=>{
+      const st=x.status||'unsorted';
+      // các idea cũ ở 'unsorted' → gộp vào cột 'idea'
+      return st===key||(key==='idea'&&st==='unsorted');
+    });
     const cards=items.map(it=>{
       const pr=it.priority==='high'?'<span style="color:var(--red);font-weight:700">🔴 Cao</span>':it.priority==='low'?'<span style="color:var(--text3)">Thấp</span>':'';
       const dl=it.deadline?`<span style="font-size:10px;color:var(--text3)">⏰ ${it.deadline}</span>`:'';
@@ -1631,9 +1639,12 @@ function renderIdeaBoard(){
         <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">${who}${pr}${dl}<span onclick="event.stopPropagation();copyIdeaLinkById('${it.id}')" style="font-size:10px;color:var(--accent);cursor:pointer;margin-left:auto" title="Copy idea gửi nhân viên">📋 Copy</span></div>
       </div>`;
     }).join('')||'<div style="font-size:11px;color:var(--text3);text-align:center;padding:14px">Trống</div>';
-    return`<div ondragover="event.preventDefault()" ondrop="ideaDrop(event,'${key}')" style="background:var(--bg);border-radius:12px;padding:10px;min-height:200px">
-      <div style="font-size:12.5px;font-weight:700;margin-bottom:10px;display:flex;justify-content:space-between"><span>${label}</span><span style="color:var(--text3)">${items.length}</span></div>
-      <div style="display:flex;flex-direction:column;gap:8px">${cards}</div>
+    // Nút "+ Thêm Idea" chỉ ở cuối cột Idea, chỉ admin thấy
+    const addBtn=key==='idea'&&isAdmin?`<button onclick="openIdeaModal()" style="margin-top:10px;width:100%;padding:8px;border:1.5px dashed var(--border2);border-radius:9px;background:none;color:var(--text3);cursor:pointer;font-size:12px;font-family:inherit;transition:.15s" onmouseover="this.style.borderColor='var(--green)';this.style.color='var(--green)'" onmouseout="this.style.borderColor='var(--border2)';this.style.color='var(--text3)'">＋ Thêm Idea</button>`:'';
+    return`<div ondragover="event.preventDefault()" ondrop="ideaDrop(event,'${key}')" style="background:var(--bg);border-radius:12px;padding:10px;display:flex;flex-direction:column;max-height:calc(100vh - 220px)">
+      <div style="font-size:12.5px;font-weight:700;margin-bottom:10px;display:flex;justify-content:space-between;flex-shrink:0"><span>${label}</span><span style="color:var(--text3)">${items.length}</span></div>
+      <div style="display:flex;flex-direction:column;gap:8px;overflow-y:auto;flex:1;padding-right:2px">${cards}</div>
+      ${addBtn}
     </div>`;
   }).join('');
 }
