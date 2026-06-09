@@ -897,23 +897,35 @@ body[data-role="seller"] .no-seller{display:none !important}
     <div style="flex:1;display:flex;align-items:center;justify-content:center;color:var(--text3);font-size:12px;padding:20px">
       <div style="text-align:center">
         <div style="font-size:28px;opacity:.3;margin-bottom:6px">⠿</div>
-        Bảng kanban hiển thị nổi — kéo thanh tiêu đề để di chuyển
+        Bảng kanban hiển thị nổi — kéo thanh tiêu đề để di chuyển, kéo viền để phóng to thu nhỏ
         <br><button onclick="kfReset()" style="margin-top:8px;background:none;border:1px solid var(--border2);border-radius:8px;padding:4px 14px;font-size:11.5px;color:var(--text2);cursor:pointer;font-family:inherit">↺ Đặt lại vị trí</button>
       </div>
     </div>
   </div>
-  <div id="kanban-float" style="display:none;position:fixed;z-index:150;top:72px;left:222px;width:calc(100vw - 238px);max-width:1500px;background:var(--bg);border:1px solid var(--border2);border-radius:14px;box-shadow:0 8px 36px rgba(0,0,0,.16);overflow:hidden">
-    <div id="kanban-float-handle" style="background:var(--surface);border-bottom:1px solid var(--border);padding:8px 14px;display:flex;align-items:center;gap:10px;cursor:grab;user-select:none">
-      <span style="font-size:15px;color:var(--text3);letter-spacing:3px">⠿⠿</span>
-      <span style="font-size:12.5px;font-weight:700">📋 Kanban – kéo để di chuyển</span>
-      <div style="margin-left:auto;display:flex;gap:6px">
-        <button id="kf-h-btn" onclick="kfCycleH(event)" style="background:none;border:1px solid var(--border2);border-radius:6px;padding:3px 9px;font-size:11px;cursor:pointer;color:var(--text2);font-family:inherit">↕ Thấp</button>
-        <button id="kf-w-btn" onclick="kfToggleW(event)" style="background:none;border:1px solid var(--border2);border-radius:6px;padding:3px 9px;font-size:11px;cursor:pointer;color:var(--text2);font-family:inherit">↔ Full</button>
-        <button onclick="kfReset(event)" style="background:none;border:1px solid var(--border2);border-radius:6px;padding:3px 9px;font-size:11px;cursor:pointer;color:var(--text2);font-family:inherit">↺ Reset</button>
+  <div id="kanban-float" style="display:none;position:fixed;z-index:150;top:72px;left:222px;width:calc(100vw - 238px);height:480px;min-width:320px;min-height:180px;background:var(--bg);border:1px solid var(--border2);border-radius:14px;box-shadow:0 8px 36px rgba(0,0,0,.16);overflow:visible">
+    <!-- Resize handles -->
+    <div class="kf-resize" data-dir="n"  style="position:absolute;top:-4px;left:12px;right:12px;height:8px;cursor:n-resize;z-index:10"></div>
+    <div class="kf-resize" data-dir="s"  style="position:absolute;bottom:-4px;left:12px;right:12px;height:8px;cursor:s-resize;z-index:10"></div>
+    <div class="kf-resize" data-dir="e"  style="position:absolute;right:-4px;top:12px;bottom:12px;width:8px;cursor:e-resize;z-index:10"></div>
+    <div class="kf-resize" data-dir="w"  style="position:absolute;left:-4px;top:12px;bottom:12px;width:8px;cursor:w-resize;z-index:10"></div>
+    <div class="kf-resize" data-dir="ne" style="position:absolute;top:-4px;right:-4px;width:14px;height:14px;cursor:ne-resize;z-index:11"></div>
+    <div class="kf-resize" data-dir="nw" style="position:absolute;top:-4px;left:-4px;width:14px;height:14px;cursor:nw-resize;z-index:11"></div>
+    <div class="kf-resize" data-dir="se" style="position:absolute;bottom:-4px;right:-4px;width:14px;height:14px;cursor:se-resize;z-index:11;border-radius:0 0 14px 0"></div>
+    <div class="kf-resize" data-dir="sw" style="position:absolute;bottom:-4px;left:-4px;width:14px;height:14px;cursor:sw-resize;z-index:11"></div>
+    <!-- Inner wrapper clips content only -->
+    <div style="border-radius:14px;overflow:hidden;height:100%;display:flex;flex-direction:column">
+      <div id="kanban-float-handle" style="background:var(--surface);border-bottom:1px solid var(--border);padding:8px 14px;display:flex;align-items:center;gap:10px;cursor:grab;user-select:none;flex-shrink:0">
+        <span style="font-size:15px;color:var(--text3);letter-spacing:3px">⠿⠿</span>
+        <span style="font-size:12.5px;font-weight:700">📋 Kanban – kéo để di chuyển</span>
+        <div style="margin-left:auto;display:flex;gap:6px;align-items:center">
+          <span id="kf-size-label" style="font-size:10px;color:var(--text3);min-width:60px;text-align:right"></span>
+          <button id="kf-w-btn" onclick="kfToggleW(event)" style="background:none;border:1px solid var(--border2);border-radius:6px;padding:3px 9px;font-size:11px;cursor:pointer;color:var(--text2);font-family:inherit">↔ Full</button>
+          <button onclick="kfReset(event)" style="background:none;border:1px solid var(--border2);border-radius:6px;padding:3px 9px;font-size:11px;cursor:pointer;color:var(--text2);font-family:inherit">↺ Reset</button>
+        </div>
       </div>
-    </div>
-    <div id="kf-scroll" style="overflow-x:auto;overflow-y:hidden;padding:12px 14px 14px">
-      <div id="kanban-board" style="display:grid;grid-template-columns:repeat(6,minmax(220px,1fr));gap:10px;align-items:start"></div>
+      <div id="kf-scroll" style="overflow-x:auto;overflow-y:auto;padding:12px 14px 14px;flex:1;min-height:0">
+        <div id="kanban-board" style="display:grid;grid-template-columns:repeat(6,minmax(220px,1fr));gap:10px;align-items:start"></div>
+      </div>
     </div>
   </div>
 
@@ -994,6 +1006,51 @@ body[data-role="seller"] .no-seller{display:none !important}
       <div class="block">
         <div class="block-title">🔔 Cảnh báo cần xử lý</div>
         <div id="sa-alerts" class="sa-alerts"></div>
+      </div>
+
+      <!-- Khối: Sức khoẻ Webhook -->
+      <div class="block" id="wh-block">
+        <div class="block-title">
+          <span>📡 Sức khoẻ webhook Merchize</span>
+          <button class="btn btn-sm" id="wh-refresh-btn" onclick="whLoad()">↺ Làm mới</button>
+        </div>
+        <div style="font-size:11.5px;color:var(--text2);margin:-8px 0 14px;line-height:1.6">
+          Theo dõi sự kiện Merchize: đã hoàn tất hay đang kẹt. Bấm <b>Xử lý lại</b> để cứu đơn webhook đã nhận nhưng tạo dở dang.
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:14px">
+          <div style="background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:12px 14px;text-align:center">
+            <div style="font-family:'Lora',serif;font-size:22px;font-weight:700;color:var(--text)" id="wh-done">—</div>
+            <div style="font-size:10px;font-weight:700;color:var(--text3);letter-spacing:.8px;margin-top:3px">HOÀN TẤT</div>
+          </div>
+          <div style="background:var(--orange-l);border:1px solid #f0d8b8;border-radius:10px;padding:12px 14px;text-align:center">
+            <div style="font-family:'Lora',serif;font-size:22px;font-weight:700;color:var(--orange)" id="wh-pending">—</div>
+            <div style="font-size:10px;font-weight:700;color:var(--orange);letter-spacing:.8px;margin-top:3px">CHỜ XỬ LÝ</div>
+          </div>
+          <div style="background:var(--accent-l);border:1px solid #edd8b0;border-radius:10px;padding:12px 14px;text-align:center">
+            <div style="font-family:'Lora',serif;font-size:22px;font-weight:700;color:var(--accent)" id="wh-processing">—</div>
+            <div style="font-size:10px;font-weight:700;color:var(--accent);letter-spacing:.8px;margin-top:3px">ĐANG XỬ LÝ</div>
+          </div>
+          <div style="background:var(--orange-l);border:1px solid #f0d8b8;border-radius:10px;padding:12px 14px;text-align:center">
+            <div style="font-family:'Lora',serif;font-size:22px;font-weight:700;color:var(--orange)" id="wh-retry">—</div>
+            <div style="font-size:10px;font-weight:700;color:var(--orange);letter-spacing:.8px;margin-top:3px">THỬ LẠI</div>
+          </div>
+          <div style="background:var(--red-l);border:1px solid #f0c4bd;border-radius:10px;padding:12px 14px;text-align:center">
+            <div style="font-family:'Lora',serif;font-size:22px;font-weight:700;color:var(--red)" id="wh-error">—</div>
+            <div style="font-size:10px;font-weight:700;color:var(--red);letter-spacing:.8px;margin-top:3px">LỖI</div>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:14px;background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:12px 16px;flex-wrap:wrap">
+          <div style="flex:1;font-size:13px;color:var(--text2)">
+            Sự kiện kẹt <span style="font-size:11px;color:var(--text3)">(chưa tạo/cập nhật đơn xong)</span>:
+            <span style="font-family:'Lora',serif;font-size:18px;font-weight:700;color:var(--text);margin-left:8px" id="wh-stuck">—</span>
+          </div>
+          <button class="btn btn-green btn-sm" id="wh-retry-btn" onclick="whRetry()">↺ Xử lý lại sự kiện kẹt</button>
+        </div>
+        <div style="font-size:11px;color:var(--text3);margin-top:10px;line-height:1.7">
+          Mỗi lần bấm xử lý 1 lô (≤20 sự kiện, cũ → mới). Nếu còn, bấm tiếp đến khi về 0. Cron 5 phút cũng tự vớt dần.<br>
+          <b>Sự kiện kẹt</b> = webhook đã nhận nhưng tạo/cập nhật đơn dở dang.
+        </div>
+        <div id="wh-msg" style="display:none;margin-top:10px;font-size:12px;padding:8px 12px;border-radius:8px"></div>
       </div>
 
       <div class="block-grid2">
@@ -1407,6 +1464,8 @@ async function enterApp(){
   if(!window._notifTimer)window._notifTimer=setInterval(()=>{detectChanges();},2*60*1000);
   // Design (Ngân) vào thẳng trang Idea (vì Trang chủ/Dashboard đã ẩn)
   if(auth&&auth.role==='design'&&!location.hash.includes('idea'))setTimeout(()=>goPage('idea'),200);
+  // Bắt đầu auto-refresh webhook health mỗi 5 phút
+  whStartAutoRefresh();
 }
 // Ghép tên SP + ảnh từ đơn Merchize sang đơn Etsy có cùng SKU (Etsy không có tên SP)
 function enrichEtsyNames(){
@@ -2740,6 +2799,7 @@ function drawChart(id,type,data,opts){
 // ══════════════════════════════════════════
 function renderSysadmin(){
   renderShopList();
+  whLoad(); // load webhook health mỗi khi mở trang sysadmin
   const now=Date.now();const H=3600000;
   // ── Khối 1: Cảnh báo ──
   const alerts=[];
@@ -3711,6 +3771,90 @@ async function cloudDelete(id){
   }catch(e){}
 }
 function set(id,v,sel){const el=document.getElementById(id);if(!el)return;el.value=sel?v:(v||'');}
+
+// ════ WEBHOOK HEALTH ════
+let _whTimer=null;
+
+async function whLoad(){
+  const rb=document.getElementById('wh-refresh-btn');
+  if(rb){rb.disabled=true;rb.textContent='⏳ Đang tải...';}
+  whMsg('');
+  try{
+    const headers={'Content-Type':'application/json'};
+    if(auth&&auth.token)headers['X-Session']=auth.token;
+    const r=await fetch('/api/webhooks',{headers});
+    if(!r.ok)throw new Error('HTTP '+r.status);
+    const d=await r.json();
+    whRender(d);
+  }catch(e){
+    whMsg('⚠️ Không lấy được dữ liệu webhook: '+e.message,'warn');
+    // fallback: hiện dấu — để không bị trắng
+    ['wh-done','wh-pending','wh-processing','wh-retry','wh-error','wh-stuck'].forEach(id=>{
+      const el=document.getElementById(id);if(el&&el.textContent==='—')el.textContent='?';
+    });
+  }finally{
+    if(rb){rb.disabled=false;rb.textContent='↺ Làm mới';}
+  }
+}
+
+function whRender(d){
+  const set=(id,v)=>{const el=document.getElementById(id);if(el)el.textContent=v??0;};
+  set('wh-done',      (d.done      ??d.completed??0).toLocaleString('vi-VN'));
+  set('wh-pending',   (d.pending   ??0).toLocaleString('vi-VN'));
+  set('wh-processing',(d.processing??0).toLocaleString('vi-VN'));
+  set('wh-retry',     (d.retry     ??d.retrying??0).toLocaleString('vi-VN'));
+  set('wh-error',     (d.error     ??d.failed??0).toLocaleString('vi-VN'));
+  const stuck=d.stuck??d.stucked??0;
+  set('wh-stuck', stuck.toLocaleString('vi-VN'));
+  // đổi màu số kẹt nếu > 0
+  const el=document.getElementById('wh-stuck');
+  if(el)el.style.color=stuck>0?'var(--red)':'var(--green-d)';
+}
+
+async function whRetry(){
+  const btn=document.getElementById('wh-retry-btn');
+  if(btn){btn.disabled=true;btn.textContent='⏳ Đang xử lý...';}
+  whMsg('');
+  try{
+    const headers={'Content-Type':'application/json'};
+    if(auth&&auth.token)headers['X-Session']=auth.token;
+    const r=await fetch('/api/webhooks?op=retry',{method:'POST',headers,body:JSON.stringify({limit:20})});
+    if(!r.ok)throw new Error('HTTP '+r.status);
+    const d=await r.json();
+    const processed=d.processed??d.count??0;
+    const remaining=d.remaining??d.stuck??null;
+    let msg=`✅ Đã xử lý lại ${processed} sự kiện.`;
+    if(remaining!==null)msg+=` Còn lại: ${remaining}.`;
+    if(remaining>0)msg+=' Bấm tiếp để xử lý thêm.';
+    else if(remaining===0)msg+=' Hàng đợi sạch!';
+    whMsg(msg,'success');
+    // reload stats
+    await whLoad();
+  }catch(e){
+    whMsg('❌ Lỗi khi xử lý lại: '+e.message,'error');
+  }finally{
+    if(btn){btn.disabled=false;btn.textContent='↺ Xử lý lại sự kiện kẹt';}
+  }
+}
+
+function whMsg(msg,type='info'){
+  const el=document.getElementById('wh-msg');if(!el)return;
+  if(!msg){el.style.display='none';el.textContent='';return;}
+  const colors={success:'background:#eaf3ed;color:#487256;border:1px solid #c3ddc9',
+                error:'background:var(--red-l);color:var(--red);border:1px solid #f0c4bd',
+                warn:'background:var(--orange-l);color:var(--orange);border:1px solid #f0d8b8',
+                info:'background:var(--accent-l);color:var(--text2);border:1px solid #edd8b0'};
+  el.style.cssText=(colors[type]||colors.info)+';display:block;border-radius:8px;padding:8px 12px;font-size:12px';
+  el.textContent=msg;
+}
+
+function whStartAutoRefresh(){
+  if(_whTimer)clearInterval(_whTimer);
+  _whTimer=setInterval(()=>{
+    // chỉ auto-refresh khi đang ở trang sysadmin
+    if(document.getElementById('page-sysadmin')?.classList.contains('active'))whLoad();
+  },5*60*1000); // 5 phút
+}
 function setConn(on,l){document.getElementById('conn-dot').classList.toggle('on',on);document.getElementById('conn-label').textContent=l;}
 function setFetch(l){const b=document.getElementById('fetch-btn');b.disabled=l;b.textContent=l?'⏳ Đang đồng bộ...':'⟳ Đồng bộ đơn';}
 // Mã đơn hiển thị: ưu tiên mã ngắn dễ đọc (external_id / order_number), KHÔNG có dấu #
@@ -3733,32 +3877,100 @@ function esc(s){return(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace
 function sleep(ms){return new Promise(r=>setTimeout(r,ms));}
 function toast(m,t='info'){const w=document.getElementById('toast-wrap');const e=document.createElement('div');e.className=`toast ${t}`;e.innerHTML=`<span>${{success:'✅',error:'❌',info:'ℹ️',warn:'⚠️'}[t]||''}</span><span>${m}</span>`;w.appendChild(e);setTimeout(()=>e.remove(),3500);}
 
-// ════ FLOATING KANBAN ════
-let _kfSaved={x:null,y:null},_kfH=0,_kfFull=false,_kfDragBound=false;
-const KF_HEIGHTS=['340px','520px','82vh'];
-const KF_HLABELS=['↕ Thấp','↕ Vừa','↕ Cao'];
+// ════ FLOATING KANBAN (drag + free resize) ════
+let _kfSaved={x:null,y:null,w:null,h:null},_kfFull=false,_kfBound=false;
+const KF_MIN_W=320,KF_MIN_H=180;
 
 function kfShow(){
   const p=document.getElementById('kanban-float');if(!p)return;
   p.style.display='block';
-  if(_kfSaved.x!==null){p.style.left=_kfSaved.x+'px';p.style.top=_kfSaved.y+'px';}
-  kfApplyH();kfBindDrag();
+  if(_kfSaved.x!==null){
+    p.style.left=_kfSaved.x+'px';p.style.top=_kfSaved.y+'px';
+    if(_kfSaved.w)p.style.width=_kfSaved.w+'px';
+    if(_kfSaved.h)p.style.height=_kfSaved.h+'px';
+  }
+  kfUpdateLabel();kfBind();
 }
 function kfHide(){const p=document.getElementById('kanban-float');if(p)p.style.display='none';}
-function kfReset(e){if(e)e.stopPropagation();_kfSaved={x:null,y:null};_kfFull=false;const p=document.getElementById('kanban-float');if(!p)return;const sb=document.querySelector('.sb');const sw=sb?sb.offsetWidth:210;p.style.left=(sw+12)+'px';p.style.top='72px';p.style.width='calc(100vw - '+(sw+24)+'px)';const wb=document.getElementById('kf-w-btn');if(wb)wb.textContent='↔ Full';}
-function kfCycleH(e){if(e)e.stopPropagation();_kfH=(_kfH+1)%3;kfApplyH();}
-function kfApplyH(){const s=document.getElementById('kf-scroll');const b=document.getElementById('kf-h-btn');if(s)s.style.maxHeight=KF_HEIGHTS[_kfH];if(b)b.textContent=KF_HLABELS[_kfH];}
-function kfToggleW(e){if(e)e.stopPropagation();_kfFull=!_kfFull;const p=document.getElementById('kanban-float');const b=document.getElementById('kf-w-btn');if(!p)return;if(_kfFull){p.style.width='calc(100vw - 20px)';p.style.left='10px';if(b)b.textContent='↔ Thu';}else{const sb=document.querySelector('.sb');const sw=sb?sb.offsetWidth:210;p.style.width='calc(100vw - '+(sw+24)+'px)';p.style.left=(sw+12)+'px';if(b)b.textContent='↔ Full';}}
-function kfBindDrag(){
-  const h=document.getElementById('kanban-float-handle');const p=document.getElementById('kanban-float');
-  if(!h||!p||_kfDragBound)return;_kfDragBound=true;
+function kfReset(e){
+  if(e)e.stopPropagation();
+  _kfSaved={x:null,y:null,w:null,h:null};_kfFull=false;
+  const p=document.getElementById('kanban-float');if(!p)return;
+  const sb=document.querySelector('.sb');const sw=sb?sb.offsetWidth:210;
+  p.style.left=(sw+12)+'px';p.style.top='72px';
+  p.style.width='calc(100vw - '+(sw+24)+'px)';p.style.height='480px';
+  const wb=document.getElementById('kf-w-btn');if(wb)wb.textContent='↔ Full';
+  kfUpdateLabel();
+}
+function kfToggleW(e){
+  if(e)e.stopPropagation();_kfFull=!_kfFull;
+  const p=document.getElementById('kanban-float');const b=document.getElementById('kf-w-btn');if(!p)return;
+  if(_kfFull){p.style.width='calc(100vw - 20px)';p.style.left='10px';if(b)b.textContent='↔ Thu';}
+  else{const sb=document.querySelector('.sb');const sw=sb?sb.offsetWidth:210;p.style.width='calc(100vw - '+(sw+24)+'px)';p.style.left=(sw+12)+'px';if(b)b.textContent='↔ Full';}
+  kfUpdateLabel();
+}
+function kfUpdateLabel(){
+  const p=document.getElementById('kanban-float');const lb=document.getElementById('kf-size-label');
+  if(!p||!lb)return;
+  lb.textContent=Math.round(p.offsetWidth)+'×'+Math.round(p.offsetHeight);
+}
+function kfBind(){
+  const handle=document.getElementById('kanban-float-handle');
+  const p=document.getElementById('kanban-float');
+  if(!handle||!p||_kfBound)return;_kfBound=true;
+
+  // ── DRAG (move) ──
   let drag=false,ox=0,oy=0;
-  h.addEventListener('mousedown',e=>{if(e.target.tagName==='BUTTON')return;drag=true;ox=e.clientX-p.getBoundingClientRect().left;oy=e.clientY-p.getBoundingClientRect().top;h.style.cursor='grabbing';e.preventDefault();});
-  document.addEventListener('mousemove',e=>{if(!drag)return;let nx=Math.max(0,Math.min(e.clientX-ox,window.innerWidth-p.offsetWidth));let ny=Math.max(0,Math.min(e.clientY-oy,window.innerHeight-50));p.style.left=nx+'px';p.style.top=ny+'px';_kfSaved={x:nx,y:ny};});
-  document.addEventListener('mouseup',()=>{drag=false;h.style.cursor='grab';});
-  h.addEventListener('touchstart',e=>{if(e.target.tagName==='BUTTON')return;const t=e.touches[0];drag=true;ox=t.clientX-p.getBoundingClientRect().left;oy=t.clientY-p.getBoundingClientRect().top;e.preventDefault();},{passive:false});
-  document.addEventListener('touchmove',e=>{if(!drag)return;const t=e.touches[0];let nx=Math.max(0,Math.min(t.clientX-ox,window.innerWidth-p.offsetWidth));let ny=Math.max(0,Math.min(t.clientY-oy,window.innerHeight-50));p.style.left=nx+'px';p.style.top=ny+'px';_kfSaved={x:nx,y:ny};},{passive:true});
+  handle.addEventListener('mousedown',e=>{
+    if(e.target.tagName==='BUTTON')return;
+    drag=true;const r=p.getBoundingClientRect();ox=e.clientX-r.left;oy=e.clientY-r.top;
+    handle.style.cursor='grabbing';e.preventDefault();
+  });
+  document.addEventListener('mousemove',e=>{
+    if(!drag)return;
+    let nx=Math.max(0,Math.min(e.clientX-ox,window.innerWidth-p.offsetWidth));
+    let ny=Math.max(0,Math.min(e.clientY-oy,window.innerHeight-50));
+    p.style.left=nx+'px';p.style.top=ny+'px';
+    _kfSaved.x=nx;_kfSaved.y=ny;kfUpdateLabel();
+  });
+  document.addEventListener('mouseup',()=>{if(drag){drag=false;handle.style.cursor='grab';}});
+
+  // touch drag
+  handle.addEventListener('touchstart',e=>{
+    if(e.target.tagName==='BUTTON')return;
+    const t=e.touches[0];drag=true;const r=p.getBoundingClientRect();ox=t.clientX-r.left;oy=t.clientY-r.top;e.preventDefault();
+  },{passive:false});
+  document.addEventListener('touchmove',e=>{
+    if(!drag)return;const t=e.touches[0];
+    let nx=Math.max(0,Math.min(t.clientX-ox,window.innerWidth-p.offsetWidth));
+    let ny=Math.max(0,Math.min(t.clientY-oy,window.innerHeight-50));
+    p.style.left=nx+'px';p.style.top=ny+'px';_kfSaved.x=nx;_kfSaved.y=ny;kfUpdateLabel();
+  },{passive:true});
   document.addEventListener('touchend',()=>{drag=false;});
+
+  // ── RESIZE ──
+  let resDir=null,rx=0,ry=0,rW=0,rH=0,rL=0,rT=0;
+  p.querySelectorAll('.kf-resize').forEach(el=>{
+    el.addEventListener('mousedown',e=>{
+      e.stopPropagation();e.preventDefault();
+      resDir=el.dataset.dir;
+      rx=e.clientX;ry=e.clientY;
+      const r=p.getBoundingClientRect();
+      rW=r.width;rH=r.height;rL=r.left;rT=r.top;
+    });
+  });
+  document.addEventListener('mousemove',e=>{
+    if(!resDir)return;
+    const dx=e.clientX-rx,dy=e.clientY-ry;
+    let nw=rW,nh=rH,nl=rL,nt=rT;
+    if(resDir.includes('e'))nw=Math.max(KF_MIN_W,rW+dx);
+    if(resDir.includes('s'))nh=Math.max(KF_MIN_H,rH+dy);
+    if(resDir.includes('w')){nw=Math.max(KF_MIN_W,rW-dx);nl=rL+rW-nw;}
+    if(resDir.includes('n')){nh=Math.max(KF_MIN_H,rH-dy);nt=rT+rH-nh;}
+    p.style.width=nw+'px';p.style.height=nh+'px';p.style.left=nl+'px';p.style.top=nt+'px';
+    _kfSaved={x:nl,y:nt,w:nw,h:nh};kfUpdateLabel();
+  });
+  document.addEventListener('mouseup',()=>{resDir=null;});
 }
 </script>
 </body>
