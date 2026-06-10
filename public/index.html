@@ -265,6 +265,8 @@ body.sb-collapsed .desk-hamb{display:block}
 .p-done{background:#f0eeea;color:#888}
 .p-missing{background:var(--red-l);color:var(--red)}
 .p-cancelled{background:#fbe3e0;color:#c23a2a;font-weight:700}
+.p-overdue{background:#c23a2a;color:#fff;font-weight:700;animation:pulse-overdue 1.5s infinite}
+@keyframes pulse-overdue{0%,100%{opacity:1}50%{opacity:.7}}
 .urgent-tag{background:#fff3cd;color:#b8860b;font-weight:700;padding:1px 7px;border-radius:10px;font-size:10.5px}
 .oi-price{font-size:12px;font-weight:700;color:var(--accent);margin-left:auto}
 .oi-time{font-size:10.5px;color:var(--text3)}
@@ -576,6 +578,7 @@ body[data-role="seller"] .no-seller{display:none !important}
       <div class="tab" onclick="setTab(this,'processing')">Xử lý <span class="tc" id="tc-processing">0</span></div>
       <div class="tab" onclick="setTab(this,'done')">Đã xử lý <span class="tc" id="tc-done">0</span></div>
       <div class="tab" onclick="setTab(this,'missing')">Thiếu info <span class="tc" id="tc-missing">0</span></div>
+      <div class="tab" onclick="setTab(this,'overdue')" style="color:var(--red)">🔴 Quá hạn <span class="tc" id="tc-overdue" style="background:var(--red)">0</span></div>
       <div class="tab" onclick="setTab(this,'has_track')">📦 Có tracking <span class="tc" id="tc-has_track">0</span></div>
       <div class="tab" onclick="setTab(this,'no_track')">⏳ Chưa tracking <span class="tc" id="tc-no_track">0</span></div>
     </div>
@@ -617,6 +620,7 @@ body[data-role="seller"] .no-seller{display:none !important}
         <div class="stat-card"><span class="sc-ic">🚩</span><div class="stat-label">Đơn gấp</div><div class="stat-value red" id="h-urgent">0</div><div class="stat-sub">ưu tiên cao</div></div>
         <div class="stat-card"><span class="sc-ic">⚠️</span><div class="stat-label">Thiếu info</div><div class="stat-value orange" id="h-missing">0</div><div class="stat-sub">chờ bổ sung</div></div>
         <div class="stat-card"><span class="sc-ic">📤</span><div class="stat-label">Chưa đẩy xưởng</div><div class="stat-value blue" id="h-notpushed">0</div><div class="stat-sub">cần fulfillment</div></div>
+        <div class="stat-card"><span class="sc-ic">🔴</span><div class="stat-label">Quá hạn giao</div><div class="stat-value red" id="h-overdue">0</div><div class="stat-sub">15 ngày làm việc</div></div>
       </div>
 
       <div class="block">
@@ -1178,6 +1182,8 @@ body[data-role="seller"] .no-seller{display:none !important}
   </div>
 
   <div class="detail-scroll">
+    <!-- Deadline banner -->
+    <div id="d-deadline-info" style="display:none;background:var(--red-l);border:1px solid #f0c4bd;border-radius:9px;padding:8px 14px;font-size:12.5px;margin-bottom:12px;color:var(--red)"></div>
     <!-- Header nổi bật: ảnh to + mã đơn + tên SP -->
     <div class="d-header">
       <div class="d-header-thumb" id="d-thumb">🖼️</div>
@@ -1204,6 +1210,7 @@ body[data-role="seller"] .no-seller{display:none !important}
           <option value="done">✓ Đã xử lý</option>
           <option value="missing">⚠️ Thiếu info</option>
           <option value="cancelled">🔴 Đã huỷ</option>
+          <option value="overdue">🔴 Quá hạn giao</option>
         </select>
       </div>
     </div>
@@ -1547,6 +1554,9 @@ async function enterApp(){
   setTimeout(detectChanges,1500);
   // Cập nhật thông báo định kỳ
   if(!window._notifTimer)window._notifTimer=setInterval(()=>{detectChanges();},2*60*1000);
+  // Kiểm tra đơn quá hạn 15 ngày làm việc (gọi lần đầu sau 2s, sau đó mỗi giờ)
+  setTimeout(()=>checkOverdueOrders(),2000);
+  if(!window._overdueTimer)window._overdueTimer=setInterval(()=>checkOverdueOrders(),60*60*1000);
   // Design (Ngân) vào thẳng trang Idea (vì Trang chủ/Dashboard đã ẩn)
   if(auth&&auth.role==='design'&&!location.hash.includes('idea'))setTimeout(()=>goPage('idea'),200);
   // Bắt đầu auto-refresh webhook health mỗi 5 phút
@@ -2611,6 +2621,7 @@ function renderHome(){
   const urgent=orders.filter(o=>o.urgent).length;
   const missing=orders.filter(o=>o.status==='missing'||o.status==='missing_qty').length;
   const notPushed=orders.filter(o=>!o.pushed?.merchize&&!o.pushed?.sellerwix&&!o.pushed?.sheet&&o.status!=='done'&&o.status!=='cancelled').length;
+  const overdueCount=orders.filter(o=>o.status==='overdue').length;
 
   const hNew=document.getElementById('h-new');if(hNew)hNew.textContent=newToday;
   const hNewSub=hNew&&hNew.parentElement?hNew.parentElement.querySelector('.stat-sub'):null;
@@ -2618,9 +2629,11 @@ function renderHome(){
   document.getElementById('h-urgent').textContent=urgent;
   document.getElementById('h-missing').textContent=missing;
   document.getElementById('h-notpushed').textContent=notPushed;
+  const hOv=document.getElementById('h-overdue');if(hOv)hOv.textContent=overdueCount;
 
   // action cards
   const acts=[];
+  if(overdueCount>0)acts.push({icon:'🔴',cls:'red',name:'Xử lý đơn QUÁ HẠN GIAO',desc:`${overdueCount} đơn đã quá 15 ngày làm việc chưa ship`,count:overdueCount,tab:'overdue'});
   if(urgent>0)acts.push({icon:'🚩',cls:'red',name:'Xử lý đơn gấp',desc:`${urgent} đơn được đánh dấu ưu tiên cao`,count:urgent,filter:o=>o.urgent});
   if(missing>0)acts.push({icon:'⚠️',cls:'orange',name:'Bổ sung thông tin còn thiếu',desc:`${missing} đơn đang chờ thông tin`,count:missing,tab:'missing'});
   if(notPushed>0)acts.push({icon:'📤',cls:'blue',name:'Đẩy đơn sang xưởng',desc:`${notPushed} đơn chưa gửi fulfillment`,count:notPushed,tab:'all'});
@@ -2890,6 +2903,8 @@ function renderSysadmin(){
   const alerts=[];
   const stale=orders.filter(o=>o.status==='new'&&(now-new Date(o.created).getTime())>48*H);
   if(stale.length)alerts.push({lv:'red',ic:'⏰',txt:`${stale.length} đơn mới tồn quá 48h chưa xử lý`});
+  const overdueOrds=orders.filter(o=>o.status==='overdue');
+  if(overdueOrds.length)alerts.push({lv:'red',ic:'🔴',txt:`${overdueOrds.length} đơn QUÁN HẠN GIAO (15 ngày làm việc) — cần xử lý gấp!`});
   const urgent=orders.filter(o=>o.urgent&&o.status!=='done');
   if(urgent.length)alerts.push({lv:'red',ic:'🚩',txt:`${urgent.length} đơn gấp chưa hoàn tất`});
   const missing=orders.filter(o=>o.status==='missing'||o.status==='missing_qty');
@@ -3540,10 +3555,107 @@ function visibleOrders(){
   if(auth&&auth.role!=='admin'){const mine=myAbbrs();return orders.filter(o=>orderMatchesAbbrs(o,mine));}
   return orders;
 }
-function updateCounts(){const vis=visibleOrders();const c={all:vis.length};vis.forEach(o=>{c[o.status]=(c[o.status]||0)+1;});c.has_track=vis.filter(o=>o.tracking).length;c.no_track=vis.filter(o=>!o.tracking).length;['all','pending','processing','done','missing','missing_qty','has_track','no_track'].forEach(k=>{const el=document.getElementById('tc-'+k);if(el)el.textContent=c[k]||0;});document.getElementById('sb-cnt').textContent=vis.length;if(currentPage==='home')renderHome();else if(currentPage==='dashboard')renderDashboard();else if(currentPage==='analytics')renderAnalytics();}
+function updateCounts(){const vis=visibleOrders();const c={all:vis.length};vis.forEach(o=>{c[o.status]=(c[o.status]||0)+1;});c.has_track=vis.filter(o=>o.tracking).length;c.no_track=vis.filter(o=>!o.tracking).length;['all','pending','processing','done','missing','missing_qty','overdue','has_track','no_track'].forEach(k=>{const el=document.getElementById('tc-'+k);if(el)el.textContent=c[k]||0;});document.getElementById('sb-cnt').textContent=vis.length;if(currentPage==='home')renderHome();else if(currentPage==='dashboard')renderDashboard();else if(currentPage==='analytics')renderAnalytics();}
 
-const PILLS={new:['p-new','🆕 Đơn mới'],pending:['p-pending','⏳ Chờ xử lý'],processing:['p-processing','⚙️ Đang xử lý'],not_sent:['p-notsent','📦 Chưa gửi'],producing:['p-producing','🏭 Chờ sản xuất'],shipped:['p-shipped','🟢 Đã gửi'],hold:['p-hold','🟠 Hold'],done:['p-done','✓ Đã xử lý'],missing:['p-missing','⚠ Thiếu info'],missing_qty:['p-missing','⚠ Thiếu SL'],cancelled:['p-cancelled','🔴 Huỷ']};
-const STATUS_LABEL={new:'Đơn mới',pending:'Chờ xử lý',processing:'Đang xử lý',not_sent:'Chưa gửi',producing:'Đang chờ sản xuất',shipped:'Đã gửi đi',hold:'Hold',done:'Đã xử lý',missing:'Thiếu info',missing_qty:'Thiếu SL',cancelled:'Huỷ'};
+// ══════════════════════════════════════════
+//  LOGIC DEADLINE GIAO HÀNG 15 NGÀY LÀM VIỆC
+//  Quy tắc: đơn về → +1 ngày → đếm 15 ngày làm việc (T2–T6) → deadline
+//  Nếu quá deadline mà chưa shipped/done/cancelled → status = overdue
+// ══════════════════════════════════════════
+
+// Tính ngày làm việc: cộng thêm n ngày làm việc (bỏ T7, CN) từ ngày bắt đầu
+function addWorkdays(startDate, n) {
+  const d = new Date(startDate);
+  d.setHours(0, 0, 0, 0);
+  let added = 0;
+  while (added < n) {
+    d.setDate(d.getDate() + 1);
+    const dow = d.getDay(); // 0=CN, 6=T7
+    if (dow !== 0 && dow !== 6) added++;
+  }
+  return d;
+}
+
+// Tính deadline giao hàng cho 1 đơn
+// Bước 1: created + 1 ngày = ngày xưởng nhận đơn
+// Bước 2: từ đó + 15 ngày làm việc = deadline
+function calcDeliveryDeadline(order) {
+  if (!order.created) return null;
+  const created = new Date(order.created);
+  if (isNaN(created)) return null;
+  // +1 ngày sau khi đơn về
+  const startDay = new Date(created);
+  startDay.setDate(startDay.getDate() + 1);
+  startDay.setHours(0, 0, 0, 0);
+  // +15 ngày làm việc
+  return addWorkdays(startDay, 15);
+}
+
+// Kiểm tra và cập nhật trạng thái overdue cho tất cả đơn
+// Chỉ đổi sang overdue nếu: chưa shipped/done/cancelled, và đã quá deadline
+// Trả về số đơn mới bị overdue
+function checkOverdueOrders() {
+  const now = new Date();
+  now.setHours(0, 0, 0, 0);
+  const SAFE_STATUSES = new Set(['shipped', 'done', 'cancelled', 'overdue']);
+  let newOverdue = 0;
+  orders.forEach(o => {
+    if (SAFE_STATUSES.has(o.status)) return;
+    const deadline = calcDeliveryDeadline(o);
+    if (!deadline) return;
+    if (now > deadline) {
+      // Lưu trạng thái cũ trước khi đổi (để hiển thị trong history)
+      if (o.status !== 'overdue') {
+        const oldStatus = o.status;
+        o.status = 'overdue';
+        o.overdueDeadline = deadline.toISOString();
+        logHistory(o, `⚠️ QUÁ HẠN GIAO: deadline ${deadline.toLocaleDateString('vi-VN')} — trạng thái cũ: ${STATUS_LABEL[oldStatus] || oldStatus}`);
+        newOverdue++;
+      }
+    }
+  });
+  if (newOverdue > 0) {
+    try { localStorage.setItem('pod_orders', JSON.stringify(orders)); } catch(e) {}
+    cloudSaveAll();
+    applyFilter();
+    updateCounts();
+    toast(`⚠️ ${newOverdue} đơn MỚI QUÁ HẠN giao hàng (15 ngày làm việc)!`, 'error');
+  }
+  return newOverdue;
+}
+
+// Đếm ngày làm việc còn lại tới deadline (âm = đã quá hạn)
+function workdaysUntilDeadline(order) {
+  const deadline = calcDeliveryDeadline(order);
+  if (!deadline) return null;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const dl = new Date(deadline);
+  dl.setHours(0, 0, 0, 0);
+  if (today > dl) {
+    // đếm ngày làm việc đã quá
+    let count = 0;
+    const d = new Date(dl);
+    while (d < today) {
+      d.setDate(d.getDate() + 1);
+      const dow = d.getDay();
+      if (dow !== 0 && dow !== 6) count++;
+    }
+    return -count;
+  }
+  // đếm ngày làm việc còn lại
+  let count = 0;
+  const d = new Date(today);
+  while (d < dl) {
+    d.setDate(d.getDate() + 1);
+    const dow = d.getDay();
+    if (dow !== 0 && dow !== 6) count++;
+  }
+  return count;
+}
+
+const PILLS={new:['p-new','🆕 Đơn mới'],pending:['p-pending','⏳ Chờ xử lý'],processing:['p-processing','⚙️ Đang xử lý'],not_sent:['p-notsent','📦 Chưa gửi'],producing:['p-producing','🏭 Chờ sản xuất'],shipped:['p-shipped','🟢 Đã gửi'],hold:['p-hold','🟠 Hold'],done:['p-done','✓ Đã xử lý'],missing:['p-missing','⚠ Thiếu info'],missing_qty:['p-missing','⚠ Thiếu SL'],cancelled:['p-cancelled','🔴 Huỷ'],overdue:['p-overdue','🔴 Quá hạn giao']};
+const STATUS_LABEL={new:'Đơn mới',pending:'Chờ xử lý',processing:'Đang xử lý',not_sent:'Chưa gửi',producing:'Đang chờ sản xuất',shipped:'Đã gửi đi',hold:'Hold',done:'Đã xử lý',missing:'Thiếu info',missing_qty:'Thiếu SL',cancelled:'Huỷ',overdue:'Quá hạn giao'};
 // ── CHỌN HÀNG LOẠT (chỉ admin) ──
 let bulkSel=new Set();
 let pageSize=20, curPage=1;
@@ -3610,7 +3722,17 @@ function renderList(){
     const pf=profitFor(o);const pfb=pf!=null?`<span class="oi-profit" title="Lời = giá bán − basecost">💰 $${pf.toFixed(2)}</span>`:'';
     const fullName=o.items?.[0]?.title||'Sản phẩm';
     const shortName=fullName.length>32?fullName.slice(0,32)+'…':fullName;
-    return`<div class="oi" onclick="selectOrder('${o.id}')">${chk}<div class="oi-thumb">${img}</div><div class="oi-info"><div class="oi-code-main">${etsyCode(o)}</div><div class="oi-short">${shortName}</div><div class="oi-fullname">${fullName}</div><div class="oi-shop">🏪 ${o.shopTitle||'—'}</div><div class="oi-meta"><span class="pill ${pc}">${pl}</span>${o.urgent?'<span class="urgent-tag">🚩 Gấp</span>':''}${trk}${pfb}${pi?`<span style="font-size:11px">${pi}</span>`:''}<span class="oi-price">${o.total}</span><span class="oi-time">📅 ${fmtDateShort(o.created)}</span></div></div></div>`;
+    // Hiển thị deadline / số ngày làm việc còn lại (chỉ đơn chưa hoàn tất)
+    let deadlineBadge='';
+    if(!['shipped','done','cancelled'].includes(o.status)){
+      const wd=workdaysUntilDeadline(o);
+      if(wd!==null){
+        if(wd<0)deadlineBadge=`<span style="background:#c23a2a;color:#fff;font-size:10px;font-weight:700;padding:2px 7px;border-radius:9px;border:1px solid #a02020" title="Quá hạn giao hàng">⚠️ Quá ${-wd} ngày</span>`;
+        else if(wd<=3)deadlineBadge=`<span style="background:#fbe3e0;color:#c23a2a;font-size:10px;font-weight:700;padding:2px 7px;border-radius:9px;border:1px solid #f0c0c0" title="Sắp quá hạn">⏰ Còn ${wd} ngày LV</span>`;
+        else if(wd<=7)deadlineBadge=`<span style="background:var(--orange-l);color:var(--orange);font-size:10px;font-weight:600;padding:2px 7px;border-radius:9px" title="Deadline đang đến">📅 Còn ${wd} ngày LV</span>`;
+      }
+    }
+    return`<div class="oi" onclick="selectOrder('${o.id}')">${chk}<div class="oi-thumb">${img}</div><div class="oi-info"><div class="oi-code-main">${etsyCode(o)}</div><div class="oi-short">${shortName}</div><div class="oi-fullname">${fullName}</div><div class="oi-shop">🏪 ${o.shopTitle||'—'}</div><div class="oi-meta"><span class="pill ${pc}">${pl}</span>${o.urgent?'<span class="urgent-tag">🚩 Gấp</span>':''}${deadlineBadge}${trk}${pfb}${pi?`<span style="font-size:11px">${pi}</span>`:''}<span class="oi-price">${o.total}</span><span class="oi-time">📅 ${fmtDateShort(o.created)}</span></div></div></div>`;
   }).join('');
   updateBulkBar();renderPager();
 }
@@ -3660,6 +3782,21 @@ function selectOrder(id){
   const gd=document.getElementById('d-gdrive');if(gd)gd.value=o.gdriveLink||'';
   const go=document.getElementById('d-gdrive-open');if(go){if(o.gdriveLink){go.style.display='';go.href=o.gdriveLink;}else go.style.display='none';}
   document.getElementById('d-time').textContent=fmtDate(o.created);
+  // Hiển thị deadline giao hàng trong detail
+  const deadlineEl=document.getElementById('d-deadline-info');
+  if(deadlineEl){
+    const dl=calcDeliveryDeadline(o);
+    if(dl){
+      const wd=workdaysUntilDeadline(o);
+      let color='var(--text2)', icon='📅';
+      if(wd!==null&&wd<0){color='#c23a2a';icon='🔴';}
+      else if(wd!==null&&wd<=3){color='#c23a2a';icon='⏰';}
+      else if(wd!==null&&wd<=7){color='var(--orange)';icon='📅';}
+      const wdText=wd===null?'':(wd<0?` — Quá ${-wd} ngày làm việc`:wd===0?' — Hôm nay!':` — Còn ${wd} ngày LV`);
+      deadlineEl.innerHTML=`${icon} <b>Deadline:</b> <span style="color:${color};font-weight:700">${dl.toLocaleDateString('vi-VN')}${wdText}</span>`;
+      deadlineEl.style.display='';
+    }else{deadlineEl.style.display='none';}
+  }
   const fb=document.getElementById('btn-flag');if(fb)fb.classList.toggle('on',!!o.urgent);
   renderProds(o.items);
   if(cfg.merchizeKey)document.getElementById('mz-key').value=cfg.merchizeKey;
