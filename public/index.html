@@ -4761,25 +4761,136 @@ function ytRenderResult(toolName, params, data) {
   const paramStr = Object.values(params).filter(Boolean).join(' · ');
   if (title) title.innerHTML = `${tool?.label || toolName} <span style="font-size:11px;color:var(--text3);font-weight:400">· ${esc(paramStr)}</span>`;
 
-  // Render based on data shape
   if (typeof data === 'string') {
     body.innerHTML = `<div style="font-size:12.5px;line-height:1.7;white-space:pre-wrap;color:var(--text)">${esc(data)}</div>`;
     return;
   }
 
-  // Array of items → table or cards
-  if (Array.isArray(data)) {
-    body.innerHTML = ytRenderArray(data, toolName);
+  // YTrends response: {data, insights, scores, suggested_next_tools, snapshot, source, link}
+  if (data && typeof data === 'object' && (data.data !== undefined || data.insights !== undefined)) {
+    body.innerHTML = ytRenderYTrendsResponse(data, toolName);
     return;
   }
 
-  // Object → key-value + nested arrays
-  if (typeof data === 'object') {
-    body.innerHTML = ytRenderObject(data, toolName);
-    return;
-  }
-
+  if (Array.isArray(data)) { body.innerHTML = ytRenderArray(data, toolName); return; }
+  if (typeof data === 'object') { body.innerHTML = ytRenderObject(data, toolName); return; }
   body.innerHTML = `<pre style="font-size:11.5px;overflow-x:auto">${esc(JSON.stringify(data, null, 2))}</pre>`;
+}
+
+function ytRenderYTrendsResponse(res, toolName) {
+  let html = '';
+
+  // ── Source & link ──
+  if (res.source || res.link) {
+    html += `<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px">`;
+    if (res.source) html += `<div class="yt-card" style="padding:8px 14px;font-size:12px"><span style="color:var(--text3)">Source</span><br><b>${esc(res.source)}</b></div>`;
+    if (res.link) html += `<div class="yt-card" style="padding:8px 14px;font-size:12px"><span style="color:var(--text3)">Link</span><br><a href="${esc(res.link)}" target="_blank" style="color:var(--accent)">🔗 Xem</a></div>`;
+    html += '</div>';
+  }
+
+  // ── Scores ──
+  if (res.scores && Object.keys(res.scores).length) {
+    html += `<div style="margin-bottom:16px"><div style="font-size:12px;font-weight:700;color:var(--text2);margin-bottom:8px">📊 Scores</div>`;
+    html += `<div style="display:flex;gap:10px;flex-wrap:wrap">`;
+    for (const [k,v] of Object.entries(res.scores)) {
+      const num = typeof v === 'object' ? v?.value : v;
+      const label = k.replace(/_/g,' ').replace(/\w/g,c=>c.toUpperCase());
+      const color = num >= 70 ? 'var(--green-d)' : num >= 40 ? 'var(--orange)' : 'var(--text2)';
+      html += `<div class="yt-card" style="padding:10px 16px;text-align:center;min-width:90px">
+        <div style="font-size:20px;font-weight:700;color:${color}">${num !== undefined && num !== null ? Math.round(num*10)/10 : '—'}</div>
+        <div style="font-size:10.5px;color:var(--text3);margin-top:2px">${esc(label)}</div>
+      </div>`;
+    }
+    html += '</div></div>';
+  }
+
+  // ── Insights ──
+  if (res.insights && res.insights.length) {
+    html += `<div style="margin-bottom:16px"><div style="font-size:12px;font-weight:700;color:var(--text2);margin-bottom:8px">💡 Insights</div>`;
+    html += `<div style="background:var(--bg2);border-radius:8px;padding:12px 14px">`;
+    html += res.insights.map((s,i) => `<div style="padding:4px 0;font-size:12.5px;border-bottom:${i<res.insights.length-1?'1px solid var(--border)':'none'}">
+      <span style="color:var(--accent);margin-right:8px">${i+1}.</span>${esc(s)}</div>`).join('');
+    html += '</div></div>';
+  }
+
+  // ── Main data ──
+  if (res.data && typeof res.data === 'object') {
+    html += `<div style="margin-bottom:16px"><div style="font-size:12px;font-weight:700;color:var(--text2);margin-bottom:8px">📋 Data</div>`;
+    html += ytRenderDataSection(res.data, toolName);
+    html += '</div>';
+  }
+
+  // ── Suggested next tools ──
+  if (res.suggested_next_tools && res.suggested_next_tools.length) {
+    html += `<div style="margin-bottom:16px"><div style="font-size:12px;font-weight:700;color:var(--text2);margin-bottom:8px">🔮 Gợi ý tiếp theo</div>`;
+    html += `<div style="display:flex;gap:8px;flex-wrap:wrap">`;
+    res.suggested_next_tools.forEach(t => {
+      const label = YT_TOOLS[t.tool]?.label || t.tool.replace('ytrends_','').replace(/_/g,' ');
+      html += `<div class="yt-card" style="padding:8px 12px;cursor:pointer;font-size:12px" onclick="ytSelectToolByName('${esc(t.tool)}', ${JSON.stringify(t.args).replace(/"/g,'&quot;')})">
+        <b>${esc(label)}</b><br><span style="color:var(--text3);font-size:11px">${esc(t.reason||'')}</span>
+      </div>`;
+    });
+    html += '</div></div>';
+  }
+
+  // ── Snapshot ──
+  if (res.snapshot) {
+    html += `<div style="font-size:11px;color:var(--text3);margin-top:8px;padding:8px 12px;background:var(--bg2);border-radius:6px">
+      📅 Dữ liệu tính đến: <b>${res.snapshot.as_of_date||''}</b>
+      ${res.snapshot.median_data_age_days ? ` · Tuổi trung vị: ${res.snapshot.median_data_age_days} ngày` : ''}
+      ${res.snapshot.dataset_note ? `<br><i>${esc(res.snapshot.dataset_note)}</i>` : ''}
+    </div>`;
+  }
+
+  return html || `<pre style="font-size:11.5px;overflow-x:auto">${esc(JSON.stringify(res,null,2))}</pre>`;
+}
+
+function ytRenderDataSection(data, toolName) {
+  let html = '';
+  for (const [k, v] of Object.entries(data)) {
+    const label = k.replace(/_/g,' ').replace(/\w/g,c=>c.toUpperCase());
+    if (v === null || v === undefined) continue;
+
+    if (Array.isArray(v)) {
+      if (!v.length) continue;
+      html += `<div style="margin-bottom:12px"><div style="font-size:11.5px;font-weight:600;color:var(--text2);margin-bottom:6px">${esc(label)}</div>`;
+      html += ytRenderArray(v, toolName);
+      html += '</div>';
+    } else if (typeof v === 'object') {
+      html += `<div style="margin-bottom:12px"><div style="font-size:11.5px;font-weight:600;color:var(--text2);margin-bottom:6px">${esc(label)}</div>`;
+      html += `<table class="yt-table"><tbody>`;
+      for (const [k2,v2] of Object.entries(v)) {
+        const disp = k2.replace(/_/g,' ');
+        let cell;
+        if (typeof v2 === 'object' && v2 !== null) cell = `<span style="font-size:11px;color:var(--text3)">${esc(JSON.stringify(v2))}</span>`;
+        else cell = ytFormatCell(k2, v2);
+        html += `<tr><td style="font-weight:600;width:40%;color:var(--text2);font-size:12px">${esc(disp)}</td><td>${cell}</td></tr>`;
+      }
+      html += `</tbody></table></div>`;
+    } else {
+      // primitive — show inline
+      html += `<div style="display:inline-block;margin:0 8px 8px 0">
+        <span style="font-size:11px;color:var(--text3)">${esc(label)}: </span>
+        <b style="font-size:12.5px">${ytFormatCell(k,v)}</b>
+      </div>`;
+    }
+  }
+  return html || `<pre style="font-size:11px;color:var(--text3)">${esc(JSON.stringify(data,null,2))}</pre>`;
+}
+
+function ytSelectToolByName(toolName, args) {
+  const btn = document.querySelector(`.yt-tool-btn[data-tool="${toolName}"]`);
+  if (btn) { ytSelectTool(btn); }
+  else { _ytCurrentTool = toolName; ytRenderFields(toolName); }
+  // Pre-fill fields
+  if (args) {
+    setTimeout(() => {
+      Object.entries(args).forEach(([k,v]) => {
+        const el = document.getElementById(`yt-field-${k}`);
+        if (el) el.value = v;
+      });
+    }, 100);
+  }
 }
 
 function ytRenderArray(arr, toolName) {
