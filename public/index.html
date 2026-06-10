@@ -550,6 +550,9 @@ body[data-role="seller"] .no-seller{display:none !important}
   <div id="sb-account" class="sb-account"></div>
 </aside>
 
+<!-- NOTIF PANEL (global, không bị ảnh hưởng bởi cfg-bar ẩn/hiện) -->
+<div id="notif-panel" style="display:none;position:fixed;right:10px;top:60px;width:min(300px,calc(100vw - 20px));max-height:70vh;overflow-y:auto;background:var(--surface);border:1px solid var(--border);border-radius:12px;box-shadow:0 8px 30px rgba(0,0,0,.18);z-index:1100;padding:8px"></div>
+
 <!-- MAIN -->
 <div class="main">
   <button class="desk-hamb" onclick="collapseSidebar()" title="Mở menu">☰</button>
@@ -565,7 +568,7 @@ body[data-role="seller"] .no-seller{display:none !important}
       <button class="btn btn-sm admin-only" onclick="addOrderByCode()" title="Thêm đơn">➕</button>
       <button class="btn btn-green btn-sm" onclick="syncOrders()" id="fetch-btn-mobile" title="Đồng bộ">⟳</button>
       <div style="position:relative">
-        <button class="btn btn-sm" onclick="toggleNotif()" title="Thông báo">🔔<span id="notif-badge-m" style="display:none;position:absolute;top:-4px;right:-4px;background:var(--red);color:#fff;font-size:9px;font-weight:700;min-width:16px;height:16px;border-radius:8px;padding:0 4px;line-height:16px;text-align:center"></span></button>
+        <button class="btn btn-sm" data-notif-btn onclick="toggleNotif()" title="Thông báo">🔔<span id="notif-badge-m" style="display:none;position:absolute;top:-4px;right:-4px;background:var(--red);color:#fff;font-size:9px;font-weight:700;min-width:16px;height:16px;border-radius:8px;padding:0 4px;line-height:16px;text-align:center"></span></button>
       </div>
     </div>
   </div>
@@ -581,8 +584,7 @@ body[data-role="seller"] .no-seller{display:none !important}
       <button class="btn btn-sm admin-only" onclick="addOrderByCode()">➕<span class="cfg-bar-label"> Thêm đơn</span></button>
       <button class="btn btn-green btn-sm" onclick="syncOrders()" id="fetch-btn">⟳<span class="cfg-bar-label"> Đồng bộ</span></button>
       <div style="position:relative">
-        <button class="btn btn-sm" onclick="toggleNotif()" title="Thông báo">🔔<span id="notif-badge" style="display:none;position:absolute;top:-4px;right:-4px;background:var(--red);color:#fff;font-size:9px;font-weight:700;min-width:16px;height:16px;border-radius:8px;padding:0 4px;line-height:16px;text-align:center"></span></button>
-        <div id="notif-panel" style="display:none;position:fixed;right:10px;top:54px;width:min(300px,calc(100vw - 20px));max-height:70vh;overflow-y:auto;background:var(--surface);border:1px solid var(--border);border-radius:12px;box-shadow:0 8px 30px rgba(0,0,0,.18);z-index:1000;padding:8px"></div>
+        <button class="btn btn-sm" data-notif-btn onclick="toggleNotif()" title="Thông báo">🔔<span id="notif-badge" style="display:none;position:absolute;top:-4px;right:-4px;background:var(--red);color:#fff;font-size:9px;font-weight:700;min-width:16px;height:16px;border-radius:8px;padding:0 4px;line-height:16px;text-align:center"></span></button>
       </div>
     </div>
 
@@ -1673,8 +1675,9 @@ function toggleNotif(){
   // Đóng khi click ra ngoài
   setTimeout(()=>{
     function onOutside(e){
-      const btn=document.querySelector('[onclick="toggleNotif()"]');
-      if(p.contains(e.target)||btn&&btn.contains(e.target))return;
+      const btns=document.querySelectorAll('[data-notif-btn]');
+      if(p.contains(e.target))return;
+      for(const btn of btns){if(btn.contains(e.target))return;}
       p.style.display='none';
       document.removeEventListener('click',onOutside,true);
     }
