@@ -1877,11 +1877,11 @@ function renderIdeaBoard(){
       if(it.startedAt&&!doneCols.includes(it.status||'')){
         const mins=Math.round((Date.now()-new Date(it.startedAt))/60000);
         timerStr=`<span style="font-size:9.5px;color:#b8720a;font-weight:600">⏱ ${mins<60?mins+'ph':Math.floor(mins/60)+'g'+(mins%60?mins%60+'ph':'')} đang làm</span>`;
-      }else if(it.completedAt&&it.startedAt){
-        const mins=Math.round((new Date(it.completedAt)-new Date(it.startedAt))/60000);
-        timerStr=`<span style="font-size:9.5px;color:#2e7d46;font-weight:600">✅ ${mins<60?mins+'ph':Math.floor(mins/60)+'g'+(mins%60?mins%60+'ph':'')} hoàn thành</span>`;
+      }else if(it.reviewedAt&&it.startedAt){
+        const mins=Math.round((new Date(it.reviewedAt)-new Date(it.startedAt))/60000);
+        timerStr=`<span style="font-size:9.5px;color:#2e7d46;font-weight:600">✅ ${mins<60?mins+'ph':Math.floor(mins/60)+'g'+(mins%60?mins%60+'ph':'')} đến duyệt</span>`;
       }
-      return`<div draggable="true" ondragstart="ideaDragStart(event,'${it.id}')" onclick="openIdeaModal('${it.id}')" style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:10px;cursor:pointer;box-shadow:0 1px 3px rgba(0,0,0,.06)">
+      return`<div draggable="true" ondragstart="ideaDragStart(event,'${it.id}')" onmousedown="ideaPointerDown(event,'${it.id}')" ontouchstart="ideaPointerDown(event,'${it.id}')" onclick="openIdeaModal('${it.id}')" style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:10px;cursor:grab;box-shadow:0 1px 3px rgba(0,0,0,.06);user-select:none">
         ${img}
         <div style="font-size:13px;font-weight:600;margin-bottom:4px">${esc(it.title)}</div>
         ${link?`<div style="margin-bottom:4px">${link}</div>`:''}
@@ -1893,7 +1893,7 @@ function renderIdeaBoard(){
     }).join('')||'<div style="font-size:11px;color:var(--text3);text-align:center;padding:14px">Trống</div>';
     // Nút "+ Thêm Idea" chỉ ở cuối cột Idea, chỉ admin thấy
     const addBtn=key==='idea'&&isAdmin?`<button onclick="openIdeaModal()" style="margin-top:10px;width:100%;padding:8px;border:1.5px dashed var(--border2);border-radius:9px;background:none;color:var(--text3);cursor:pointer;font-size:12px;font-family:inherit;transition:.15s" onmouseover="this.style.borderColor='var(--green)';this.style.color='var(--green)'" onmouseout="this.style.borderColor='var(--border2)';this.style.color='var(--text3)'">＋ Thêm Idea</button>`:'';
-    return`<div ondragover="event.preventDefault()" ondrop="ideaDrop(event,'${key}')" style="background:#e4dfd6;border-radius:12px;padding:10px;display:flex;flex-direction:column;max-height:calc(100vh - 220px)">
+    return`<div data-col="${key}" ondragover="event.preventDefault()" ondrop="ideaDrop(event,'${key}')" style="background:#e4dfd6;border-radius:12px;padding:10px;display:flex;flex-direction:column;max-height:calc(100vh - 220px)">
       <div style="font-size:12.5px;font-weight:700;margin-bottom:10px;display:flex;justify-content:space-between;flex-shrink:0"><span>${label}</span><span style="color:var(--text3)">${items.length}</span></div>
       <div style="display:flex;flex-direction:column;gap:8px;overflow-y:auto;flex:1;padding-right:2px">${cards}</div>
       ${addBtn}
@@ -1985,12 +1985,12 @@ function renderDesignReport(){
     const fmtM=m=>m<60?m+'ph':Math.floor(m/60)+'g'+(m%60?m%60+'ph':'');
     const rows=Object.entries(byPerson).sort((a,b)=>a[1].total/a[1].count - b[1].total/b[1].count);
     const timeTable=`<div style="flex:1;min-width:280px">
-      <div style="font-size:12px;font-weight:600;color:var(--text2);margin-bottom:6px">⏱ Thời gian TB từ "Đang làm" → "Hoàn thành"</div>
+      <div style="font-size:12px;font-weight:600;color:var(--text2);margin-bottom:6px">⏱ Thời gian TB từ "Đang làm" → "Đợi duyệt"</div>
       <table style="width:100%;border-collapse:collapse;font-size:12px">
         <tr style="color:var(--text3);font-size:10.5px"><th style="text-align:left;padding:4px">Người làm</th><th>Số mẫu</th><th>TB</th><th>Nhanh nhất</th><th>Chậm nhất</th></tr>
         ${rows.map(([n,d])=>`<tr style="border-top:1px solid var(--border2)"><td style="padding:5px 4px;font-weight:600">👤 ${esc(n)}</td><td style="text-align:center">${d.count}</td><td style="text-align:center;color:var(--accent);font-weight:700">${fmtM(Math.round(d.total/d.count))}</td><td style="text-align:center;color:#2e7d46">${fmtM(d.min)}</td><td style="text-align:center;color:var(--red)">${fmtM(d.max)}</td></tr>`).join('')}
       </table>
-      <div style="font-size:10px;color:var(--text3);margin-top:6px">* Tính từ lúc kéo vào "🎨 Đang làm" đến lúc kéo sang "✅ Hoàn thành".</div>
+      <div style="font-size:10px;color:var(--text3);margin-top:6px">* Tính từ lúc kéo vào "🎨 Đang làm" đến lúc kéo sang "👀 Đợi duyệt".</div>
     </div>`;
     wrap.innerHTML=`<div style="display:flex;gap:24px;flex-wrap:wrap">${mkTable(byAssignee,'Theo người được giao')}${mkTable(byDragger,'Theo người thao tác (kéo)')}${timeTable}</div>`;
   }
@@ -2010,43 +2010,88 @@ function renderDesignReport(){
   document.getElementById('design-chart').innerHTML=`<div style="font-size:12px;font-weight:600;color:var(--text2);margin-bottom:8px">📈 Mẫu hoàn thành theo ngày</div>
     <div style="display:flex;align-items:flex-end;gap:4px;height:140px;background:var(--bg);border-radius:10px;padding:12px;overflow-x:auto">${chart}</div>`;
 }
+// ── KANBAN DRAG (pointer-based, không xung đột với kfBind) ──
 let _dragIdeaId=null;
-function ideaDragStart(e,id){_dragIdeaId=id;e.dataTransfer.effectAllowed='move';}
-function ideaDrop(e,col){
-  e.preventDefault();
-  if(!_dragIdeaId)return;
-  const it=(cfg.ideas||[]).find(x=>x.id===_dragIdeaId);
-  if(it){
-    const oldStatus=it.status||'idea';
-    it.status=col;
-    const now=new Date().toISOString();
-    // Ghi timestamp chuyển cột
-    if(!it.colHistory)it.colHistory=[];
-    it.colHistory.push({from:oldStatus,to:col,by:auth?auth.name:'(?)',at:now});
-    // Lưu thời điểm bắt đầu làm (vào cột 'doing' lần đầu)
-    if(col==='doing'&&!it.startedAt)it.startedAt=now;
-    // Lưu thời điểm hoàn thành (vào cột done/listed)
-    const doneCols=['done','listed'];
-    if(doneCols.includes(col)&&!doneCols.includes(oldStatus)){
-      it.completedAt=now;
-      if(!cfg.designLog)cfg.designLog=[];
-      cfg.designLog.push({
-        ideaId:it.id,title:it.title||'',col,
-        assignee:it.assignee||'(chưa giao)',
-        by:auth?auth.name:'(?)',
-        at:now,
-        startedAt:it.startedAt||null,
-        minutesTotal:it.startedAt?Math.round((new Date(now)-new Date(it.startedAt))/60000):null,
-      });
+let _dragEl=null;
+let _dragOverCol=null;
+
+function ideaPointerDown(e,id){
+  if(e.target.tagName==='A'||e.target.tagName==='BUTTON')return;
+  if(e.button!==undefined&&e.button!==0)return;
+  e.stopPropagation();
+  _dragIdeaId=id;
+  const src=e.currentTarget;
+  const rect=src.getBoundingClientRect();
+  _dragEl=src.cloneNode(true);
+  Object.assign(_dragEl.style,{
+    position:'fixed',zIndex:9999,left:rect.left+'px',top:rect.top+'px',
+    width:rect.width+'px',opacity:'.78',pointerEvents:'none',
+    borderRadius:'10px',boxShadow:'0 8px 24px rgba(0,0,0,.25)',
+    transition:'none',transform:'rotate(2deg) scale(1.02)'
+  });
+  document.body.appendChild(_dragEl);
+  src.style.opacity='.25';
+  _dragEl._srcEl=src;
+  _dragEl._ox=(e.clientX||0)-rect.left;
+  _dragEl._oy=(e.clientY||0)-rect.top;
+  const onMove=ev=>{
+    const cx=ev.clientX||(ev.touches&&ev.touches[0]?ev.touches[0].clientX:0);
+    const cy=ev.clientY||(ev.touches&&ev.touches[0]?ev.touches[0].clientY:0);
+    if(_dragEl){_dragEl.style.left=(cx-_dragEl._ox)+'px';_dragEl.style.top=(cy-_dragEl._oy)+'px';}
+    const col=_colAtPoint(cx,cy);
+    if(col!==_dragOverCol){
+      _clearColHighlight();_dragOverCol=col;
+      if(col){const el=document.querySelector('#kanban-board [data-col="'+col+'"]');if(el)el.style.outline='2.5px solid var(--green)';}
     }
-    // Thêm thông báo kanban
-    addIdeaNotif(it, oldStatus, col, now);
-    saveCfg();cloudSaveAll();renderIdeaBoard();renderDesignReport();
-    const colLabel=(IDEA_COLS.find(c=>c[0]===col)||[,col])[1];
-    toast('✅ Đã chuyển sang "'+colLabel+'"','success');
-  }
-  _dragIdeaId=null;
+  };
+  const onUp=ev=>{
+    const cx=ev.clientX||(ev.changedTouches&&ev.changedTouches[0]?ev.changedTouches[0].clientX:0);
+    const cy=ev.clientY||(ev.changedTouches&&ev.changedTouches[0]?ev.changedTouches[0].clientY:0);
+    const col=_colAtPoint(cx,cy);
+    _clearColHighlight();
+    if(_dragEl){_dragEl._srcEl.style.opacity='';_dragEl.remove();_dragEl=null;}
+    if(col&&_dragIdeaId)_applyIdeaDrop(_dragIdeaId,col);
+    _dragIdeaId=null;_dragOverCol=null;
+    document.removeEventListener('mousemove',onMove);document.removeEventListener('mouseup',onUp);
+    document.removeEventListener('touchmove',onMove);document.removeEventListener('touchend',onUp);
+  };
+  document.addEventListener('mousemove',onMove);document.addEventListener('mouseup',onUp);
+  document.addEventListener('touchmove',onMove,{passive:true});document.addEventListener('touchend',onUp);
 }
+function _colAtPoint(x,y){
+  if(_dragEl)_dragEl.style.display='none';
+  const el=document.elementFromPoint(x,y);
+  if(_dragEl)_dragEl.style.display='';
+  if(!el)return null;
+  const colEl=el.closest('[data-col]');
+  return colEl?colEl.dataset.col:null;
+}
+function _clearColHighlight(){
+  document.querySelectorAll('#kanban-board [data-col]').forEach(el=>el.style.outline='');
+}
+function _applyIdeaDrop(ideaId,col){
+  const it=(cfg.ideas||[]).find(x=>x.id===ideaId);
+  if(!it||it.status===col)return;
+  const oldStatus=it.status||'idea';
+  it.status=col;
+  const now=new Date().toISOString();
+  if(!it.colHistory)it.colHistory=[];
+  it.colHistory.push({from:oldStatus,to:col,by:auth?auth.name:'(?)',at:now});
+  if(col==='doing'&&!it.startedAt)it.startedAt=now;
+  if(col==='review'&&oldStatus==='doing'&&!it.reviewedAt){
+    it.reviewedAt=now;
+    if(!cfg.designLog)cfg.designLog=[];
+    cfg.designLog.push({ideaId:it.id,title:it.title||'',col,assignee:it.assignee||'(chưa giao)',by:auth?auth.name:'(?)',at:now,startedAt:it.startedAt||null,minutesTotal:it.startedAt?Math.round((new Date(now)-new Date(it.startedAt))/60000):null});
+  }
+  const doneCols=['done','listed'];
+  if(doneCols.includes(col)&&!doneCols.includes(oldStatus))it.completedAt=now;
+  addIdeaNotif(it,oldStatus,col,now);
+  saveCfg();cloudSaveAll();renderIdeaBoard();renderDesignReport();
+  const colLabel=(IDEA_COLS.find(c=>c[0]===col)||[,col])[1];
+  toast('Đã chuyển sang "'+colLabel+'"','success');
+}
+function ideaDragStart(e,id){e.preventDefault();}
+function ideaDrop(e,col){e.preventDefault();}
 // Thêm thông báo khi idea chuyển cột
 function addIdeaNotif(it, fromCol, toCol, at){
   if(!cfg.notifs)cfg.notifs=[];
@@ -2135,25 +2180,8 @@ function renderIdeaStatusBar(id, currentStatus){
   }).join('');
 }
 function moveIdeaToCol(id, newStatus){
-  const it=(cfg.ideas||[]).find(x=>x.id===id);
-  if(!it||it.status===newStatus)return;
-  const oldStatus=it.status||'idea';
-  const now=new Date().toISOString();
-  if(!it.colHistory)it.colHistory=[];
-  it.colHistory.push({from:oldStatus,to:newStatus,by:auth?auth.name:'(?)',at:now});
-  if(newStatus==='doing'&&!it.startedAt)it.startedAt=now;
-  const doneCols=['done','listed'];
-  if(doneCols.includes(newStatus)&&!doneCols.includes(oldStatus)){
-    it.completedAt=now;
-    if(!cfg.designLog)cfg.designLog=[];
-    cfg.designLog.push({ideaId:it.id,title:it.title||'',col:newStatus,assignee:it.assignee||'(chưa giao)',by:auth?auth.name:'(?)',at:now,startedAt:it.startedAt||null,minutesTotal:it.startedAt?Math.round((new Date(now)-new Date(it.startedAt))/60000):null});
-  }
-  it.status=newStatus;
-  addIdeaNotif(it, oldStatus, newStatus, now);
-  saveCfg();cloudSaveAll();renderIdeaBoard();renderDesignReport();
+  _applyIdeaDrop(id, newStatus);
   renderIdeaStatusBar(id, newStatus);
-  const label=(IDEA_COLS.find(c=>c[0]===newStatus)||[,''])[1];
-  toast('↪ Chuyển sang '+label,'success');
 }
 function copyNasPath(){
   const v=(document.getElementById('idea-naspath')||{}).value||'';
