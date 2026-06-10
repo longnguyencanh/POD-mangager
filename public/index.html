@@ -169,6 +169,26 @@ body.sb-collapsed .desk-hamb{display:block}
   .hamb{width:34px;height:34px;font-size:16px}
   .mobile-title{font-size:14px}
 
+  /* ── Scroll-hide: vuốt lên ẩn, vuốt xuống hiện ── */
+  .scroll-hide-group{
+    transition:max-height .3s ease, opacity .28s ease, transform .28s ease;
+    overflow:hidden;
+    max-height:200px;
+    opacity:1;
+    transform:translateY(0);
+  }
+  body.bars-hidden .scroll-hide-group{
+    max-height:0 !important;
+    opacity:0;
+    transform:translateY(-6px);
+    pointer-events:none;
+  }
+
+  /* ── Sidebar: logout không bị đẩy ra ngoài màn hình ── */
+  .sb{overflow-y:auto !important;-webkit-overflow-scrolling:touch}
+  .sb-account{margin-top:0;position:sticky;bottom:0;background:var(--sidebar);z-index:2;padding-bottom:max(14px,env(safe-area-inset-bottom))}
+  .sb-logout{padding:7px;font-size:11.5px}
+
   /* ── Act-row (nút hành động trong detail): cuộn ngang ── */
   .act-row{flex-wrap:nowrap;overflow-x:auto;padding-bottom:4px;gap:7px}
   .act-row .btn{flex-shrink:0;font-size:11px;padding:7px 10px}
@@ -527,13 +547,16 @@ body[data-role="seller"] .no-seller{display:none !important}
   <button class="desk-hamb" onclick="collapseSidebar()" title="Mở menu">☰</button>
 
   <!-- Thanh trên cùng (mobile + nút thu/mở menu) -->
+  <div class="scroll-hide-group" id="mobile-top-wrap">
   <div class="mobile-top">
     <button class="hamb" onclick="toggleSidebar()">☰</button>
     <div class="mobile-title">🏷️ POD Manager</div>
   </div>
+  </div>
 
   <!-- ════ PAGE: ĐƠN HÀNG ════ -->
   <div class="page active" id="page-orders">
+    <div class="scroll-hide-group" id="orders-topbar">
     <div class="cfg-bar">
       <span class="cfg-bar-hint" style="font-size:12px;color:var(--text3)">Ấn nút đồng bộ đơn và tải lại.</span>
       <button class="btn btn-sm admin-only" onclick="exportOrdersSheet()" style="margin-left:auto">📊<span class="cfg-bar-label"> Xuất Sheet</span></button>
@@ -579,6 +602,7 @@ body[data-role="seller"] .no-seller{display:none !important}
       <div class="tab" onclick="setTab(this,'has_track')">📦 Có tracking <span class="tc" id="tc-has_track">0</span></div>
       <div class="tab" onclick="setTab(this,'no_track')">⏳ Chưa tracking <span class="tc" id="tc-no_track">0</span></div>
     </div>
+    </div><!-- end scroll-hide-group -->
 
     <div class="admin-only" id="bulk-controls" style="padding:8px 28px 0;display:flex;align-items:center;gap:10px">
       <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text2);cursor:pointer"><input type="checkbox" onclick="toggleSelAll()"> Chọn tất cả</label>
@@ -1623,13 +1647,23 @@ function toggleNotif(){
   if(open){p.style.display='none';return;}
   const list=visibleNotifs();
   p.innerHTML='<div style="font-size:13px;font-weight:700;padding:6px 8px;border-bottom:1px solid var(--border2);display:flex;justify-content:space-between"><span>🔔 Thông báo</span>'+(list.length?'<span style="font-size:11px;color:var(--accent);cursor:pointer" onclick="clearNotifSeen()">Đánh dấu đã đọc</span>':'')+'</div>'+
-    (list.length?list.slice(0,50).map(n=>`<div onclick="selectOrder('${n.orderId}');document.getElementById('notif-panel').style.display='none'" style="padding:8px;border-bottom:1px solid var(--border2);cursor:pointer;font-size:12.5px"><div>${esc(n.text)}</div><div style="font-size:10px;color:var(--text3);margin-top:2px">${relTime(n.at)}</div></div>`).join(''):'<div style="padding:20px;text-align:center;color:var(--text3);font-size:12px">Chưa có thông báo</div>');
+    (list.length?list.slice(0,50).map(n=>`<div onclick="selectOrder('${n.orderId}');closeNotif()" style="padding:8px;border-bottom:1px solid var(--border2);cursor:pointer;font-size:12.5px"><div>${esc(n.text)}</div><div style="font-size:10px;color:var(--text3);margin-top:2px">${relTime(n.at)}</div></div>`).join(''):'<div style="padding:20px;text-align:center;color:var(--text3);font-size:12px">Chưa có thông báo</div>');
   p.style.display='block';
-  // đánh dấu đã xem
   localStorage.setItem('pod_notif_seen',JSON.stringify(Date.now()));
   updateNotifBadge();
+  // Đóng khi click ra ngoài
+  setTimeout(()=>{
+    function onOutside(e){
+      const btn=document.querySelector('[onclick="toggleNotif()"]');
+      if(p.contains(e.target)||btn&&btn.contains(e.target))return;
+      p.style.display='none';
+      document.removeEventListener('click',onOutside,true);
+    }
+    document.addEventListener('click',onOutside,true);
+  },0);
 }
-function clearNotifSeen(){localStorage.setItem('pod_notif_seen',JSON.stringify(Date.now()));updateNotifBadge();document.getElementById('notif-panel').style.display='none';}
+function closeNotif(){const p=document.getElementById('notif-panel');if(p)p.style.display='none';}
+function clearNotifSeen(){localStorage.setItem('pod_notif_seen',JSON.stringify(Date.now()));updateNotifBadge();closeNotif();}
 function logout(){
   localStorage.removeItem('pod_session');
   auth=null;
@@ -4057,6 +4091,52 @@ function kfBind(){
   });
   document.addEventListener('mouseup',()=>{resDir=null;});
 }
+
+// ── SCROLL-HIDE: vuốt lên ẩn thanh trên, vuốt xuống hiện lại (mobile) ──
+(function(){
+  let lastY=0, ticking=false, hidden=false;
+  const THRESHOLD=10; // px tối thiểu để trigger
+
+  function onScroll(e){
+    // Chỉ chạy trên mobile
+    if(window.innerWidth>768)return;
+    const el=e.currentTarget;
+    const y=el.scrollTop;
+    if(!ticking){
+      requestAnimationFrame(()=>{
+        const delta=y-lastY;
+        if(delta>THRESHOLD&&!hidden){
+          hidden=true;
+          document.body.classList.add('bars-hidden');
+        }else if(delta<-THRESHOLD&&hidden){
+          hidden=false;
+          document.body.classList.remove('bars-hidden');
+        }
+        // Khi về đầu trang luôn hiện lại
+        if(y<=4&&hidden){hidden=false;document.body.classList.remove('bars-hidden');}
+        lastY=y;
+        ticking=false;
+      });
+      ticking=true;
+    }
+  }
+
+  // Gắn scroll listener vào order-list (div cuộn đơn hàng)
+  function bindScrollHide(){
+    const list=document.getElementById('order-list');
+    if(list){
+      // order-list nằm trong .page, cần lấy parent scroll
+      const page=list.closest('.page');
+      if(page)page.addEventListener('scroll',onScroll,{passive:true});
+      list.addEventListener('scroll',onScroll,{passive:true});
+    }
+  }
+  // Chờ DOM sẵn sàng
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',bindScrollHide);
+  else bindScrollHide();
+  // Cũng re-bind sau login (app render lại)
+  window._bindScrollHide=bindScrollHide;
+})();
 </script>
 </body>
 </html>
