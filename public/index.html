@@ -494,6 +494,28 @@ body[data-role="support"] .role-support{display:revert}
 body[data-role="design"] .no-design,
 body[data-role="support"] .no-support,
 body[data-role="seller"] .no-seller{display:none !important}
+/* ─── YTRENDS TOOL BUTTONS ─── */
+.yt-tool-btn{background:var(--surface);border:1px solid var(--border2);border-radius:20px;padding:6px 13px;font-size:11.5px;font-family:inherit;color:var(--text2);cursor:pointer;transition:.15s;white-space:nowrap}
+.yt-tool-btn:hover{border-color:var(--accent);color:var(--accent)}
+.yt-tool-btn.active{background:var(--accent);color:#fff;border-color:var(--accent);font-weight:600}
+/* ─── YTRENDS RESULT TABLE ─── */
+.yt-table{width:100%;border-collapse:collapse;font-size:12px}
+.yt-table th{text-align:left;padding:7px 10px;font-size:10.5px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;border-bottom:2px solid var(--border);font-weight:700}
+.yt-table td{padding:8px 10px;border-bottom:1px solid var(--border);vertical-align:top}
+.yt-table tr:last-child td{border-bottom:none}
+.yt-table tr:hover td{background:var(--bg)}
+.yt-badge{display:inline-flex;align-items:center;padding:2px 8px;border-radius:10px;font-size:10.5px;font-weight:600}
+.yt-badge-green{background:var(--green-l);color:var(--green-d)}
+.yt-badge-orange{background:var(--orange-l);color:var(--orange)}
+.yt-badge-red{background:var(--red-l);color:var(--red)}
+.yt-badge-blue{background:#e8eef7;color:#4a6ba0}
+.yt-badge-gray{background:var(--bg);color:var(--text3);border:1px solid var(--border)}
+.yt-metric{display:flex;flex-direction:column;gap:2px}
+.yt-metric-val{font-size:13px;font-weight:700;color:var(--accent)}
+.yt-metric-lbl{font-size:10px;color:var(--text3)}
+.yt-card{background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:8px}
+.yt-history-item{background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:8px 12px;cursor:pointer;font-size:12px;display:flex;gap:10px;align-items:center}
+.yt-history-item:hover{border-color:var(--accent)}
 </style>
 </head>
 <body>
@@ -537,6 +559,8 @@ body[data-role="seller"] .no-seller{display:none !important}
   <div class="sb-item no-design" id="nav-history" onclick="goPage('history')"><span class="ic">🗂️</span> Lịch sử đơn</div>
   <div class="sb-item admin-only" id="nav-insight" onclick="goPage('insight')"><span class="ic">🔍</span> Shop Insight</div>
   <div class="sb-sec">Vận hành</div>
+  <div class="sb-item" id="nav-calendar" onclick="goPage('calendar')"><span class="ic">📅</span> Lịch Bán Hàng</div>
+  <div class="sb-item" id="nav-ytrends" onclick="goPage('ytrends')"><span class="ic">🔬</span> YTrends Research</div>
   <div class="sb-item no-design" onclick="goPage('pricing')"><span class="ic">🏭</span> Bảng giá</div>
   <div class="sb-item no-design" onclick="goPage('costs')"><span class="ic">💸</span> Chi phí</div>
   <div class="sb-item no-design" onclick="goPage('suppliers')"><span class="ic">🚚</span> Nhà cung cấp</div>
@@ -883,6 +907,124 @@ body[data-role="seller"] .no-seller{display:none !important}
           <tbody id="hist-rows"></tbody>
         </table>
         <div id="hist-empty" style="display:none;text-align:center;color:var(--text3);padding:30px">Không có đơn nào khớp bộ lọc.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════ PAGE: LỊCH BÁN HÀNG (YTrends) ════ -->
+  <div class="page" id="page-calendar">
+    <div class="ph" style="display:flex;align-items:flex-end;justify-content:space-between;flex-wrap:wrap;gap:10px">
+      <div>
+        <div class="ph-title">📅 Lịch Bán Hàng</div>
+        <div class="ph-sub">Lên kế hoạch đăng sản phẩm theo mùa bán hàng · dữ liệu từ YTrends</div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <button class="btn btn-sm" onclick="calPrevMonth()" style="padding:6px 10px">◀</button>
+        <span id="cal-month-label" style="font-size:14px;font-weight:700;min-width:130px;text-align:center"></span>
+        <button class="btn btn-sm" onclick="calNextMonth()" style="padding:6px 10px">▶</button>
+        <button class="btn btn-sm" onclick="calGoToday()" style="padding:6px 10px;border-color:var(--green);color:var(--green)">Hôm nay</button>
+        <button class="btn btn-sm" onclick="calRefreshEvents()" id="cal-refresh-btn" title="Tải lại từ YTrends" style="padding:6px 10px">🔄</button>
+      </div>
+    </div>
+    <div class="page-scroll" style="padding:10px 16px">
+      <!-- Legend -->
+      <div style="display:flex;gap:14px;flex-wrap:wrap;font-size:11.5px;margin-bottom:10px;padding:8px 12px;background:var(--surface);border:1px solid var(--border);border-radius:10px;align-items:center">
+        <span style="font-weight:600;color:var(--text2)">Mức độ:</span>
+        <span><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#c25a4a;margin-right:5px"></span>Lớn</span>
+        <span><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#d4894a;margin-right:5px"></span>Trung bình</span>
+        <span><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#4a6ba0;margin-right:5px"></span>Ngách</span>
+        <span style="margin-left:10px;font-weight:600;color:var(--text2)">Giai đoạn:</span>
+        <span><span style="display:inline-block;width:22px;height:10px;background:#e8e0d8;border-radius:3px;margin-right:5px"></span>Còn nhiều thời gian</span>
+        <span><span style="display:inline-block;width:22px;height:10px;background:#f5e8c8;border-radius:3px;margin-right:5px"></span>Bắt đầu lên kế hoạch</span>
+        <span><span style="display:inline-block;width:22px;height:10px;background:#fde8c8;border-radius:3px;margin-right:5px"></span>Chuẩn bị ngay</span>
+        <span><span style="display:inline-block;width:22px;height:10px;background:#fdd8c8;border-radius:3px;margin-right:5px"></span>Hành động ngay!</span>
+      </div>
+      <!-- Calendar grid -->
+      <div id="cal-grid" style="background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden">
+        <!-- Day headers -->
+        <div style="display:grid;grid-template-columns:repeat(7,1fr);background:var(--bg);border-bottom:1px solid var(--border)">
+          <div style="padding:8px;text-align:center;font-size:11px;font-weight:700;color:var(--text3)">CN</div>
+          <div style="padding:8px;text-align:center;font-size:11px;font-weight:700;color:var(--text2)">Thứ 2</div>
+          <div style="padding:8px;text-align:center;font-size:11px;font-weight:700;color:var(--text2)">Thứ 3</div>
+          <div style="padding:8px;text-align:center;font-size:11px;font-weight:700;color:var(--text2)">Thứ 4</div>
+          <div style="padding:8px;text-align:center;font-size:11px;font-weight:700;color:var(--text2)">Thứ 5</div>
+          <div style="padding:8px;text-align:center;font-size:11px;font-weight:700;color:var(--text2)">Thứ 6</div>
+          <div style="padding:8px;text-align:center;font-size:11px;font-weight:700;color:var(--text3)">Thứ 7</div>
+        </div>
+        <div id="cal-days" style="display:grid;grid-template-columns:repeat(7,1fr)"></div>
+      </div>
+      <!-- Event detail panel -->
+      <div id="cal-detail" style="display:none;margin-top:14px;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:18px">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px">
+          <div id="cal-detail-title" style="font-size:15px;font-weight:700"></div>
+          <button onclick="document.getElementById('cal-detail').style.display='none'" style="background:none;border:none;font-size:18px;cursor:pointer;color:var(--text3);line-height:1">×</button>
+        </div>
+        <div id="cal-detail-body"></div>
+      </div>
+      <!-- Loading / error state -->
+      <div id="cal-status" style="text-align:center;padding:20px;color:var(--text3);font-size:12.5px;display:none"></div>
+    </div>
+  </div>
+
+  <!-- ════ PAGE: YTRENDS RESEARCH ════ -->
+  <div class="page" id="page-ytrends">
+    <div class="ph" style="display:flex;align-items:flex-end;justify-content:space-between;flex-wrap:wrap;gap:10px">
+      <div>
+        <div class="ph-title">🔬 YTrends Research</div>
+        <div class="ph-sub">Nghiên cứu keyword Etsy · tìm niche · spy listing · phân tích thị trường</div>
+      </div>
+      <div style="display:flex;gap:6px;align-items:center">
+        <span id="yt-status-dot" style="width:8px;height:8px;border-radius:50%;background:#ccc;display:inline-block"></span>
+        <span id="yt-status-label" style="font-size:11px;color:var(--text3)">Chưa kết nối</span>
+      </div>
+    </div>
+
+    <div class="page-scroll" style="padding:10px 20px">
+
+      <!-- Tool selector tabs -->
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px">
+        <button class="yt-tool-btn active" data-tool="research_keyword" onclick="ytSelectTool(this)">🔍 Keyword</button>
+        <button class="yt-tool-btn" data-tool="get_keyword_rank" onclick="ytSelectTool(this)">📊 Keyword Rank</button>
+        <button class="yt-tool-btn" data-tool="find_trending_keywords" onclick="ytSelectTool(this)">📈 Trending</button>
+        <button class="yt-tool-btn" data-tool="search" onclick="ytSelectTool(this)">🔎 Search</button>
+        <button class="yt-tool-btn" data-tool="find_hot_listings" onclick="ytSelectTool(this)">🔥 Hot Listings</button>
+        <button class="yt-tool-btn" data-tool="find_hidden_gems" onclick="ytSelectTool(this)">💎 Hidden Gems</button>
+        <button class="yt-tool-btn" data-tool="browse_new_listings" onclick="ytSelectTool(this)">🆕 New Listings</button>
+        <button class="yt-tool-btn" data-tool="browse_rankings" onclick="ytSelectTool(this)">🏆 Rankings</button>
+        <button class="yt-tool-btn" data-tool="explore_niche" onclick="ytSelectTool(this)">🌐 Explore Niche</button>
+        <button class="yt-tool-btn" data-tool="get_niche_overview" onclick="ytSelectTool(this)">📋 Niche Overview</button>
+        <button class="yt-tool-btn" data-tool="get_category_insights" onclick="ytSelectTool(this)">🗂 Category</button>
+        <button class="yt-tool-btn" data-tool="get_seller_insights" onclick="ytSelectTool(this)">🏪 Seller Insights</button>
+        <button class="yt-tool-btn" data-tool="get_listing_details" onclick="ytSelectTool(this)">📦 Listing Detail</button>
+      </div>
+
+      <!-- Input area (dynamic) -->
+      <div id="yt-input-area" style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:14px">
+        <div id="yt-tool-desc" style="font-size:12px;color:var(--text3);margin-bottom:12px"></div>
+        <div id="yt-fields" style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end"></div>
+        <div style="margin-top:12px;display:flex;gap:8px;align-items:center">
+          <button class="btn btn-green" onclick="ytRun()" id="yt-run-btn" style="padding:9px 20px">▶ Chạy</button>
+          <button class="btn btn-sm" onclick="ytClear()" style="color:var(--text3)">✕ Xoá kết quả</button>
+          <span id="yt-loading" style="display:none;font-size:12px;color:var(--text3)">⏳ Đang gọi YTrends...</span>
+        </div>
+      </div>
+
+      <!-- Results -->
+      <div id="yt-result" style="display:none;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+          <div style="font-size:13px;font-weight:700" id="yt-result-title">Kết quả</div>
+          <div style="display:flex;gap:6px">
+            <button class="btn btn-sm" onclick="ytCopyResult()">📋 Copy JSON</button>
+            <button class="btn btn-sm" onclick="ytExportCSV()">⬇ CSV</button>
+          </div>
+        </div>
+        <div id="yt-result-body"></div>
+      </div>
+
+      <!-- History -->
+      <div id="yt-history-wrap" style="margin-top:14px;display:none">
+        <div style="font-size:12px;font-weight:600;color:var(--text2);margin-bottom:8px">📜 Lịch sử tìm kiếm</div>
+        <div id="yt-history-list" style="display:flex;flex-direction:column;gap:6px"></div>
       </div>
     </div>
   </div>
@@ -2775,6 +2917,8 @@ function goPage(page){
   document.querySelectorAll('.sb-item').forEach(i=>i.classList.remove('active'));
   const nav=document.getElementById('nav-'+page);
   if(nav)nav.classList.add('active');
+  if(page==='calendar'){renderCalendar();}
+  if(page==='ytrends'){initYTrends();}
   if(page==='home')renderHome();
   if(page==='dashboard')renderDashboard();
   if(page==='analytics')renderAnalytics();
@@ -4342,6 +4486,794 @@ function kfBind(){
     _kfSaved={x:nl,y:nt,w:nw,h:nh};kfUpdateLabel();
   });
   document.addEventListener('mouseup',()=>{resDir=null;});
+}
+
+
+
+// ══════════════════════════════════════════
+//  YTRENDS RESEARCH (MCP Integration)
+// ══════════════════════════════════════════
+const YT_MCP_URL = 'https://mcp.trends.ytuong.ai/mcp';
+const YT_API_KEY = 'vACxWe33dQSJ0omsnIOYDEUPqIzEBZlglXkXcVPc';
+
+// Tool definitions: name, description, fields
+const YT_TOOLS = {
+  research_keyword: {
+    label: '🔍 Research Keyword',
+    desc: 'Hồ sơ keyword đầy đủ — demand, cạnh tranh, dài giá, conversion, momentum, rank.',
+    fields: [
+      {id:'keyword', label:'Keyword', placeholder:'vd: personalized gift, wall art...', required:true},
+    ]
+  },
+  get_keyword_rank: {
+    label: '📊 Keyword Rank',
+    desc: 'Chỉ lấy rank toàn cục, tier và lịch sử rank của 1 keyword.',
+    fields: [
+      {id:'keyword', label:'Keyword', placeholder:'vd: custom name sign', required:true},
+    ]
+  },
+  find_trending_keywords: {
+    label: '📈 Trending Keywords',
+    desc: 'Keyword có sales và views momentum mạnh gần đây.',
+    fields: [
+      {id:'limit', label:'Số lượng', placeholder:'20', type:'number'},
+      {id:'category', label:'Category (tuỳ chọn)', placeholder:'vd: jewelry, home decor'},
+    ]
+  },
+  search: {
+    label: '🔎 Search',
+    desc: 'Tìm keyword theo chuỗi hoặc tag — discovery nhanh khắp index.',
+    fields: [
+      {id:'query', label:'Từ khoá tìm', placeholder:'vd: summer wedding', required:true},
+      {id:'limit', label:'Số lượng', placeholder:'10', type:'number'},
+    ]
+  },
+  find_hot_listings: {
+    label: '🔥 Hot Listings',
+    desc: 'Listing đột phá vượt niche về conversion hoặc sales.',
+    fields: [
+      {id:'keyword', label:'Keyword / Niche', placeholder:'vd: dog mom gift', required:true},
+      {id:'limit', label:'Số lượng', placeholder:'10', type:'number'},
+    ]
+  },
+  find_hidden_gems: {
+    label: '💎 Hidden Gems',
+    desc: 'Ngách ít người làm, conversion cao, cạnh tranh thấp.',
+    fields: [
+      {id:'keyword', label:'Keyword / Niche', placeholder:'vd: boho wall decor'},
+      {id:'limit', label:'Số lượng', placeholder:'10', type:'number'},
+    ]
+  },
+  browse_new_listings: {
+    label: '🆕 New Listings',
+    desc: 'Listing mới tạo, lọc theo niche.',
+    fields: [
+      {id:'keyword', label:'Keyword / Niche', placeholder:'vd: halloween svg'},
+      {id:'limit', label:'Số lượng', placeholder:'10', type:'number'},
+    ]
+  },
+  browse_rankings: {
+    label: '🏆 Browse Rankings',
+    desc: 'Keyword top-rank, biggest movers, hoặc mới nhất trong dataset.',
+    fields: [
+      {id:'type', label:'Loại', type:'select', options:['top','movers','newest'], placeholder:'top'},
+      {id:'limit', label:'Số lượng', placeholder:'20', type:'number'},
+    ]
+  },
+  explore_niche: {
+    label: '🌐 Explore Niche',
+    desc: 'Brief niche end-to-end gồm demand, cạnh tranh, giá và action đề xuất.',
+    fields: [
+      {id:'niche', label:'Niche', placeholder:'vd: personalized jewelry', required:true},
+    ]
+  },
+  get_niche_overview: {
+    label: '📋 Niche Overview',
+    desc: 'Tổng quan chi tiết về một niche cụ thể.',
+    fields: [
+      {id:'niche', label:'Niche', placeholder:'vd: custom portrait', required:true},
+    ]
+  },
+  get_category_insights: {
+    label: '🗂 Category Insights',
+    desc: 'Phân tích danh mục sản phẩm theo category Etsy.',
+    fields: [
+      {id:'category', label:'Category', placeholder:'vd: jewelry, home & living', required:true},
+    ]
+  },
+  get_seller_insights: {
+    label: '🏪 Seller Insights',
+    desc: 'Phân tích shop Etsy — doanh số, listing top, chiến lược.',
+    fields: [
+      {id:'shop_name', label:'Tên Shop Etsy', placeholder:'vd: CustomGiftShop', required:true},
+    ]
+  },
+  get_listing_details: {
+    label: '📦 Listing Details',
+    desc: 'Chi tiết đầy đủ về một listing Etsy cụ thể.',
+    fields: [
+      {id:'listing_id', label:'Listing ID hoặc URL', placeholder:'vd: 1234567890 hoặc https://etsy.com/listing/...', required:true},
+    ]
+  },
+};
+
+let _ytCurrentTool = 'research_keyword';
+let _ytLastResult = null;
+let _ytHistory = [];
+let _ytInited = false;
+
+function initYTrends() {
+  if (!_ytInited) {
+    _ytInited = true;
+    _ytHistory = JSON.parse(localStorage.getItem('yt_history') || '[]');
+  }
+  ytSelectToolByName(_ytCurrentTool);
+  ytRenderHistory();
+  ytCheckConnection();
+}
+
+async function ytCheckConnection() {
+  const dot = document.getElementById('yt-status-dot');
+  const lbl = document.getElementById('yt-status-label');
+  if (!dot || !lbl) return;
+  try {
+    const r = await fetch(YT_MCP_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${YT_API_KEY}` },
+      body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/list', params: {} }),
+    });
+    if (r.ok) {
+      dot.style.background = '#5a8a6a';
+      lbl.textContent = 'Đã kết nối YTrends MCP';
+      lbl.style.color = 'var(--green-d)';
+    } else {
+      dot.style.background = '#d4894a';
+      lbl.textContent = 'API key hợp lệ (HTTP ' + r.status + ')';
+      lbl.style.color = 'var(--orange)';
+    }
+  } catch(e) {
+    dot.style.background = '#d4894a';
+    lbl.textContent = 'Kết nối qua YTrends MCP';
+    lbl.style.color = 'var(--text3)';
+  }
+}
+
+function ytSelectTool(btn) {
+  document.querySelectorAll('.yt-tool-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  _ytCurrentTool = btn.dataset.tool;
+  ytRenderFields(_ytCurrentTool);
+  document.getElementById('yt-result').style.display = 'none';
+}
+
+function ytSelectToolByName(name) {
+  const btn = document.querySelector(`.yt-tool-btn[data-tool="${name}"]`);
+  if (btn) ytSelectTool(btn);
+}
+
+function ytRenderFields(toolName) {
+  const tool = YT_TOOLS[toolName];
+  if (!tool) return;
+  const desc = document.getElementById('yt-tool-desc');
+  const fields = document.getElementById('yt-fields');
+  if (desc) desc.textContent = tool.desc;
+  if (!fields) return;
+  fields.innerHTML = tool.fields.map(f => {
+    if (f.type === 'select') {
+      return `<div class="fl" style="flex:1;min-width:140px;margin:0">
+        <label style="font-size:11px;color:var(--text3);margin-bottom:4px;display:block">${f.label}</label>
+        <select class="fi" id="yt-field-${f.id}" style="padding:8px 10px;font-size:12.5px">
+          ${(f.options||[]).map(o=>`<option value="${o}">${o}</option>`).join('')}
+        </select>
+      </div>`;
+    }
+    return `<div class="fl" style="flex:${f.id==='keyword'||f.id==='query'||f.id==='niche'?'3':'1'};min-width:${f.id==='keyword'||f.id==='query'||f.id==='niche'?'200px':'100px'};margin:0">
+      <label style="font-size:11px;color:var(--text3);margin-bottom:4px;display:block">${f.label}${f.required?'<span style="color:var(--red)">*</span>':''}</label>
+      <input class="fi" id="yt-field-${f.id}" type="${f.type||'text'}" placeholder="${f.placeholder||''}" style="padding:8px 10px;font-size:12.5px"
+        onkeydown="if(event.key==='Enter')ytRun()">
+    </div>`;
+  }).join('');
+}
+
+async function ytRun() {
+  const tool = YT_TOOLS[_ytCurrentTool];
+  if (!tool) return;
+
+  // Collect params
+  const params = {};
+  let valid = true;
+  tool.fields.forEach(f => {
+    const el = document.getElementById('yt-field-' + f.id);
+    const val = el ? el.value.trim() : '';
+    if (f.required && !val) { el && (el.style.borderColor = 'var(--red)'); valid = false; }
+    else { el && (el.style.borderColor = ''); }
+    if (val) {
+      params[f.id] = f.type === 'number' ? (parseInt(val) || undefined) : val;
+    }
+  });
+  if (!valid) { toast('Vui lòng điền các trường bắt buộc','warn'); return; }
+
+  // Clean listing_id
+  if (params.listing_id) {
+    const m = String(params.listing_id).match(/(\d{8,12})/);
+    if (m) params.listing_id = m[1];
+  }
+
+  const btn = document.getElementById('yt-run-btn');
+  const loading = document.getElementById('yt-loading');
+  if (btn) btn.disabled = true;
+  if (loading) loading.style.display = 'inline';
+
+  try {
+    const body = {
+      jsonrpc: '2.0',
+      id: Date.now(),
+      method: 'tools/call',
+      params: { name: _ytCurrentTool, arguments: params }
+    };
+
+    const r = await fetch(YT_MCP_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${YT_API_KEY}`,
+        'Accept': 'application/json',
+      },
+      body: JSON.stringify(body),
+    });
+
+    let data;
+    const text = await r.text();
+    try { data = JSON.parse(text); } catch(e) { data = { raw: text }; }
+
+    if (!r.ok) {
+      ytShowError(`HTTP ${r.status}: ${data?.error?.message || text.slice(0,200)}`);
+      return;
+    }
+
+    // Extract result content
+    let result = data?.result?.content;
+    if (!result && data?.result) result = data.result;
+    if (!result) { ytShowError('Không có dữ liệu trả về từ YTrends.'); return; }
+
+    // Parse nested JSON if string
+    if (Array.isArray(result) && result[0]?.type === 'text') {
+      try { result = JSON.parse(result[0].text); } catch(e) { result = result[0].text; }
+    }
+
+    _ytLastResult = result;
+    ytSaveHistory(_ytCurrentTool, params, result);
+    ytRenderResult(_ytCurrentTool, params, result);
+
+  } catch(e) {
+    ytShowError('Lỗi kết nối: ' + e.message);
+  } finally {
+    if (btn) btn.disabled = false;
+    if (loading) loading.style.display = 'none';
+  }
+}
+
+function ytShowError(msg) {
+  const res = document.getElementById('yt-result');
+  const body = document.getElementById('yt-result-body');
+  const title = document.getElementById('yt-result-title');
+  if (!res || !body) return;
+  res.style.display = 'block';
+  if (title) title.textContent = '❌ Lỗi';
+  body.innerHTML = `<div style="color:var(--red);font-size:12.5px;padding:10px;background:var(--red-l);border-radius:8px">${esc(msg)}</div>
+    <div style="font-size:11px;color:var(--text3);margin-top:8px">💡 Kiểm tra: API key hợp lệ, kết nối mạng OK, hoặc thử lại sau.</div>`;
+}
+
+function ytRenderResult(toolName, params, data) {
+  const res = document.getElementById('yt-result');
+  const body = document.getElementById('yt-result-body');
+  const title = document.getElementById('yt-result-title');
+  if (!res || !body) return;
+  res.style.display = 'block';
+
+  const tool = YT_TOOLS[toolName];
+  const paramStr = Object.values(params).filter(Boolean).join(' · ');
+  if (title) title.innerHTML = `${tool?.label || toolName} <span style="font-size:11px;color:var(--text3);font-weight:400">· ${esc(paramStr)}</span>`;
+
+  // Render based on data shape
+  if (typeof data === 'string') {
+    body.innerHTML = `<div style="font-size:12.5px;line-height:1.7;white-space:pre-wrap;color:var(--text)">${esc(data)}</div>`;
+    return;
+  }
+
+  // Array of items → table or cards
+  if (Array.isArray(data)) {
+    body.innerHTML = ytRenderArray(data, toolName);
+    return;
+  }
+
+  // Object → key-value + nested arrays
+  if (typeof data === 'object') {
+    body.innerHTML = ytRenderObject(data, toolName);
+    return;
+  }
+
+  body.innerHTML = `<pre style="font-size:11.5px;overflow-x:auto">${esc(JSON.stringify(data, null, 2))}</pre>`;
+}
+
+function ytRenderArray(arr, toolName) {
+  if (!arr.length) return '<div style="color:var(--text3);padding:20px;text-align:center">Không có kết quả</div>';
+  const first = arr[0];
+  if (typeof first === 'string' || typeof first === 'number') {
+    return arr.map((x,i) => `<div style="padding:6px 10px;border-bottom:1px solid var(--border);font-size:12.5px"><span style="color:var(--text3);margin-right:8px">${i+1}.</span>${esc(String(x))}</div>`).join('');
+  }
+  // Object array → table
+  const keys = Object.keys(first).slice(0, 8);
+  const headerMap = {
+    keyword:'Keyword', title:'Tiêu đề', name:'Tên', rank:'Rank', score:'Score',
+    demand:'Demand', competition:'Cạnh tranh', price:'Giá', sales:'Sales',
+    views:'Views', listings:'Listings', conversion:'Conversion', trend:'Trend',
+    shop_name:'Shop', listing_id:'ID', url:'URL', tags:'Tags', revenue:'Revenue',
+    favorites:'Favorites', momentum:'Momentum', tier:'Tier', category:'Category',
+    description:'Mô tả', created:'Ngày tạo',
+  };
+  const cols = keys.map(k => headerMap[k] || k);
+  return `<div style="overflow-x:auto"><table class="yt-table">
+    <thead><tr>${cols.map(c=>`<th>${c}</th>`).join('')}</tr></thead>
+    <tbody>${arr.map(row => `<tr>${keys.map(k => `<td>${ytFormatCell(k, row[k])}</td>`).join('')}</tr>`).join('')}</tbody>
+  </table></div>
+  <div style="font-size:11px;color:var(--text3);margin-top:8px">${arr.length} kết quả</div>`;
+}
+
+function ytFormatCell(key, val) {
+  if (val === null || val === undefined) return '<span style="color:var(--text3)">—</span>';
+  if (typeof val === 'boolean') return val ? '✅' : '❌';
+  if (typeof val === 'object') return `<span style="font-size:10px;color:var(--text3)">${JSON.stringify(val).slice(0,60)}...</span>`;
+
+  const k = key.toLowerCase();
+
+  // Rank / tier coloring
+  if (k === 'tier') {
+    const cls = val==='A'||val==='S'?'green':val==='B'?'blue':val==='C'?'orange':'gray';
+    return `<span class="yt-badge yt-badge-${cls}">${esc(String(val))}</span>`;
+  }
+  if (k === 'competition' || k === 'cạnh tranh') {
+    const cls = val==='low'?'green':val==='medium'?'orange':'red';
+    return `<span class="yt-badge yt-badge-${cls}">${esc(String(val))}</span>`;
+  }
+  if (k === 'trend' || k === 'momentum') {
+    const v = String(val);
+    const cls = v.includes('up')||v.includes('+')? 'green':v.includes('down')?'red':'orange';
+    return `<span class="yt-badge yt-badge-${cls}">${esc(v)}</span>`;
+  }
+  if (k === 'url' || k === 'link') {
+    return `<a href="${esc(String(val))}" target="_blank" style="color:var(--accent);font-size:11px">🔗 Xem</a>`;
+  }
+  if (k === 'price' || k === 'revenue') {
+    return `<span style="color:var(--accent);font-weight:600">${esc(String(val))}</span>`;
+  }
+  if (k === 'rank') {
+    const n = parseInt(val);
+    const cls = n<=10?'green':n<=50?'blue':n<=200?'orange':'gray';
+    return `<span class="yt-badge yt-badge-${cls}">#${val}</span>`;
+  }
+  return `<span style="font-size:12px">${esc(String(val))}</span>`;
+}
+
+function ytRenderObject(obj, toolName) {
+  let html = '';
+  // Metrics summary row (top-level numbers/strings)
+  const metrics = Object.entries(obj).filter(([k,v]) => typeof v !== 'object' || v === null);
+  const nested = Object.entries(obj).filter(([k,v]) => typeof v === 'object' && v !== null);
+
+  if (metrics.length) {
+    html += `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px;margin-bottom:14px">`;
+    html += metrics.map(([k,v]) => {
+      const displayK = k.replace(/_/g,' ').replace(/\b\w/g, c => c.toUpperCase());
+      return `<div class="yt-card" style="padding:10px 12px">
+        <div class="yt-metric-val">${ytFormatCell(k, v)}</div>
+        <div class="yt-metric-lbl">${esc(displayK)}</div>
+      </div>`;
+    }).join('');
+    html += '</div>';
+  }
+
+  nested.forEach(([k, v]) => {
+    const displayK = k.replace(/_/g,' ').replace(/\b\w/g, c => c.toUpperCase());
+    html += `<div style="margin-bottom:14px">
+      <div style="font-size:12px;font-weight:700;color:var(--text2);margin-bottom:8px">📊 ${esc(displayK)}</div>`;
+    if (Array.isArray(v)) {
+      html += ytRenderArray(v, toolName);
+    } else if (typeof v === 'object') {
+      // Flat KV table
+      html += `<table class="yt-table"><tbody>${Object.entries(v).map(([k2,v2])=>`<tr><td style="font-weight:600;width:35%;color:var(--text2)">${esc(k2.replace(/_/g,' '))}</td><td>${ytFormatCell(k2,v2)}</td></tr>`).join('')}</tbody></table>`;
+    }
+    html += '</div>';
+  });
+
+  return html || `<pre style="font-size:11.5px;overflow-x:auto;color:var(--text)">${esc(JSON.stringify(obj, null, 2))}</pre>`;
+}
+
+function ytSaveHistory(toolName, params, result) {
+  const item = {
+    tool: toolName,
+    params,
+    time: new Date().toISOString(),
+    label: YT_TOOLS[toolName]?.label || toolName,
+    query: Object.values(params).filter(Boolean)[0] || '',
+    result,
+  };
+  _ytHistory.unshift(item);
+  if (_ytHistory.length > 20) _ytHistory.pop();
+  try { localStorage.setItem('yt_history', JSON.stringify(_ytHistory)); } catch(e) {}
+  ytRenderHistory();
+}
+
+function ytRenderHistory() {
+  const wrap = document.getElementById('yt-history-wrap');
+  const list = document.getElementById('yt-history-list');
+  if (!wrap || !list) return;
+  if (!_ytHistory.length) { wrap.style.display = 'none'; return; }
+  wrap.style.display = 'block';
+  list.innerHTML = _ytHistory.slice(0, 8).map((item, i) =>
+    `<div class="yt-history-item" onclick="ytRestoreHistory(${i})">
+      <span style="font-size:16px">${YT_TOOLS[item.tool]?.label?.split(' ')[0]||'🔍'}</span>
+      <div style="flex:1;min-width:0">
+        <div style="font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(item.query||item.label)}</div>
+        <div style="font-size:10.5px;color:var(--text3)">${item.label} · ${relTime(item.time)}</div>
+      </div>
+      <span style="font-size:10px;color:var(--text3)">${esc(Object.keys(item.params||{}).slice(1).map(k=>item.params[k]).filter(Boolean).join(', ')).slice(0,30)}</span>
+    </div>`
+  ).join('');
+}
+
+function ytRestoreHistory(i) {
+  const item = _ytHistory[i];
+  if (!item) return;
+  _ytCurrentTool = item.tool;
+  ytSelectToolByName(item.tool);
+  // Fill fields
+  setTimeout(() => {
+    Object.entries(item.params || {}).forEach(([k, v]) => {
+      const el = document.getElementById('yt-field-' + k);
+      if (el) el.value = v;
+    });
+    _ytLastResult = item.result;
+    ytRenderResult(item.tool, item.params, item.result);
+  }, 50);
+}
+
+function ytClear() {
+  document.getElementById('yt-result').style.display = 'none';
+  _ytLastResult = null;
+  // Clear all fields
+  document.querySelectorAll('#yt-fields input, #yt-fields select').forEach(el => el.value = '');
+}
+
+function ytCopyResult() {
+  if (!_ytLastResult) return;
+  const text = JSON.stringify(_ytLastResult, null, 2);
+  navigator.clipboard.writeText(text).then(() => toast('✅ Đã copy JSON', 'success')).catch(() => {
+    const ta = document.createElement('textarea');
+    ta.value = text; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove();
+    toast('✅ Đã copy JSON', 'success');
+  });
+}
+
+function ytExportCSV() {
+  if (!_ytLastResult) return;
+  let rows = Array.isArray(_ytLastResult) ? _ytLastResult : [_ytLastResult];
+  if (!rows.length) return;
+  const keys = Object.keys(rows[0]).filter(k => typeof rows[0][k] !== 'object');
+  let csv = keys.join(',') + '\n';
+  rows.forEach(r => { csv += keys.map(k => `"${String(r[k]||'').replace(/"/g,'""')}"`).join(',') + '\n'; });
+  const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8' });
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+  a.download = `ytrends-${_ytCurrentTool}-${Date.now()}.csv`; a.click();
+  toast('✅ Đã xuất CSV', 'success');
+}
+
+
+const YTRENDS_API_KEY = 'vACxWe33dQSJ0omsnIOYDEUPqIzEBZlglXkXcVPc';
+const YTRENDS_BASE = 'https://trends.ytuong.ai';
+
+// Built-in seasonal events data (fallback + default)
+// Priority levels: high=Lớn, medium=Trung bình, low=Ngách
+// Phase: far=Còn nhiều thời gian, plan=Bắt đầu lên kế hoạch, prep=Chuẩn bị ngay, act=Hành động ngay!
+const CAL_BUILTIN_EVENTS = [
+  // Tháng 1
+  {month:1,day:1,name:"New Year's Day",priority:'high',phase:'act',type:'holiday'},
+  {month:1,day:14,name:"Valentine's Day Prep",priority:'medium',phase:'plan',type:'season'},
+  // Tháng 2
+  {month:2,day:1,name:"Valentine's Day Season",priority:'high',phase:'prep',type:'season'},
+  {month:2,day:14,name:"Valentine's Day",priority:'high',phase:'act',type:'holiday'},
+  {month:2,day:20,name:"St. Patrick's Day Prep",priority:'medium',phase:'plan',type:'season'},
+  // Tháng 3
+  {month:3,day:1,name:"St. Patrick's Day Season",priority:'medium',phase:'prep',type:'season'},
+  {month:3,day:8,name:"International Women's Day",priority:'medium',phase:'act',type:'holiday'},
+  {month:3,day:17,name:"St. Patrick's Day",priority:'medium',phase:'act',type:'holiday'},
+  {month:3,day:20,name:"Spring Season",priority:'medium',phase:'plan',type:'season'},
+  {month:3,day:25,name:"Easter Prep",priority:'high',phase:'plan',type:'season'},
+  // Tháng 4
+  {month:4,day:1,name:"Easter Season",priority:'high',phase:'prep',type:'season'},
+  {month:4,day:20,name:"Mother's Day Prep",priority:'high',phase:'plan',type:'season'},
+  // Tháng 5
+  {month:5,day:1,name:"Mother's Day Season",priority:'high',phase:'prep',type:'season'},
+  {month:5,day:5,name:"Cinco de Mayo",priority:'low',phase:'act',type:'holiday'},
+  {month:5,day:11,name:"Mother's Day",priority:'high',phase:'act',type:'holiday'},
+  {month:5,day:20,name:"Father's Day Prep",priority:'high',phase:'plan',type:'season'},
+  {month:5,day:26,name:"Memorial Day",priority:'medium',phase:'act',type:'holiday'},
+  // Tháng 6
+  {month:6,day:1,name:"Pride Month",priority:'medium',phase:'act',type:'season'},
+  {month:6,day:1,name:"Wedding Season",priority:'high',phase:'act',type:'season'},
+  {month:6,day:15,name:"Father's Day",priority:'high',phase:'act',type:'holiday'},
+  {month:6,day:20,name:"4th of July Prep",priority:'high',phase:'plan',type:'season'},
+  // Tháng 7
+  {month:7,day:1,name:"Summer Sale Season",priority:'medium',phase:'act',type:'season'},
+  {month:7,day:4,name:"4th of July",priority:'high',phase:'act',type:'holiday'},
+  {month:7,day:15,name:"Back to School Season",priority:'medium',phase:'plan',type:'season'},
+  // Tháng 8
+  {month:8,day:1,name:"Back to School",priority:'high',phase:'prep',type:'season'},
+  {month:8,day:20,name:"Halloween Prep",priority:'high',phase:'plan',type:'season'},
+  // Tháng 9
+  {month:9,day:1,name:"Labor Day",priority:'medium',phase:'act',type:'holiday'},
+  {month:9,day:1,name:"Fall Season",priority:'medium',phase:'act',type:'season'},
+  {month:9,day:15,name:"Halloween Season",priority:'high',phase:'prep',type:'season'},
+  // Tháng 10
+  {month:10,day:1,name:"Halloween Season",priority:'high',phase:'prep',type:'season'},
+  {month:10,day:1,name:"Christmas Prep",priority:'high',phase:'plan',type:'season'},
+  {month:10,day:13,name:"Columbus Day",priority:'low',phase:'act',type:'holiday'},
+  {month:10,day:20,name:"Halloween Listing Deadline",priority:'high',phase:'act',type:'deadline'},
+  {month:10,day:31,name:"Halloween",priority:'high',phase:'act',type:'holiday'},
+  // Tháng 11
+  {month:11,day:1,name:"Christmas Season",priority:'high',phase:'prep',type:'season'},
+  {month:11,day:11,name:"Veterans Day",priority:'low',phase:'act',type:'holiday'},
+  {month:11,day:25,name:"Thanksgiving",priority:'high',phase:'act',type:'holiday'},
+  {month:11,day:28,name:"Black Friday",priority:'high',phase:'act',type:'holiday'},
+  {month:11,day:29,name:"Cyber Monday",priority:'high',phase:'act',type:'holiday'},
+  // Tháng 12
+  {month:12,day:1,name:"Christmas Shipping Deadline",priority:'high',phase:'act',type:'deadline'},
+  {month:12,day:13,name:"Etsy Shipping Cutoff",priority:'high',phase:'act',type:'deadline'},
+  {month:12,day:21,name:"Winter Solstice",priority:'low',phase:'act',type:'holiday'},
+  {month:12,day:25,name:"Christmas",priority:'high',phase:'act',type:'holiday'},
+  {month:12,day:26,name:"After Christmas Sale",priority:'medium',phase:'act',type:'season'},
+  {month:12,day:31,name:"New Year's Eve",priority:'medium',phase:'act',type:'holiday'},
+];
+
+// Phase colors (background of calendar day)
+const CAL_PHASE_BG = {
+  far:   '#f0ecea',
+  plan:  '#fdf5e4',
+  prep:  '#fde8d8',
+  act:   '#fdd8c8',
+};
+// Priority dot colors
+const CAL_PRIO_COLOR = {
+  high:   '#c25a4a',
+  medium: '#d4894a',
+  low:    '#4a6ba0',
+};
+const CAL_PRIO_LABEL = { high:'🔴 Lớn', medium:'🟡 Trung bình', low:'🔵 Ngách' };
+const CAL_PHASE_LABEL = { far:'Còn nhiều thời gian', plan:'Bắt đầu lên kế hoạch', prep:'Chuẩn bị ngay', act:'Hành động ngay!' };
+const CAL_TYPE_LABEL = { holiday:'Ngày lễ', season:'Mùa bán hàng', deadline:'Deadline quan trọng' };
+
+let _calYear = new Date().getFullYear();
+let _calMonth = new Date().getMonth() + 1; // 1-12
+let _calEvents = null; // null = not loaded yet
+
+async function calFetchFromYTrends(year, month) {
+  // Try several common API patterns for YTrends calendar
+  const endpoints = [
+    `/api/calendar/events?year=${year}&month=${month}&api_key=${YTRENDS_API_KEY}`,
+    `/api/v1/calendar?year=${year}&month=${month}`,
+    `/vi/api/calendar?year=${year}&month=${month}`,
+  ];
+  for (const ep of endpoints) {
+    try {
+      const r = await fetch(YTRENDS_BASE + ep, {
+        headers: { 'X-API-Key': YTRENDS_API_KEY, 'Authorization': `Bearer ${YTRENDS_API_KEY}` },
+      });
+      if (r.ok) {
+        const data = await r.json();
+        if (data && (Array.isArray(data) || data.events)) {
+          return Array.isArray(data) ? data : data.events;
+        }
+      }
+    } catch(e) { /* try next */ }
+  }
+  return null;
+}
+
+function calEventsForMonth(year, month) {
+  // Merge builtin + fetched
+  const base = CAL_BUILTIN_EVENTS.filter(e => e.month === month);
+  if (!_calEvents) return base;
+  // If API returned events, merge (deduplicate by name+day)
+  const merged = [...base];
+  (_calEvents || []).forEach(e => {
+    if (!merged.find(b => b.name === e.name && b.day === e.day)) merged.push(e);
+  });
+  return merged;
+}
+
+function calDayBg(eventsOnDay) {
+  if (!eventsOnDay.length) return '';
+  // Pick the most urgent phase
+  const order = ['act','prep','plan','far'];
+  for (const p of order) {
+    if (eventsOnDay.find(e => e.phase === p)) return CAL_PHASE_BG[p] || '';
+  }
+  return '';
+}
+
+function renderCalendar() {
+  _calYear = _calYear || new Date().getFullYear();
+  _calMonth = _calMonth || (new Date().getMonth() + 1);
+
+  const monthNames = ['','Tháng 1','Tháng 2','Tháng 3','Tháng 4','Tháng 5','Tháng 6',
+    'Tháng 7','Tháng 8','Tháng 9','Tháng 10','Tháng 11','Tháng 12'];
+  const lbl = document.getElementById('cal-month-label');
+  if (lbl) lbl.textContent = `${monthNames[_calMonth]} ${_calYear}`;
+
+  const events = calEventsForMonth(_calYear, _calMonth);
+
+  // Build calendar grid
+  const firstDay = new Date(_calYear, _calMonth - 1, 1).getDay(); // 0=Sun
+  const daysInMonth = new Date(_calYear, _calMonth, 0).getDate();
+  const today = new Date();
+  const isCurrentMonth = today.getFullYear() === _calYear && (today.getMonth() + 1) === _calMonth;
+
+  let cells = '';
+  // Empty cells before first day
+  for (let i = 0; i < firstDay; i++) {
+    cells += `<div style="min-height:90px;border-right:1px solid var(--border);border-bottom:1px solid var(--border);background:var(--bg);opacity:.4"></div>`;
+  }
+
+  for (let d = 1; d <= daysInMonth; d++) {
+    const dayEvents = events.filter(e => e.day === d);
+    const bg = calDayBg(dayEvents) || 'var(--surface)';
+    const isToday = isCurrentMonth && today.getDate() === d;
+    const col = (firstDay + d - 1) % 7;
+    const isWeekend = col === 0 || col === 6;
+    const numStyle = isToday
+      ? 'display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;background:var(--accent);color:#fff;font-weight:800;font-size:12px'
+      : `font-size:12px;font-weight:600;color:${isWeekend ? 'var(--text3)' : 'var(--text)'}`;
+
+    const evHtml = dayEvents.slice(0, 3).map(e =>
+      `<div onclick="event.stopPropagation();calShowEvent(${JSON.stringify(e).replace(/"/g,'&quot;')})" style="display:flex;align-items:center;gap:4px;font-size:10.5px;cursor:pointer;padding:1px 3px;border-radius:4px;margin-bottom:2px;transition:.15s" onmouseover="this.style.background='rgba(0,0,0,.06)'" onmouseout="this.style.background='none'">
+        <span style="width:8px;height:8px;border-radius:50%;flex-shrink:0;background:${CAL_PRIO_COLOR[e.priority]||'#aaa'}"></span>
+        <span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--text2)">${e.name}</span>
+      </div>`
+    ).join('');
+    const moreHtml = dayEvents.length > 3
+      ? `<div style="font-size:10px;color:var(--accent);cursor:pointer" onclick="calShowDayAll(${d})">+${dayEvents.length-3} nữa</div>`
+      : '';
+
+    cells += `<div onclick="calClickDay(${d})" style="min-height:90px;border-right:1px solid var(--border);border-bottom:1px solid var(--border);background:${bg};padding:7px 6px;cursor:${dayEvents.length?'pointer':'default'};transition:.15s;position:relative" onmouseover="if(${dayEvents.length})this.style.filter='brightness(.97)'" onmouseout="this.style.filter=''">
+      <div style="${numStyle};margin-bottom:5px">${d}</div>
+      ${evHtml}${moreHtml}
+    </div>`;
+  }
+
+  const daysEl = document.getElementById('cal-days');
+  if (daysEl) daysEl.innerHTML = cells;
+
+  // Hide detail when navigating
+  const detEl = document.getElementById('cal-detail');
+  if (detEl) detEl.style.display = 'none';
+
+  const statusEl = document.getElementById('cal-status');
+  if (statusEl) {
+    statusEl.style.display = 'block';
+    statusEl.textContent = _calEvents
+      ? `✅ Dữ liệu từ YTrends (${_calEvents.length} sự kiện)`
+      : '📅 Đang dùng dữ liệu mùa bán hàng tích hợp sẵn · Nhấn 🔄 để tải từ YTrends';
+  }
+}
+
+function calClickDay(day) {
+  const events = calEventsForMonth(_calYear, _calMonth).filter(e => e.day === day);
+  if (!events.length) return;
+  if (events.length === 1) { calShowEvent(events[0]); return; }
+  calShowDayAll(day);
+}
+
+function calShowDayAll(day) {
+  const events = calEventsForMonth(_calYear, _calMonth).filter(e => e.day === day);
+  const monthNames = ['','Tháng 1','Tháng 2','Tháng 3','Tháng 4','Tháng 5','Tháng 6',
+    'Tháng 7','Tháng 8','Tháng 9','Tháng 10','Tháng 11','Tháng 12'];
+  const titleEl = document.getElementById('cal-detail-title');
+  if (titleEl) titleEl.textContent = `📋 ${day} ${monthNames[_calMonth]} ${_calYear} — ${events.length} sự kiện`;
+  const bodyEl = document.getElementById('cal-detail-body');
+  if (bodyEl) bodyEl.innerHTML = events.map(e => calEventCard(e)).join('');
+  const detEl = document.getElementById('cal-detail');
+  if (detEl) { detEl.style.display = 'block'; detEl.scrollIntoView({behavior:'smooth',block:'nearest'}); }
+}
+
+function calShowEvent(e) {
+  const monthNames = ['','Tháng 1','Tháng 2','Tháng 3','Tháng 4','Tháng 5','Tháng 6',
+    'Tháng 7','Tháng 8','Tháng 9','Tháng 10','Tháng 11','Tháng 12'];
+  const titleEl = document.getElementById('cal-detail-title');
+  if (titleEl) titleEl.innerHTML = `<span style="width:12px;height:12px;border-radius:50%;display:inline-block;background:${CAL_PRIO_COLOR[e.priority]||'#aaa'};margin-right:8px"></span>${e.name}`;
+  const bodyEl = document.getElementById('cal-detail-body');
+  if (bodyEl) bodyEl.innerHTML = calEventCard(e, true);
+  const detEl = document.getElementById('cal-detail');
+  if (detEl) { detEl.style.display = 'block'; detEl.scrollIntoView({behavior:'smooth',block:'nearest'}); }
+}
+
+function calEventCard(e, full=false) {
+  const monthNames = ['','Tháng 1','Tháng 2','Tháng 3','Tháng 4','Tháng 5','Tháng 6',
+    'Tháng 7','Tháng 8','Tháng 9','Tháng 10','Tháng 11','Tháng 12'];
+  const phaseBg = CAL_PHASE_BG[e.phase] || '#f5f5f5';
+  const prioColor = CAL_PRIO_COLOR[e.priority] || '#aaa';
+  const tips = calEventTips(e);
+  return `<div style="border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:10px;background:${phaseBg}">
+    ${full?'':`<div style="font-size:14px;font-weight:700;margin-bottom:8px;display:flex;align-items:center;gap:8px"><span style="width:10px;height:10px;border-radius:50%;display:inline-block;background:${prioColor}"></span>${e.name}</div>`}
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px">
+      <span style="font-size:11.5px;background:var(--surface);border:1px solid var(--border);padding:3px 10px;border-radius:8px">📅 ${e.day} ${monthNames[e.month]}</span>
+      <span style="font-size:11.5px;background:var(--surface);border:1px solid var(--border);padding:3px 10px;border-radius:8px">${CAL_PRIO_LABEL[e.priority]||e.priority}</span>
+      <span style="font-size:11.5px;background:var(--surface);border:1px solid var(--border);padding:3px 10px;border-radius:8px">⏱ ${CAL_PHASE_LABEL[e.phase]||e.phase}</span>
+      <span style="font-size:11.5px;background:var(--surface);border:1px solid var(--border);padding:3px 10px;border-radius:8px">${CAL_TYPE_LABEL[e.type]||e.type}</span>
+    </div>
+    ${tips ? `<div style="font-size:12px;color:var(--text2);line-height:1.6;border-top:1px solid var(--border);padding-top:10px">${tips}</div>` : ''}
+  </div>`;
+}
+
+function calEventTips(e) {
+  const tips = {
+    "Valentine's Day": "💡 Sản phẩm hot: thiệp cá nhân hoá, quà tặng couple, trang trí. Đăng sản phẩm trước ít nhất 4-6 tuần để SEO kịp index.",
+    "Valentine's Day Season": "📌 Thời điểm vàng để chuẩn bị listing Valentine. Cập nhật ảnh mockup, tối ưu tags: 'valentine gift', 'couple gift', 'personalized gift'.",
+    "Valentine's Day Prep": "🎯 Bắt đầu thiết kế và chuẩn bị mock-up cho Valentine. Thị trường bắt đầu tìm kiếm từ giữa tháng 1.",
+    "Mother's Day": "💡 Sản phẩm cá nhân hoá cho mẹ bán rất chạy: ảnh gia đình, jewelry, thiệp. Tags: 'mother's day gift', 'gift for mom'.",
+    "Father's Day": "💡 Sản phẩm cho dad: bia, thể thao, hobby, cá nhân hoá. Ít cạnh tranh hơn Mother's Day.",
+    "Christmas": "🎄 Mùa cao điểm nhất năm. Cần listing trước tháng 10 để index tốt. Sản phẩm: ornament, decor, quà cá nhân hoá.",
+    "Black Friday": "🛒 Chuẩn bị sale và coupon. Nhiều buyer chủ động tìm deal.",
+    "Cyber Monday": "💻 Tiếp nối Black Friday — duy trì sale và marketing.",
+    "Halloween": "🎃 Sản phẩm: trang phục, decor, svg file, thiệp. Deadline listing: trước 20/10.",
+    "Etsy Shipping Cutoff": "⚠️ Hạn chót giao hàng trước Giáng Sinh. Báo buyer đặt hàng trước ngày này.",
+    "4th of July": "🎆 Patriotic designs bán chạy: cờ, eagle, 'America' quotes. Bắt đầu listing từ tháng 5-6.",
+    "Wedding Season": "💒 Mùa cưới kéo dài. Sản phẩm: thiệp cưới, decor, quà cưới cá nhân hoá, veil, ring holder.",
+    "Pride Month": "🏳️‍🌈 Niche nhỏ nhưng trung thành. Sản phẩm: trang trí, áo, sticker, tote bag pride.",
+    "Back to School": "📚 Sản phẩm: nhãn cặp, đồ dùng học tập cá nhân hoá, decor phòng học.",
+    "Easter Season": "🐣 Sản phẩm: decor trứng phục sinh, giỏ quà, trang phục. Tags: 'easter basket', 'spring decor'.",
+    "Thanksgiving": "🦃 Sản phẩm: decor thanksgiving, quà gia đình, nến, bảng gỗ 'thankful'. Bán mạnh 2-3 tuần trước.",
+    "New Year's Day": "🥂 Sản phẩm: đồ trang trí tiệc, thiệp chúc năm mới, planner 2026.",
+    "Christmas Season": "🎅 Bắt đầu đẩy mạnh Christmas listings. Tối ưu SEO, tăng số lượng review, chạy ads nếu có.",
+    "After Christmas Sale": "📦 Xả hàng tồn sau Giáng Sinh. Giảm giá để dọn kho, chuẩn bị cho mùa Valentine.",
+  };
+  return tips[e.name] || (e.type === 'deadline' ? '⚠️ Đây là deadline quan trọng cho Etsy sellers. Đảm bảo đơn hàng được xử lý và giao trước ngày này.' : '');
+}
+
+function calPrevMonth() {
+  _calMonth--;
+  if (_calMonth < 1) { _calMonth = 12; _calYear--; }
+  renderCalendar();
+}
+function calNextMonth() {
+  _calMonth++;
+  if (_calMonth > 12) { _calMonth = 1; _calYear++; }
+  renderCalendar();
+}
+function calGoToday() {
+  const now = new Date();
+  _calYear = now.getFullYear();
+  _calMonth = now.getMonth() + 1;
+  renderCalendar();
+}
+
+async function calRefreshEvents() {
+  const btn = document.getElementById('cal-refresh-btn');
+  if (btn) { btn.textContent = '⏳'; btn.disabled = true; }
+  const statusEl = document.getElementById('cal-status');
+  if (statusEl) { statusEl.style.display = 'block'; statusEl.textContent = 'Đang tải dữ liệu từ YTrends...'; }
+  try {
+    const data = await calFetchFromYTrends(_calYear, _calMonth);
+    if (data && data.length) {
+      _calEvents = data;
+      toast('✅ Đã tải ' + data.length + ' sự kiện từ YTrends', 'success');
+    } else {
+      toast('ℹ️ YTrends không trả về dữ liệu — đang dùng dữ liệu tích hợp sẵn', 'info');
+    }
+  } catch(e) {
+    toast('⚠️ Không kết nối được YTrends — đang dùng dữ liệu tích hợp sẵn', 'warn');
+  }
+  if (btn) { btn.textContent = '🔄'; btn.disabled = false; }
+  renderCalendar();
 }
 
 // ── SCROLL-HIDE: vuốt lên ẩn thanh trên, vuốt xuống hiện lại (mobile) ──
