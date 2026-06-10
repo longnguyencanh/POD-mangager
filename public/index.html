@@ -4548,10 +4548,16 @@ const YT_TOOLS = {
   },
   ytrends_browse_new_listings: {
     label: '🆕 New Listings',
-    desc: 'Listing mới tạo trong 30 ngày, lọc theo niche.',
+    desc: 'Listing mới tạo, lọc nâng cao: fav rate, conversion, tuổi listing.',
     fields: [
       {id:'keyword', label:'Keyword / Niche', placeholder:'vd: halloween svg'},
-      {id:'limit', label:'Số lượng', placeholder:'25', type:'number'},
+      {id:'listing_age_days_max', label:'Mới trong X ngày', placeholder:'30', type:'number'},
+      {id:'min_fav_rate_pct', label:'Fav Rate tối thiểu (%)', placeholder:'vd: 3', type:'number'},
+      {id:'min_conversion_pct', label:'Conversion tối thiểu (%)', placeholder:'vd: 2', type:'number'},
+      {id:'price_usd_min', label:'Giá tối thiểu ($)', placeholder:'vd: 5', type:'number'},
+      {id:'price_usd_max', label:'Giá tối đa ($)', placeholder:'vd: 50', type:'number'},
+      {id:'sort', label:'Sắp xếp', type:'select', options:['peer_ratio','newest','sales','conversion'], placeholder:'peer_ratio'},
+      {id:'limit', label:'Số lượng lấy về', placeholder:'50', type:'number'},
     ]
   },
   ytrends_browse_rankings: {
@@ -4684,8 +4690,9 @@ async function ytRun() {
   const tool = YT_TOOLS[_ytCurrentTool];
   if (!tool) return;
 
-  // Collect params
+  // Collect params — tách client-side filters ra riêng
   const params = {};
+  const clientFilters = {};
   let valid = true;
   tool.fields.forEach(f => {
     const el = document.getElementById('yt-field-' + f.id);
@@ -4693,10 +4700,18 @@ async function ytRun() {
     if (f.required && !val) { el && (el.style.borderColor = 'var(--red)'); valid = false; }
     else { el && (el.style.borderColor = ''); }
     if (val) {
-      params[f.id] = f.type === 'number' ? (parseInt(val) || undefined) : val;
+      // Client-side filter fields — không gửi lên API
+      if (f.id === 'min_fav_rate_pct' || f.id === 'min_conversion_pct') {
+        clientFilters[f.id] = parseFloat(val);
+      } else {
+        params[f.id] = f.type === 'number' ? (parseFloat(val) || undefined) : val;
+      }
     }
   });
   if (!valid) { toast('Vui lòng điền các trường bắt buộc','warn'); return; }
+
+  // Nếu có client filter → lấy nhiều hơn để có đủ sau lọc
+  if (Object.keys(clientFilters).length && !params.limit) params.limit = 50;
 
   // Clean listing_id
   if (params.listing_id) {
@@ -4710,7 +4725,6 @@ async function ytRun() {
   if (loading) loading.style.display = 'inline';
 
   try {
-    // Gọi qua Cloudflare Worker proxy (tránh CORS, có cache Redis)
     const r = await fetch(YT_PROXY_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -4724,8 +4738,13 @@ async function ytRun() {
       return;
     }
 
-    const result = data?.result;
+    let result = data?.result;
     if (!result) { ytShowError('Không có dữ liệu trả về từ YTrends.'); return; }
+
+    // ── Client-side filter ──
+    if (Object.keys(clientFilters).length) {
+      result = ytApplyClientFilters(result, clientFilters);
+    }
 
     _ytLastResult = result;
     ytSaveHistory(_ytCurrentTool, params, result);
@@ -4737,6 +4756,49 @@ async function ytRun() {
     if (btn) btn.disabled = false;
     if (loading) loading.style.display = 'none';
   }
+}
+
+function ytApplyClientFilters(result, filters) {
+  // Tìm array listings trong result
+  let listings = null;
+  let listingsPath = null;
+
+  if (result?.data?.listings) { listings = result.data.listings; listingsPath = 'listings'; }
+  else if (result?.data?.tags) { listings = result.data.tags; listingsPath = 'tags'; }
+  else if (result?.data?.results) { listings = result.data.results; listingsPath = 'results'; }
+
+  if (!listings || !Array.isArray(listings)) return result;
+
+  const before = listings.length;
+  let filtered = listings;
+
+  if (filters.min_fav_rate_pct !== undefined) {
+    const minRate = filters.min_fav_rate_pct / 100;
+    filtered = filtered.filter(item => {
+      const rate = item.fav_rate ?? item.avg_fav_rate ?? 0;
+      return rate >= minRate;
+    });
+  }
+
+  if (filters.min_conversion_pct !== undefined) {
+    const minConv = filters.min_conversion_pct / 100;
+    filtered = filtered.filter(item => {
+      const conv = item.conversion_rate ?? item.avg_conversion_rate ?? 0;
+      return conv >= minConv;
+    });
+  }
+
+  // Gắn lại vào result
+  const newResult = JSON.parse(JSON.stringify(result));
+  newResult.data[listingsPath] = filtered;
+  if (newResult.data.total !== undefined) newResult.data.total = filtered.length;
+
+  // Thêm note vào insights
+  const note = `🔍 Đã lọc client-side: ${filtered.length}/${before} listing${filters.min_fav_rate_pct !== undefined ? ` · fav_rate ≥ ${filters.min_fav_rate_pct}%` : ''}${filters.min_conversion_pct !== undefined ? ` · conversion ≥ ${filters.min_conversion_pct}%` : ''}`;
+  if (!newResult.insights) newResult.insights = [];
+  newResult.insights.unshift(note);
+
+  return newResult;
 }
 
 function ytShowError(msg) {
