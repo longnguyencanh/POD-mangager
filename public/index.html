@@ -4617,10 +4617,27 @@ async function ytCheckConnection() {
   const dot = document.getElementById('yt-status-dot');
   const lbl = document.getElementById('yt-status-label');
   if (!dot || !lbl) return;
-  // Dùng Anthropic API làm proxy để tránh CORS — không cần ping trực tiếp
-  dot.style.background = '#5a8a6a';
-  lbl.textContent = 'Kết nối qua Anthropic API + YTrends MCP';
-  lbl.style.color = 'var(--green-d)';
+  try {
+    const r = await fetch(YT_PROXY_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ tool: '__ping__' })
+    });
+    const d = await r.json();
+    if (r.ok && d.ok !== false) {
+      dot.style.background = '#5a8a6a';
+      lbl.textContent = 'Đã kết nối YTrends MCP';
+      lbl.style.color = 'var(--green-d)';
+    } else {
+      dot.style.background = '#d4894a';
+      lbl.textContent = 'Proxy OK · YTrends lỗi ' + (d.status || '');
+      lbl.style.color = 'var(--orange)';
+    }
+  } catch(e) {
+    dot.style.background = '#c25a4a';
+    lbl.textContent = 'Không kết nối được proxy';
+    lbl.style.color = 'var(--red)';
+  }
 }
 
 function ytSelectTool(btn) {
