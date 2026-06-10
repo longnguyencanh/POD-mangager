@@ -4855,12 +4855,15 @@ function ytRenderYTrendsResponse(res, toolName) {
     html += `<div style="margin-bottom:16px"><div style="font-size:12px;font-weight:700;color:var(--text2);margin-bottom:8px">📊 Scores</div>`;
     html += `<div style="display:flex;gap:10px;flex-wrap:wrap">`;
     for (const [k,v] of Object.entries(res.scores)) {
-      const num = typeof v === 'object' ? v?.value : v;
+      const num = typeof v === 'object' && v !== null ? (v.value ?? null) : v;
+      const isFallback = typeof v === 'object' && v !== null && v.source === 'fallback';
       const label = k.replace(/_/g,' ').replace(/\w/g,c=>c.toUpperCase());
-      const color = num >= 70 ? 'var(--green-d)' : num >= 40 ? 'var(--orange)' : 'var(--text2)';
+      const color = num >= 70 ? '#4a8a5a' : num >= 40 ? '#d4894a' : '#888';
+      const displayNum = num !== undefined && num !== null ? Math.round(num*10)/10 : '—';
       html += `<div class="yt-card" style="padding:10px 16px;text-align:center;min-width:90px">
-        <div style="font-size:20px;font-weight:700;color:${color}">${num !== undefined && num !== null ? Math.round(num*10)/10 : '—'}</div>
+        <div style="font-size:22px;font-weight:700;color:${color}">${displayNum}</div>
         <div style="font-size:10.5px;color:var(--text3);margin-top:2px">${esc(label)}</div>
+        ${isFallback ? '<div style="font-size:9px;color:var(--text3);margin-top:1px">~estimate</div>' : ''}
       </div>`;
     }
     html += '</div></div>';
@@ -4909,34 +4912,94 @@ function ytRenderYTrendsResponse(res, toolName) {
 
 function ytRenderDataSection(data, toolName) {
   let html = '';
-  for (const [k, v] of Object.entries(data)) {
-    const label = k.replace(/_/g,' ').replace(/\w/g,c=>c.toUpperCase());
-    if (v === null || v === undefined) continue;
 
-    if (Array.isArray(v)) {
-      if (!v.length) continue;
-      html += `<div style="margin-bottom:12px"><div style="font-size:11.5px;font-weight:600;color:var(--text2);margin-bottom:6px">${esc(label)}</div>`;
-      html += ytRenderArray(v, toolName);
+  // 1. Listings/tags → card grid
+  const listingKeys = ['top_listings','listings','tags','results','entries'];
+  for (const lk of listingKeys) {
+    if (Array.isArray(data[lk]) && data[lk].length) {
+      html += `<div style="margin-bottom:16px">
+        <div style="font-size:12px;font-weight:700;color:var(--text2);margin-bottom:8px">🛍️ ${esc(lk.replace(/_/g,' '))}</div>`;
+      html += ytRenderArray(data[lk], toolName);
       html += '</div>';
-    } else if (typeof v === 'object') {
-      html += `<div style="margin-bottom:12px"><div style="font-size:11.5px;font-weight:600;color:var(--text2);margin-bottom:6px">${esc(label)}</div>`;
-      html += `<table class="yt-table"><tbody>`;
-      for (const [k2,v2] of Object.entries(v)) {
-        const disp = k2.replace(/_/g,' ');
-        let cell;
-        if (typeof v2 === 'object' && v2 !== null) cell = `<span style="font-size:11px;color:var(--text3)">${esc(JSON.stringify(v2))}</span>`;
-        else cell = ytFormatCell(k2, v2);
-        html += `<tr><td style="font-weight:600;width:40%;color:var(--text2);font-size:12px">${esc(disp)}</td><td>${cell}</td></tr>`;
-      }
-      html += `</tbody></table></div>`;
-    } else {
-      // primitive — show inline
-      html += `<div style="display:inline-block;margin:0 8px 8px 0">
-        <span style="font-size:11px;color:var(--text3)">${esc(label)}: </span>
-        <b style="font-size:12.5px">${ytFormatCell(k,v)}</b>
-      </div>`;
     }
   }
+
+  // 2. Stats → metric cards
+  if (data.stats && typeof data.stats === 'object') {
+    const s = data.stats;
+    const fields = [
+      ['opportunity_score','🎯 Opportunity','score'],
+      ['avg_conversion_rate','🎯 Conversion','pct'],
+      ['avg_fav_rate','❤️ Fav Rate','pct'],
+      ['avg_price','💰 Avg Price','usd'],
+      ['avg_revenue','💵 Revenue/listing','usd'],
+      ['total_listings','📦 Listings','num'],
+      ['total_sellers','🏪 Sellers','num'],
+      ['avg_total_sold','📈 Avg Sold','num'],
+      ['competition_level','⚔️ Competition','badge'],
+      ['recommended_price_range','💲 Price Range','str'],
+    ];
+    html += `<div style="margin-bottom:16px">
+      <div style="font-size:12px;font-weight:700;color:var(--text2);margin-bottom:8px">📊 Stats</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px">`;
+    for (const [field, label, fmt] of fields) {
+      const val = s[field];
+      if (val === null || val === undefined || val === '') continue;
+      let disp = '';
+      if (fmt==='pct') disp=`<b style="font-size:18px;color:var(--accent)">${(val*100).toFixed(1)}%</b>`;
+      else if (fmt==='usd') disp=`<b style="font-size:18px;color:var(--accent)">$${typeof val==='number'?val.toFixed(0):val}</b>`;
+      else if (fmt==='score'){const c=val>=70?'#4a8a5a':val>=40?'#d4894a':'#888';disp=`<b style="font-size:18px;color:${c}">${Math.round(val)}</b>`;}
+      else if (fmt==='badge'){const c=val==='low'?'#4a8a5a':val==='medium'?'#d4894a':'#c25a4a';disp=`<span style="background:${c};color:#fff;padding:2px 8px;border-radius:8px;font-size:12px;font-weight:600">${val}</span>`;}
+      else if (fmt==='num') disp=`<b style="font-size:18px;color:var(--text)">${typeof val==='number'?Math.round(val*10)/10:val}</b>`;
+      else disp=`<b style="font-size:12px">${esc(String(val))}</b>`;
+      html += `<div class="yt-card" style="padding:10px 12px;text-align:center">
+        <div style="margin-bottom:2px">${disp}</div>
+        <div style="font-size:10px;color:var(--text3)">${label}</div>
+      </div>`;
+    }
+    html += '</div></div>';
+  }
+
+  // 3. Related keywords → chips có thể click
+  if (Array.isArray(data.related_keywords) && data.related_keywords.length) {
+    html += `<div style="margin-bottom:16px">
+      <div style="font-size:12px;font-weight:700;color:var(--text2);margin-bottom:8px">🔗 Related Keywords</div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px">`;
+    data.related_keywords.slice(0,30).forEach(kw => {
+      const word = typeof kw==='string'?kw:(kw.keyword||kw.tag||'');
+      if (!word) return;
+      html += `<span style="padding:4px 10px;background:var(--bg2);border-radius:12px;font-size:12px;cursor:pointer;border:1px solid var(--border)"
+        onclick="ytSelectToolByName('ytrends_research_keyword',{keyword:'${esc(word)}'})">
+        ${esc(word)}</span>`;
+    });
+    html += '</div></div>';
+  }
+
+  // 4. Các key object khác (bỏ qua timeline rỗng)
+  const skipKeys = new Set(['top_listings','listings','tags','results','entries','stats','related_keywords','timeline','total']);
+  for (const [k, v] of Object.entries(data)) {
+    if (skipKeys.has(k) || v===null || v===undefined) continue;
+    const label = k.replace(/_/g,' ');
+    if (Array.isArray(v)) {
+      if (!v.length) continue;
+      html += `<div style="margin-bottom:12px">
+        <div style="font-size:11.5px;font-weight:600;color:var(--text2);margin-bottom:6px">${esc(label)}</div>`;
+      html += ytRenderArray(v, toolName);
+      html += '</div>';
+    } else if (typeof v==='object') {
+      html += `<div style="margin-bottom:12px">
+        <div style="font-size:11.5px;font-weight:600;color:var(--text2);margin-bottom:6px">${esc(label)}</div>
+        <table class="yt-table"><tbody>`;
+      for (const [k2,v2] of Object.entries(v)) {
+        const cell = typeof v2==='object'&&v2!==null
+          ? `<span style="font-size:11px;color:var(--text3)">${esc(JSON.stringify(v2))}</span>`
+          : ytFormatCell(k2, v2);
+        html += `<tr><td style="font-weight:600;width:40%;color:var(--text2);font-size:12px">${esc(k2.replace(/_/g,' '))}</td><td>${cell}</td></tr>`;
+      }
+      html += '</tbody></table></div>';
+    }
+  }
+
   return html || `<pre style="font-size:11px;color:var(--text3)">${esc(JSON.stringify(data,null,2))}</pre>`;
 }
 
