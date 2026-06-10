@@ -535,8 +535,8 @@ body[data-role="seller"] .no-seller{display:none !important}
   <!-- ════ PAGE: ĐƠN HÀNG ════ -->
   <div class="page active" id="page-orders">
     <div class="cfg-bar">
-      <span class="cfg-bar-hint" style="flex:1;font-size:12px;color:var(--text3)">Ấn nút đồng bộ đơn và tải lại.</span>
-      <button class="btn btn-sm admin-only" onclick="exportOrdersSheet()">📊<span class="cfg-bar-label"> Xuất Sheet</span></button>
+      <span class="cfg-bar-hint" style="font-size:12px;color:var(--text3)">Ấn nút đồng bộ đơn và tải lại.</span>
+      <button class="btn btn-sm admin-only" onclick="exportOrdersSheet()" style="margin-left:auto">📊<span class="cfg-bar-label"> Xuất Sheet</span></button>
       <button class="btn btn-sm admin-only" onclick="syncMerchizePrices({onlyZero:true})">🔄<span class="cfg-bar-label"> Doanh thu</span></button>
       <button class="btn btn-sm admin-only" onclick="addOrderByCode()">➕<span class="cfg-bar-label"> Thêm đơn</span></button>
       <button class="btn btn-green btn-sm" onclick="syncOrders()" id="fetch-btn">⟳<span class="cfg-bar-label"> Đồng bộ</span></button>
