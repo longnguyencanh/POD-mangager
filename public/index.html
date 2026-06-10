@@ -21,7 +21,8 @@
 body{font-family:'Be Vietnam Pro',sans-serif;background:var(--bg);color:var(--text);display:flex;height:100vh;overflow:hidden;font-size:13px}
 
 /* ─── SIDEBAR (light) ─── */
-.sb{width:210px;background:var(--sidebar);display:flex;flex-direction:column;flex-shrink:0;overflow-y:auto;border-right:1px solid var(--border)}
+.sb{width:210px;background:var(--sidebar);display:flex;flex-direction:column;flex-shrink:0;overflow:hidden;border-right:1px solid var(--border)}
+.sb-scroll-area{flex:1;overflow-y:auto;overflow-x:hidden}
 .sb-logo{padding:20px 18px 16px}
 .sb-logo-t{font-weight:700;font-size:15px;color:var(--text)}
 .sb-logo-s{color:var(--text3);font-size:10.5px;margin-top:2px}
@@ -31,7 +32,7 @@ body{font-family:'Be Vietnam Pro',sans-serif;background:var(--bg);color:var(--te
 .sb-item.active{background:var(--green);color:#fff;border-radius:0 22px 22px 0;margin-right:14px}
 .sb-item .ic{font-size:14px}
 .sb-badge{margin-left:auto;background:#fff;color:var(--green);font-size:10px;font-weight:700;padding:1px 7px;border-radius:10px}
-.sb-account{margin-top:auto;padding:14px 16px;border-top:1px solid var(--border)}
+.sb-account{margin-top:auto;padding:14px 16px;border-top:1px solid var(--border);position:sticky;bottom:0;background:var(--sidebar);z-index:5;flex-shrink:0}
 .sb-acc-name{font-size:12px;font-weight:600;color:var(--text);margin-bottom:8px}
 .sb-logout{width:100%;background:var(--red-l);border:1px solid #f0c4bd;color:var(--red);border-radius:8px;padding:8px;cursor:pointer;font-family:inherit;font-size:12px;font-weight:600}
 .sb-logout:hover{background:#f8ddd9}
@@ -45,6 +46,11 @@ body{font-family:'Be Vietnam Pro',sans-serif;background:var(--bg);color:var(--te
 .hamb{background:none;border:1px solid var(--border2);border-radius:8px;font-size:18px;width:38px;height:38px;cursor:pointer;color:var(--text);flex-shrink:0}
 .hamb:hover{background:var(--bg)}
 .mobile-title{font-weight:700;font-size:15px}
+.mobile-top-actions{display:none;align-items:center;gap:5px;margin-left:auto}
+@media(max-width:768px){
+  .mobile-top-actions{display:flex}
+  .mobile-top-actions .btn,.mobile-top-actions .btn-sm,.mobile-top-actions .btn-green{padding:6px 8px;font-size:13px;border-radius:8px;min-width:34px;height:34px;display:flex;align-items:center;justify-content:center}
+}
 .sb-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:90}
 .sb-overlay.show{display:block}
 /* thu gọn sidebar trên desktop */
@@ -58,20 +64,16 @@ body.sb-collapsed .desk-hamb{display:block}
   .mobile-top{display:flex}
 
   /* ── Sidebar trượt từ trái ── */
-  .sb{position:fixed;top:0;left:0;height:100vh;z-index:100;width:240px;transform:translateX(-100%);transition:transform .25s ease;box-shadow:2px 0 16px rgba(0,0,0,.15)}
+  .sb{position:fixed;top:0;left:0;height:100vh;height:100dvh;z-index:100;width:240px;transform:translateX(-100%);transition:transform .25s ease;box-shadow:2px 0 16px rgba(0,0,0,.15);display:flex;flex-direction:column;overflow:hidden}
   .sb.open{transform:translateX(0)}
+  /* Phần menu cuộn được, logout cố định đáy */
+  .sb-scroll-area{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding-bottom:4px}
+  .sb-account{margin-top:0;position:relative;flex-shrink:0;padding:12px 16px;border-top:1px solid var(--border);background:var(--sidebar);padding-bottom:max(12px,env(safe-area-inset-bottom))}
   .desk-collapse{display:none !important}
   .desk-hamb{display:none !important}
 
-  /* ── cfg-bar: ẩn hết text thừa, chỉ giữ icon nút ── */
-  .cfg-bar{padding:6px 10px;flex-wrap:nowrap;gap:5px;min-height:0}
-  .cfg-bar-hint{display:none} /* ẩn dòng chữ hướng dẫn trên mobile */
-  /* thu nhỏ tất cả nút trong cfg-bar thành icon */
-  .cfg-bar .btn,.cfg-bar .btn-sm,.cfg-bar .btn-green{
-    padding:6px 8px;font-size:11px;border-radius:8px;
-  }
-  /* ẩn text, chỉ giữ emoji trong cfg-bar */
-  .cfg-bar-label{display:none}
+  /* ── cfg-bar: ẩn hoàn toàn trên mobile (tools đã chuyển lên mobile-top) ── */
+  .cfg-bar{display:none !important}
 
   /* ── Page header gọn ── */
   .ph{padding:8px 14px 4px !important}
@@ -184,10 +186,8 @@ body.sb-collapsed .desk-hamb{display:block}
     pointer-events:none;
   }
 
-  /* ── Sidebar: logout không bị đẩy ra ngoài màn hình ── */
-  .sb{overflow-y:auto !important;-webkit-overflow-scrolling:touch}
-  .sb-account{margin-top:0;position:sticky;bottom:0;background:var(--sidebar);z-index:2;padding-bottom:max(14px,env(safe-area-inset-bottom))}
-  .sb-logout{padding:7px;font-size:11.5px}
+  /* ── Sidebar: overflow cuộn ── */
+  .sb{overflow-y:hidden !important;-webkit-overflow-scrolling:touch}
 
   /* ── Act-row (nút hành động trong detail): cuộn ngang ── */
   .act-row{flex-wrap:nowrap;overflow-x:auto;padding-bottom:4px;gap:7px}
@@ -291,6 +291,12 @@ body.sb-collapsed .desk-hamb{display:block}
 .urgent-tag{background:var(--red-l);color:var(--red);font-size:10px;font-weight:700;padding:2px 7px;border-radius:9px;border:1px solid #f0c4bd}
 .empty-state{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:60px 20px;color:var(--text3);gap:8px}
 .empty-state .ei{font-size:42px;opacity:.3}
+/* ── Infinite scroll loader ── */
+.inf-loader{display:flex;align-items:center;justify-content:center;padding:16px;gap:10px;color:var(--text3);font-size:12.5px}
+.inf-loader .spin{width:18px;height:18px;border:2px solid var(--border2);border-top-color:var(--green);border-radius:50%;animation:spin .7s linear infinite;flex-shrink:0}
+@keyframes spin{to{transform:rotate(360deg)}}
+.inf-end{text-align:center;padding:14px;color:var(--text3);font-size:11.5px}
+#inf-sentinel{height:1px}
 
 /* ═══ DETAIL OVERLAY (slide from right) ═══ */
 .overlay-bg{position:fixed;inset:0;background:rgba(40,38,34,.35);z-index:200;opacity:0;pointer-events:none;transition:opacity .25s}
@@ -511,6 +517,7 @@ body[data-role="seller"] .no-seller{display:none !important}
 <!-- SIDEBAR -->
 <div class="sb-overlay" id="sb-overlay" onclick="toggleSidebar(false)"></div>
 <aside class="sb" id="sidebar">
+  <div class="sb-scroll-area">
   <div class="sb-logo">
     <div style="display:flex;align-items:center;justify-content:space-between">
       <div>
@@ -539,6 +546,7 @@ body[data-role="seller"] .no-seller{display:none !important}
   <div class="sb-item admin-only" onclick="openUsers()"><span class="ic">👥</span> Quản lý nhân viên</div>
   <div class="sb-item admin-only" onclick="openSettings()"><span class="ic">⚙️</span> Cài đặt</div>
   <div class="sb-item" onclick="openChangePass()"><span class="ic">🔑</span> Đổi mật khẩu</div>
+  </div><!-- end sb-scroll-area -->
   <div id="sb-account" class="sb-account"></div>
 </aside>
 
@@ -551,6 +559,15 @@ body[data-role="seller"] .no-seller{display:none !important}
   <div class="mobile-top">
     <button class="hamb" onclick="toggleSidebar()">☰</button>
     <div class="mobile-title">🏷️ 79ECOM</div>
+    <div class="mobile-top-actions">
+      <button class="btn btn-sm admin-only" onclick="exportOrdersSheet()" title="Xuất Sheet">📊</button>
+      <button class="btn btn-sm admin-only" onclick="syncMerchizePrices({onlyZero:true})" title="Doanh thu">🔄</button>
+      <button class="btn btn-sm admin-only" onclick="addOrderByCode()" title="Thêm đơn">➕</button>
+      <button class="btn btn-green btn-sm" onclick="syncOrders()" id="fetch-btn-mobile" title="Đồng bộ">⟳</button>
+      <div style="position:relative">
+        <button class="btn btn-sm" onclick="toggleNotif()" title="Thông báo">🔔<span id="notif-badge-m" style="display:none;position:absolute;top:-4px;right:-4px;background:var(--red);color:#fff;font-size:9px;font-weight:700;min-width:16px;height:16px;border-radius:8px;padding:0 4px;line-height:16px;text-align:center"></span></button>
+      </div>
+    </div>
   </div>
   </div>
 
@@ -1634,12 +1651,14 @@ function visibleNotifs(){
   return all.filter(n=>{const s=(n.sku||'').toLowerCase();return abbrs.some(a=>s.includes(a.toLowerCase()));});
 }
 function updateNotifBadge(){
-  const badge=document.getElementById('notif-badge');if(!badge)return;
+  const badge=document.getElementById('notif-badge');
+  const badgeM=document.getElementById('notif-badge-m');
   const seen=JSON.parse(localStorage.getItem('pod_notif_seen')||'0');
   const list=visibleNotifs();
   const unread=list.filter(n=>new Date(n.at).getTime()>seen).length;
-  if(unread>0){badge.style.display='';badge.textContent=unread>99?'99+':unread;}
-  else badge.style.display='none';
+  const txt=unread>99?'99+':unread;
+  if(badge){if(unread>0){badge.style.display='';badge.textContent=txt;}else badge.style.display='none';}
+  if(badgeM){if(unread>0){badgeM.style.display='';badgeM.textContent=txt;}else badgeM.style.display='none';}
 }
 function toggleNotif(){
   const p=document.getElementById('notif-panel');if(!p)return;
@@ -3545,6 +3564,7 @@ function setTab(el,tab){document.querySelectorAll('.tab').forEach(t=>t.classList
 function filterOrders(q){searchQ=q.toLowerCase();applyFilter();}
 function applyFilter(){
   curPage=1; // về trang 1 khi đổi bộ lọc
+  _infPage=0; // reset infinite scroll
   const isStaffScoped=auth&&auth.role!=='admin';
   const mine=isStaffScoped?myAbbrs():[];
   filtered=orders.filter(o=>{
@@ -3581,6 +3601,12 @@ const STATUS_LABEL={new:'Đơn mới',pending:'Chờ xử lý',processing:'Đang
 // ── CHỌN HÀNG LOẠT (chỉ admin) ──
 let bulkSel=new Set();
 let pageSize=20, curPage=1;
+// ── INFINITE SCROLL state ──
+let _infPage=0;       // số "trang" đã render (mỗi trang = INF_BATCH item)
+const INF_BATCH=20;   // số đơn mỗi lần tải thêm
+let _infLoading=false;
+let _infObserver=null;
+
 function toggleSel(id){if(bulkSel.has(id))bulkSel.delete(id);else bulkSel.add(id);updateBulkBar();}
 function toggleSelAll(){
   const allSelected=filtered.length&&filtered.every(o=>bulkSel.has(o.id));
@@ -3620,6 +3646,23 @@ async function bulkShop(shop){
   await cloudSaveAll();bulkSel.clear();buildShopFilter();applyFilter();updateCounts();
   toast(`✅ Đã đổi ${cnt} đơn sang "${shop}"`,'success');
 }
+// ── Tạo HTML cho 1 đơn hàng ──
+function orderItemHTML(o){
+  const isAdmin=auth&&auth.role==='admin';
+  const[pc,pl]=PILLS[o.status]||['p-done',o.status];
+  const img=o.items?.[0]?.img?`<img src="${o.items[0].img}" onerror="this.style.display='none';this.parentElement.textContent='🖼️'">`:'🖼️';
+  const pi=[o.pushed?.merchize?'🏭':'',o.pushed?.sellerwix?'🛒':'',o.pushed?.sheet?'📊':''].filter(Boolean).join('');
+  const chk=isAdmin?`<input type="checkbox" class="oi-chk" ${bulkSel.has(o.id)?'checked':''} onclick="event.stopPropagation();toggleSel('${o.id}')">`:'';
+  const trk=o.tracking?`<span class="oi-track" title="Tracking">📦 ${o.tracking}</span>`:'';
+  const pf=profitFor(o);const pfb=pf!=null?`<span class="oi-profit" title="Lời = giá bán − basecost">💰 $${pf.toFixed(2)}</span>`:'';
+  const fullName=o.items?.[0]?.title||'Sản phẩm';
+  const shortName=fullName.length>32?fullName.slice(0,32)+'…':fullName;
+  // Thêm thông tin khách hàng và quốc gia
+  const custInfo=o.customer&&o.customer!=='Unknown'?`<span style="font-size:10.5px;color:var(--text2)">👤 ${esc(o.customer)}</span>`:'';
+  const countryInfo=o.country&&o.country!=='—'?`<span style="font-size:10.5px;color:var(--text3)">🌍 ${esc(o.country)}</span>`:'';
+  return`<div class="oi" onclick="selectOrder('${o.id}')">${chk}<div class="oi-thumb">${img}</div><div class="oi-info"><div class="oi-code-main">${etsyCode(o)}</div><div class="oi-short">${shortName}</div><div class="oi-fullname">${fullName}</div><div class="oi-shop">🏪 ${o.shopTitle||'—'}</div><div class="oi-meta"><span class="pill ${pc}">${pl}</span>${o.urgent?'<span class="urgent-tag">🚩 Gấp</span>':''}${trk}${pfb}${pi?`<span style="font-size:11px">${pi}</span>`:''}<span class="oi-price">${o.total}</span></div><div class="oi-meta" style="margin-top:3px">${custInfo}${countryInfo}<span class="oi-time">📅 ${fmtDateShort(o.created)}</span></div></div></div>`;
+}
+
 function renderList(){
   const el=document.getElementById('order-list');
   // Cảnh báo nếu nhân viên chưa được gán viết tắt SKU nào
@@ -3627,44 +3670,94 @@ function renderList(){
     el.innerHTML='<div class="empty-state"><div class="ei">🔖</div><div>Tài khoản "'+(auth.name||'')+'" chưa được gán viết tắt SKU.<br><span style="font-size:11px;color:var(--text3)">Nhờ Sếp vào Quản lý nhân viên → Viết tắt SKU, thêm dòng có TÊN đúng bằng "'+(auth.name||'')+'".</span></div></div>';
     updateBulkBar();return;
   }
-  if(!filtered.length){el.innerHTML='<div class="empty-state"><div class="ei">📭</div><div>Không có đơn</div></div>';updateBulkBar();renderPager();return;}
-  const isAdmin=auth&&auth.role==='admin';
-  // Phân trang
-  const total=filtered.length;
-  const totalPages=Math.max(1,Math.ceil(total/pageSize));
-  if(curPage>totalPages)curPage=totalPages;
-  const startIdx=(curPage-1)*pageSize;
-  const pageItems=filtered.slice(startIdx,startIdx+pageSize);
-  el.innerHTML=pageItems.map(o=>{
-    const[pc,pl]=PILLS[o.status]||['p-done',o.status];
-    const img=o.items?.[0]?.img?`<img src="${o.items[0].img}" onerror="this.style.display='none';this.parentElement.textContent='🖼️'">`:'🖼️';
-    const pi=[o.pushed?.merchize?'🏭':'',o.pushed?.sellerwix?'🛒':'',o.pushed?.sheet?'📊':''].filter(Boolean).join('');
-    const chk=isAdmin?`<input type="checkbox" class="oi-chk" ${bulkSel.has(o.id)?'checked':''} onclick="event.stopPropagation();toggleSel('${o.id}')">`:'';
-    const trk=o.tracking?`<span class="oi-track" title="Tracking">📦 ${o.tracking}</span>`:'';
-    const pf=profitFor(o);const pfb=pf!=null?`<span class="oi-profit" title="Lời = giá bán − basecost">💰 $${pf.toFixed(2)}</span>`:'';
-    const fullName=o.items?.[0]?.title||'Sản phẩm';
-    const shortName=fullName.length>32?fullName.slice(0,32)+'…':fullName;
-    return`<div class="oi" onclick="selectOrder('${o.id}')">${chk}<div class="oi-thumb">${img}</div><div class="oi-info"><div class="oi-code-main">${etsyCode(o)}</div><div class="oi-short">${shortName}</div><div class="oi-fullname">${fullName}</div><div class="oi-shop">🏪 ${o.shopTitle||'—'}</div><div class="oi-meta"><span class="pill ${pc}">${pl}</span>${o.urgent?'<span class="urgent-tag">🚩 Gấp</span>':''}${trk}${pfb}${pi?`<span style="font-size:11px">${pi}</span>`:''}<span class="oi-price">${o.total}</span><span class="oi-time">📅 ${fmtDateShort(o.created)}</span></div></div></div>`;
-  }).join('');
-  updateBulkBar();renderPager();
+  if(!filtered.length){el.innerHTML='<div class="empty-state"><div class="ei">📭</div><div>Không có đơn</div></div>';updateBulkBar();renderPager();_infReset();return;}
+  // Reset infinite scroll về đầu
+  _infReset();
+  // Render batch đầu tiên
+  const batch=filtered.slice(0,INF_BATCH);
+  el.innerHTML=batch.map(orderItemHTML).join('');
+  _infPage=1;
+  updateBulkBar();
+  renderPager(); // cập nhật pager đếm tổng
+  _infBindObserver();
+}
+
+// Reset trạng thái infinite scroll
+function _infReset(){
+  _infPage=0;_infLoading=false;
+  if(_infObserver){_infObserver.disconnect();_infObserver=null;}
+  // Dọn loader/end/sentinel cũ (nếu có trong order-list)
+  ['inf-loader-el','inf-end-el','inf-sentinel'].forEach(id=>{const e=document.getElementById(id);if(e)e.remove();});
+}
+
+// Bind IntersectionObserver — sentinel TRONG order-list
+function _infBindObserver(){
+  const el=document.getElementById('order-list');
+  if(!el)return;
+  // Tạo/tái dùng sentinel bên trong order-list
+  let sentinel=document.getElementById('inf-sentinel');
+  if(!sentinel){sentinel=document.createElement('div');sentinel.id='inf-sentinel';}
+  sentinel.style.cssText='height:2px;margin:0;padding:0;';
+  el.appendChild(sentinel);
+  _infObserver=new IntersectionObserver(entries=>{
+    if(entries[0].isIntersecting)_infLoadMore();
+  },{root:el,rootMargin:'300px'});
+  _infObserver.observe(sentinel);
+}
+
+// Tải thêm batch tiếp theo
+function _infLoadMore(){
+  if(_infLoading)return;
+  const start=_infPage*INF_BATCH;
+  const el=document.getElementById('order-list');
+  if(!el)return;
+  if(start>=filtered.length){
+    if(_infObserver){_infObserver.disconnect();_infObserver=null;}
+    const old=document.getElementById('inf-loader-el');if(old)old.remove();
+    if(!document.getElementById('inf-end-el')&&filtered.length>INF_BATCH){
+      const end=document.createElement('div');end.id='inf-end-el';end.className='inf-end';
+      end.textContent='✓ Đã hiển thị tất cả '+filtered.length+' đơn';
+      const sentinel=document.getElementById('inf-sentinel');
+      if(sentinel)el.insertBefore(end,sentinel);else el.appendChild(end);
+    }
+    return;
+  }
+  _infLoading=true;
+  // Hiện loader trước sentinel
+  let loader=document.getElementById('inf-loader-el');
+  if(!loader){
+    loader=document.createElement('div');loader.id='inf-loader-el';loader.className='inf-loader';
+    loader.innerHTML='<div class="spin"></div><span>Đang tải thêm...</span>';
+    const sentinel=document.getElementById('inf-sentinel');
+    if(sentinel)el.insertBefore(loader,sentinel);else el.appendChild(loader);
+  }
+  requestAnimationFrame(()=>{
+    const batch=filtered.slice(start,start+INF_BATCH);
+    const frag=document.createDocumentFragment();
+    batch.forEach(o=>{const d=document.createElement('div');d.innerHTML=orderItemHTML(o);frag.appendChild(d.firstChild);});
+    if(loader)loader.remove();
+    const sentinel=document.getElementById('inf-sentinel');
+    if(sentinel)el.insertBefore(frag,sentinel);else el.appendChild(frag);
+    _infPage++;
+    _infLoading=false;
+    if(_infPage*INF_BATCH>=filtered.length){
+      if(_infObserver){_infObserver.disconnect();_infObserver=null;}
+      if(filtered.length>INF_BATCH){
+        const end=document.createElement('div');end.id='inf-end-el';end.className='inf-end';
+        end.textContent='✓ Đã hiển thị tất cả '+filtered.length+' đơn';
+        const sent=document.getElementById('inf-sentinel');
+        if(sent)el.insertBefore(end,sent);else el.appendChild(end);
+      }
+    }
+  });
 }
 function renderPager(){
   const p=document.getElementById('pager');if(!p)return;
   const total=filtered.length;
   if(!total){p.style.display='none';return;}
-  const totalPages=Math.max(1,Math.ceil(total/pageSize));
   p.style.display='flex';
-  const from=(curPage-1)*pageSize+1;const to=Math.min(curPage*pageSize,total);
-  p.innerHTML=`
-    <span style="font-size:12px;color:var(--text3)">Hiện ${from}–${to} / ${total} đơn</span>
-    <select class="fi" style="width:auto;padding:5px 8px" onchange="setPageSize(this.value)">
-      ${[10,20,30,50,100].map(n=>`<option value="${n}" ${pageSize===n?'selected':''}>${n} dòng/trang</option>`).join('')}
-    </select>
-    <div style="display:flex;gap:4px;align-items:center;margin-left:auto">
-      <button class="btn btn-xs" ${curPage<=1?'disabled':''} onclick="gotoPage(${curPage-1})">‹ Trước</button>
-      <span style="font-size:12px">Trang ${curPage}/${totalPages}</span>
-      <button class="btn btn-xs" ${curPage>=totalPages?'disabled':''} onclick="gotoPage(${curPage+1})">Sau ›</button>
-    </div>`;
+  const shown=Math.min(_infPage*INF_BATCH,total);
+  p.innerHTML=`<span style="font-size:12px;color:var(--text3)">📋 Tổng <b>${total}</b> đơn${total>shown?' · đang hiện '+shown+' (cuộn xuống để tải thêm)':' · đã hiển thị hết'}</span>`;
 }
 function setPageSize(n){pageSize=parseInt(n)||20;curPage=1;renderList();}
 function gotoPage(p){curPage=Math.max(1,p);renderList();}
@@ -3975,7 +4068,10 @@ function whStartAutoRefresh(){
   },5*60*1000); // 5 phút
 }
 function setConn(on,l){document.getElementById('conn-dot').classList.toggle('on',on);document.getElementById('conn-label').textContent=l;}
-function setFetch(l){const b=document.getElementById('fetch-btn');b.disabled=l;b.textContent=l?'⏳ Đang đồng bộ...':'⟳ Đồng bộ đơn';}
+function setFetch(l){
+  const b=document.getElementById('fetch-btn');if(b){b.disabled=l;b.textContent=l?'⏳':'⟳';b.title=l?'Đang đồng bộ...':'Đồng bộ đơn';}
+  const bm=document.getElementById('fetch-btn-mobile');if(bm){bm.disabled=l;bm.textContent=l?'⏳':'⟳';bm.title=l?'Đang đồng bộ...':'Đồng bộ đơn';}
+}
 // Mã đơn hiển thị: ưu tiên mã ngắn dễ đọc (external_id / order_number), KHÔNG có dấu #
 function orderCode(o){
   if(!o)return '—';
