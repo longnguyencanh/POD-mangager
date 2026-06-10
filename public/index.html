@@ -983,19 +983,19 @@ body[data-role="seller"] .no-seller{display:none !important}
 
       <!-- Tool selector tabs -->
       <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px">
-        <button class="yt-tool-btn active" data-tool="research_keyword" onclick="ytSelectTool(this)">🔍 Keyword</button>
-        <button class="yt-tool-btn" data-tool="get_keyword_rank" onclick="ytSelectTool(this)">📊 Keyword Rank</button>
-        <button class="yt-tool-btn" data-tool="find_trending_keywords" onclick="ytSelectTool(this)">📈 Trending</button>
-        <button class="yt-tool-btn" data-tool="search" onclick="ytSelectTool(this)">🔎 Search</button>
-        <button class="yt-tool-btn" data-tool="find_hot_listings" onclick="ytSelectTool(this)">🔥 Hot Listings</button>
-        <button class="yt-tool-btn" data-tool="find_hidden_gems" onclick="ytSelectTool(this)">💎 Hidden Gems</button>
-        <button class="yt-tool-btn" data-tool="browse_new_listings" onclick="ytSelectTool(this)">🆕 New Listings</button>
-        <button class="yt-tool-btn" data-tool="browse_rankings" onclick="ytSelectTool(this)">🏆 Rankings</button>
-        <button class="yt-tool-btn" data-tool="explore_niche" onclick="ytSelectTool(this)">🌐 Explore Niche</button>
-        <button class="yt-tool-btn" data-tool="get_niche_overview" onclick="ytSelectTool(this)">📋 Niche Overview</button>
-        <button class="yt-tool-btn" data-tool="get_category_insights" onclick="ytSelectTool(this)">🗂 Category</button>
-        <button class="yt-tool-btn" data-tool="get_seller_insights" onclick="ytSelectTool(this)">🏪 Seller Insights</button>
-        <button class="yt-tool-btn" data-tool="get_listing_details" onclick="ytSelectTool(this)">📦 Listing Detail</button>
+        <button class="yt-tool-btn active" data-tool="ytrends_research_keyword" onclick="ytSelectTool(this)">🔍 Keyword</button>
+        <button class="yt-tool-btn" data-tool="ytrends_get_keyword_rank" onclick="ytSelectTool(this)">📊 Keyword Rank</button>
+        <button class="yt-tool-btn" data-tool="ytrends_find_trending_keywords" onclick="ytSelectTool(this)">📈 Trending</button>
+        <button class="yt-tool-btn" data-tool="ytrends_search" onclick="ytSelectTool(this)">🔎 Search</button>
+        <button class="yt-tool-btn" data-tool="ytrends_find_hot_listings" onclick="ytSelectTool(this)">🔥 Hot Listings</button>
+        <button class="yt-tool-btn" data-tool="ytrends_find_hidden_gems" onclick="ytSelectTool(this)">💎 Hidden Gems</button>
+        <button class="yt-tool-btn" data-tool="ytrends_browse_new_listings" onclick="ytSelectTool(this)">🆕 New Listings</button>
+        <button class="yt-tool-btn" data-tool="ytrends_browse_rankings" onclick="ytSelectTool(this)">🏆 Rankings</button>
+        <button class="yt-tool-btn" data-tool="ytrends_explore_niche" onclick="ytSelectTool(this)">🌐 Explore Niche</button>
+        <button class="yt-tool-btn" data-tool="ytrends_market_snapshot" onclick="ytSelectTool(this)">📋 Niche Overview</button>
+        <button class="yt-tool-btn" data-tool="ytrends_explore_niche" onclick="ytSelectTool(this)">🗂 Category</button>
+        <button class="yt-tool-btn" data-tool="ytrends_analyze_competition" onclick="ytSelectTool(this)">🏪 Seller Insights</button>
+        <button class="yt-tool-btn" data-tool="ytrends_fetch" onclick="ytSelectTool(this)">📦 Listing Detail</button>
       </div>
 
       <!-- Input area (dynamic) -->
@@ -4499,106 +4499,109 @@ const YT_API_KEY = 'vACxWe33dQSJ0omsnIOYDEUPqIzEBZlglXkXcVPc';
 
 // Tool definitions: name, description, fields
 const YT_TOOLS = {
-  research_keyword: {
+  ytrends_research_keyword: {
     label: '🔍 Research Keyword',
     desc: 'Hồ sơ keyword đầy đủ — demand, cạnh tranh, dài giá, conversion, momentum, rank.',
     fields: [
       {id:'keyword', label:'Keyword', placeholder:'vd: personalized gift, wall art...', required:true},
+      {id:'days', label:'Số ngày', placeholder:'30', type:'number'},
     ]
   },
-  get_keyword_rank: {
+  ytrends_get_keyword_rank: {
     label: '📊 Keyword Rank',
-    desc: 'Chỉ lấy rank toàn cục, tier và lịch sử rank của 1 keyword.',
+    desc: 'Rank toàn cục, tier và lịch sử rank của 1 keyword.',
     fields: [
       {id:'keyword', label:'Keyword', placeholder:'vd: custom name sign', required:true},
     ]
   },
-  find_trending_keywords: {
-    label: '📈 Trending Keywords',
-    desc: 'Keyword có sales và views momentum mạnh gần đây.',
+  ytrends_find_trending_keywords: {
+    label: '📈 Trending',
+    desc: 'Keyword có momentum mạnh gần đây.',
     fields: [
-      {id:'limit', label:'Số lượng', placeholder:'20', type:'number'},
-      {id:'category', label:'Category (tuỳ chọn)', placeholder:'vd: jewelry, home decor'},
+      {id:'search', label:'Tìm theo từ (tuỳ chọn)', placeholder:'vd: shirt, mug'},
+      {id:'limit', label:'Số lượng', placeholder:'25', type:'number'},
     ]
   },
-  search: {
+  ytrends_search: {
     label: '🔎 Search',
-    desc: 'Tìm keyword theo chuỗi hoặc tag — discovery nhanh khắp index.',
+    desc: 'Tìm keyword, listing, category trong index YTrends.',
     fields: [
       {id:'query', label:'Từ khoá tìm', placeholder:'vd: summer wedding', required:true},
       {id:'limit', label:'Số lượng', placeholder:'10', type:'number'},
     ]
   },
-  find_hot_listings: {
+  ytrends_find_hot_listings: {
     label: '🔥 Hot Listings',
     desc: 'Listing đột phá vượt niche về conversion hoặc sales.',
     fields: [
-      {id:'keyword', label:'Keyword / Niche', placeholder:'vd: dog mom gift', required:true},
-      {id:'limit', label:'Số lượng', placeholder:'10', type:'number'},
+      {id:'keyword', label:'Keyword / Niche', placeholder:'vd: dog mom gift'},
+      {id:'limit', label:'Số lượng', placeholder:'25', type:'number'},
     ]
   },
-  find_hidden_gems: {
+  ytrends_find_hidden_gems: {
     label: '💎 Hidden Gems',
     desc: 'Ngách ít người làm, conversion cao, cạnh tranh thấp.',
     fields: [
-      {id:'keyword', label:'Keyword / Niche', placeholder:'vd: boho wall decor'},
-      {id:'limit', label:'Số lượng', placeholder:'10', type:'number'},
+      {id:'search', label:'Tìm theo từ (tuỳ chọn)', placeholder:'vd: boho wall decor'},
+      {id:'limit', label:'Số lượng', placeholder:'25', type:'number'},
     ]
   },
-  browse_new_listings: {
+  ytrends_browse_new_listings: {
     label: '🆕 New Listings',
-    desc: 'Listing mới tạo, lọc theo niche.',
+    desc: 'Listing mới tạo trong 30 ngày, lọc theo niche.',
     fields: [
       {id:'keyword', label:'Keyword / Niche', placeholder:'vd: halloween svg'},
-      {id:'limit', label:'Số lượng', placeholder:'10', type:'number'},
+      {id:'limit', label:'Số lượng', placeholder:'25', type:'number'},
     ]
   },
-  browse_rankings: {
-    label: '🏆 Browse Rankings',
-    desc: 'Keyword top-rank, biggest movers, hoặc mới nhất trong dataset.',
+  ytrends_browse_rankings: {
+    label: '🏆 Rankings',
+    desc: 'Keyword top-rank, movers, hoặc mới nhất trong dataset.',
     fields: [
-      {id:'type', label:'Loại', type:'select', options:['top','movers','newest'], placeholder:'top'},
-      {id:'limit', label:'Số lượng', placeholder:'20', type:'number'},
+      {id:'mode', label:'Loại', type:'select', options:['top','movers','new'], placeholder:'top', required:true},
+      {id:'limit', label:'Số lượng', placeholder:'25', type:'number'},
     ]
   },
-  explore_niche: {
+  ytrends_explore_niche: {
     label: '🌐 Explore Niche',
-    desc: 'Brief niche end-to-end gồm demand, cạnh tranh, giá và action đề xuất.',
+    desc: 'Gói nghiên cứu niche: demand, cạnh tranh, giá, seasonal hooks, gaps.',
     fields: [
-      {id:'niche', label:'Niche', placeholder:'vd: personalized jewelry', required:true},
+      {id:'seed', label:'Keyword / Niche', placeholder:'vd: personalized jewelry', required:true},
     ]
   },
-  get_niche_overview: {
+  ytrends_market_snapshot: {
     label: '📋 Niche Overview',
-    desc: 'Tổng quan chi tiết về một niche cụ thể.',
+    desc: 'Snapshot tổng quan thị trường Etsy — tags hot, geo, giá.',
     fields: [
-      {id:'niche', label:'Niche', placeholder:'vd: custom portrait', required:true},
+      {id:'ltype', label:'Loại listing (tuỳ chọn)', type:'select', options:['','physical','download'], placeholder:'tất cả'},
     ]
   },
-  get_category_insights: {
-    label: '🗂 Category Insights',
-    desc: 'Phân tích danh mục sản phẩm theo category Etsy.',
+  ytrends_scout_opportunities: {
+    label: '🗂 Category',
+    desc: 'Tìm niche phù hợp bộ lọc: cạnh tranh thấp, momentum cao.',
     fields: [
-      {id:'category', label:'Category', placeholder:'vd: jewelry, home & living', required:true},
+      {id:'category_name', label:'Category (tuỳ chọn)', placeholder:'vd: Jewelry, Home & Living'},
+      {id:'search', label:'Từ khoá (tuỳ chọn)', placeholder:'vd: custom, personalized'},
+      {id:'limit', label:'Số lượng', placeholder:'25', type:'number'},
     ]
   },
-  get_seller_insights: {
+  ytrends_analyze_competition: {
     label: '🏪 Seller Insights',
-    desc: 'Phân tích shop Etsy — doanh số, listing top, chiến lược.',
+    desc: 'Phân tích cạnh tranh — seller concentration, giá, thị phần quốc gia.',
     fields: [
-      {id:'shop_name', label:'Tên Shop Etsy', placeholder:'vd: CustomGiftShop', required:true},
+      {id:'seed', label:'Keyword / Niche', placeholder:'vd: wall art', required:true},
     ]
   },
-  get_listing_details: {
-    label: '📦 Listing Details',
-    desc: 'Chi tiết đầy đủ về một listing Etsy cụ thể.',
+  ytrends_fetch: {
+    label: '📦 Listing Detail',
+    desc: 'Chi tiết đầy đủ về một keyword/listing/category theo ID từ Search.',
     fields: [
-      {id:'listing_id', label:'Listing ID hoặc URL', placeholder:'vd: 1234567890 hoặc https://etsy.com/listing/...', required:true},
+      {id:'id', label:'ID (kw:... / lst:... / cat:...)', placeholder:'vd: kw:wall art', required:true},
     ]
   },
 };
 
-let _ytCurrentTool = 'research_keyword';
+let _ytCurrentTool = 'ytrends_research_keyword';
 let _ytLastResult = null;
 let _ytHistory = [];
 let _ytInited = false;
