@@ -1084,6 +1084,11 @@ body[data-role="seller"] .no-seller{display:none !important}
         <button class="btn btn-sm" onclick="document.getElementById('idea-modal').classList.remove('open')">Đóng</button>
         <button class="btn btn-sm admin-only" style="color:var(--red);margin-left:auto" id="idea-del-btn" onclick="delIdea()">🗑 Xoá</button>
       </div>
+      <!-- Lịch sử chuyển cột -->
+      <div id="idea-col-history" style="display:none;margin-top:14px;border-top:1px solid var(--border);padding-top:12px">
+        <div style="font-size:11px;font-weight:700;color:var(--text3);letter-spacing:.8px;text-transform:uppercase;margin-bottom:8px">📋 Lịch sử chuyển cột</div>
+        <div id="idea-col-history-rows"></div>
+      </div>
     </div>
   </div>
 
@@ -1643,14 +1648,17 @@ function detectChanges(){
   localStorage.setItem('pod_order_snapshot',JSON.stringify(now));
   updateNotifBadge();
 }
-// Lọc notif theo vai trò: admin thấy hết, NV chỉ thấy đơn có SKU của mình
+// Lọc notif theo vai trò: admin thấy hết, NV chỉ thấy đơn có SKU của mình + idea liên quan đến mình
 function visibleNotifs(){
   const all=cfg.notifs||[];
   if(!auth||auth.role==='admin'||auth.role==='seller')return all;
-  // design/staff: chỉ notif có SKU khớp viết tắt của mình
+  // design/staff: thấy notif idea + notif đơn có SKU khớp viết tắt của mình
   const abbrs=(typeof myAbbrs==='function')?myAbbrs():[];
-  if(!abbrs.length)return all;
-  return all.filter(n=>{const s=(n.sku||'').toLowerCase();return abbrs.some(a=>s.includes(a.toLowerCase()));});
+  return all.filter(n=>{
+    if(n.type==='idea_new'||n.type==='idea_move')return true; // idea thì ai cũng thấy
+    const s=(n.sku||'').toLowerCase();
+    return !abbrs.length||abbrs.some(a=>s.includes(a.toLowerCase()));
+  });
 }
 function updateNotifBadge(){
   const badge=document.getElementById('notif-badge');
@@ -1667,8 +1675,13 @@ function toggleNotif(){
   const open=p.style.display!=='none';
   if(open){p.style.display='none';return;}
   const list=visibleNotifs();
+  const mkItem=n=>{
+    const isIdea=n.type==='idea_new'||n.type==='idea_move';
+    const onclick=isIdea?`goPage('idea');closeNotif();`:`selectOrder('${n.orderId||''}');closeNotif()`;
+    return`<div onclick="${onclick}" style="padding:8px;border-bottom:1px solid var(--border2);cursor:pointer;font-size:12.5px"><div>${esc(n.text)}</div><div style="font-size:10px;color:var(--text3);margin-top:2px">${relTime(n.at)}</div></div>`;
+  };
   p.innerHTML='<div style="font-size:13px;font-weight:700;padding:6px 8px;border-bottom:1px solid var(--border2);display:flex;justify-content:space-between"><span>🔔 Thông báo</span>'+(list.length?'<span style="font-size:11px;color:var(--accent);cursor:pointer" onclick="clearNotifSeen()">Đánh dấu đã đọc</span>':'')+'</div>'+
-    (list.length?list.slice(0,50).map(n=>`<div onclick="selectOrder('${n.orderId}');closeNotif()" style="padding:8px;border-bottom:1px solid var(--border2);cursor:pointer;font-size:12.5px"><div>${esc(n.text)}</div><div style="font-size:10px;color:var(--text3);margin-top:2px">${relTime(n.at)}</div></div>`).join(''):'<div style="padding:20px;text-align:center;color:var(--text3);font-size:12px">Chưa có thông báo</div>');
+    (list.length?list.slice(0,50).map(mkItem).join(''):'<div style="padding:20px;text-align:center;color:var(--text3);font-size:12px">Chưa có thông báo</div>');
   p.style.display='block';
   localStorage.setItem('pod_notif_seen',JSON.stringify(Date.now()));
   updateNotifBadge();
@@ -1853,12 +1866,28 @@ function renderIdeaBoard(){
       const img=it.img?`<img src="${esc(it.img)}" style="width:100%;height:120px;object-fit:cover;border-radius:8px;margin-bottom:6px" onerror="this.style.display='none'">`:'';
       const link=it.link?`<a href="${esc(it.link)}" target="_blank" onclick="event.stopPropagation()" style="font-size:11px;color:var(--accent);word-break:break-all">🔗 Link Etsy</a>`:'';
       const design=it.design?`<a href="${esc(it.design)}" target="_blank" onclick="event.stopPropagation()" style="font-size:11px;color:#fff;background:#2e7d46;padding:2px 8px;border-radius:6px;display:inline-block;margin-top:4px">🎨 File thiết kế</a>`:'';
+      // Timestamp tạo idea
+      const createdStr=it.createdAt?`<span style="font-size:9.5px;color:var(--text3)">🕐 Tạo: ${new Date(it.createdAt).toLocaleString('vi-VN',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})}</span>`:'';
+      // Timestamp vào cột hiện tại
+      const lastMove=it.colHistory&&it.colHistory.length?it.colHistory[it.colHistory.length-1]:null;
+      const movedStr=lastMove&&lastMove.to&&lastMove.at?`<span style="font-size:9.5px;color:var(--text3)">↪ Vào cột: ${new Date(lastMove.at).toLocaleString('vi-VN',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})}</span>`:'';
+      // Thời gian đang làm (nếu có startedAt và chưa done)
+      const doneCols=['done','listed'];
+      let timerStr='';
+      if(it.startedAt&&!doneCols.includes(it.status||'')){
+        const mins=Math.round((Date.now()-new Date(it.startedAt))/60000);
+        timerStr=`<span style="font-size:9.5px;color:#b8720a;font-weight:600">⏱ ${mins<60?mins+'ph':Math.floor(mins/60)+'g'+(mins%60?mins%60+'ph':'')} đang làm</span>`;
+      }else if(it.completedAt&&it.startedAt){
+        const mins=Math.round((new Date(it.completedAt)-new Date(it.startedAt))/60000);
+        timerStr=`<span style="font-size:9.5px;color:#2e7d46;font-weight:600">✅ ${mins<60?mins+'ph':Math.floor(mins/60)+'g'+(mins%60?mins%60+'ph':'')} hoàn thành</span>`;
+      }
       return`<div draggable="true" ondragstart="ideaDragStart(event,'${it.id}')" onclick="openIdeaModal('${it.id}')" style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:10px;cursor:pointer;box-shadow:0 1px 3px rgba(0,0,0,.06)">
         ${img}
         <div style="font-size:13px;font-weight:600;margin-bottom:4px">${esc(it.title)}</div>
         ${link?`<div style="margin-bottom:4px">${link}</div>`:''}
         ${design?`<div style="margin-bottom:4px">${design}</div>`:''}
         ${it.note?`<div style="font-size:11px;color:var(--text2);margin-bottom:6px">${esc(it.note)}</div>`:''}
+        <div style="display:flex;flex-direction:column;gap:2px;margin-bottom:4px">${createdStr}${movedStr}${timerStr}</div>
         <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">${who}${pr}${dl}<span onclick="event.stopPropagation();copyIdeaLinkById('${it.id}')" style="font-size:10px;color:var(--accent);cursor:pointer;margin-left:auto" title="Copy idea gửi nhân viên">📋 Copy</span></div>
       </div>`;
     }).join('')||'<div style="font-size:11px;color:var(--text3);text-align:center;padding:14px">Trống</div>';
@@ -1942,6 +1971,29 @@ function renderDesignReport(){
       rows.map(([n,c])=>`<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border2);font-size:13px"><span>👤 ${esc(n)}</span><span style="font-weight:700;color:var(--accent)">${c} mẫu</span></div>`).join('')+'</div>';
   };
   wrap.innerHTML=`<div style="display:flex;gap:24px;flex-wrap:wrap">${mkTable(byAssignee,'Theo người được giao')}${mkTable(byDragger,'Theo người thao tác (kéo)')}</div>`;
+  // ── Bảng năng suất: thời gian trung bình từ "Đang làm" → "Hoàn thành" ──
+  const withTime=inRange.filter(l=>l.minutesTotal!=null&&l.minutesTotal>=0);
+  if(withTime.length){
+    const byPerson={};
+    withTime.forEach(l=>{
+      const n=l.assignee||'(chưa giao)';
+      if(!byPerson[n])byPerson[n]={count:0,total:0,min:Infinity,max:0};
+      byPerson[n].count++;byPerson[n].total+=l.minutesTotal;
+      if(l.minutesTotal<byPerson[n].min)byPerson[n].min=l.minutesTotal;
+      if(l.minutesTotal>byPerson[n].max)byPerson[n].max=l.minutesTotal;
+    });
+    const fmtM=m=>m<60?m+'ph':Math.floor(m/60)+'g'+(m%60?m%60+'ph':'');
+    const rows=Object.entries(byPerson).sort((a,b)=>a[1].total/a[1].count - b[1].total/b[1].count);
+    const timeTable=`<div style="flex:1;min-width:280px">
+      <div style="font-size:12px;font-weight:600;color:var(--text2);margin-bottom:6px">⏱ Thời gian TB từ "Đang làm" → "Hoàn thành"</div>
+      <table style="width:100%;border-collapse:collapse;font-size:12px">
+        <tr style="color:var(--text3);font-size:10.5px"><th style="text-align:left;padding:4px">Người làm</th><th>Số mẫu</th><th>TB</th><th>Nhanh nhất</th><th>Chậm nhất</th></tr>
+        ${rows.map(([n,d])=>`<tr style="border-top:1px solid var(--border2)"><td style="padding:5px 4px;font-weight:600">👤 ${esc(n)}</td><td style="text-align:center">${d.count}</td><td style="text-align:center;color:var(--accent);font-weight:700">${fmtM(Math.round(d.total/d.count))}</td><td style="text-align:center;color:#2e7d46">${fmtM(d.min)}</td><td style="text-align:center;color:var(--red)">${fmtM(d.max)}</td></tr>`).join('')}
+      </table>
+      <div style="font-size:10px;color:var(--text3);margin-top:6px">* Tính từ lúc kéo vào "🎨 Đang làm" đến lúc kéo sang "✅ Hoàn thành".</div>
+    </div>`;
+    wrap.innerHTML=`<div style="display:flex;gap:24px;flex-wrap:wrap">${mkTable(byAssignee,'Theo người được giao')}${mkTable(byDragger,'Theo người thao tác (kéo)')}${timeTable}</div>`;
+  }
   // biểu đồ theo ngày (cột)
   const byDay={};inRange.forEach(l=>{const d=new Date(l.at);const k=d.toISOString().slice(0,10);byDay[k]=(byDay[k]||0)+1;});
   const days=Object.keys(byDay).sort();
@@ -1965,25 +2017,52 @@ function ideaDrop(e,col){
   if(!_dragIdeaId)return;
   const it=(cfg.ideas||[]).find(x=>x.id===_dragIdeaId);
   if(it){
-    const oldStatus=it.status;
+    const oldStatus=it.status||'idea';
     it.status=col;
-    // Ghi nhận hoàn thành 1 mẫu khi kéo sang Hoàn thành / Đã listing (chỉ tính lần đầu vào nhóm này)
+    const now=new Date().toISOString();
+    // Ghi timestamp chuyển cột
+    if(!it.colHistory)it.colHistory=[];
+    it.colHistory.push({from:oldStatus,to:col,by:auth?auth.name:'(?)',at:now});
+    // Lưu thời điểm bắt đầu làm (vào cột 'doing' lần đầu)
+    if(col==='doing'&&!it.startedAt)it.startedAt=now;
+    // Lưu thời điểm hoàn thành (vào cột done/listed)
     const doneCols=['done','listed'];
     if(doneCols.includes(col)&&!doneCols.includes(oldStatus)){
+      it.completedAt=now;
       if(!cfg.designLog)cfg.designLog=[];
       cfg.designLog.push({
-        ideaId:it.id,title:it.title||'',
-        col,
+        ideaId:it.id,title:it.title||'',col,
         assignee:it.assignee||'(chưa giao)',
         by:auth?auth.name:'(?)',
-        at:new Date().toISOString(),
+        at:now,
+        startedAt:it.startedAt||null,
+        minutesTotal:it.startedAt?Math.round((new Date(now)-new Date(it.startedAt))/60000):null,
       });
     }
+    // Thêm thông báo kanban
+    addIdeaNotif(it, oldStatus, col, now);
     saveCfg();cloudSaveAll();renderIdeaBoard();renderDesignReport();
-    toast('✅ Đã chuyển sang "'+(IDEA_COLS.find(c=>c[0]===col)||[,col])[1]+'"','success');
+    const colLabel=(IDEA_COLS.find(c=>c[0]===col)||[,col])[1];
+    toast('✅ Đã chuyển sang "'+colLabel+'"','success');
   }
   _dragIdeaId=null;
 }
+// Thêm thông báo khi idea chuyển cột
+function addIdeaNotif(it, fromCol, toCol, at){
+  if(!cfg.notifs)cfg.notifs=[];
+  const fromLabel=(IDEA_COLS.find(c=>c[0]===fromCol)||[,fromCol||'?'])[1];
+  const toLabel=(IDEA_COLS.find(c=>c[0]===toCol)||[,toCol])[1];
+  const who=auth?auth.name:'(?)';
+  const timeStr=new Date(at).toLocaleTimeString('vi-VN',{hour:'2-digit',minute:'2-digit'});
+  cfg.notifs.unshift({
+    type:'idea_move',ideaId:it.id,sku:'',
+    at,
+    text:`🗂️ "${it.title||'?'}" → ${toLabel} (${who} · ${timeStr})`
+  });
+  cfg.notifs=cfg.notifs.slice(0,100);
+  updateNotifBadge();
+}
+
 function openIdeaModal(id){
   const m=document.getElementById('idea-modal');
   // đổ danh sách designer
@@ -2005,12 +2084,27 @@ function openIdeaModal(id){
     document.getElementById('idea-note').value=it.note||'';
     if(delBtn)delBtn.style.display='';
     renderIdeaStatusBar(it.id, it.status||'idea');
+    // Hiện lịch sử cột
+    const histBox=document.getElementById('idea-col-history');
+    const histRows=document.getElementById('idea-col-history-rows');
+    const history=it.colHistory||[];
+    if(history.length&&histBox&&histRows){
+      histBox.style.display='block';
+      const IDEA_COL_MAP=Object.fromEntries(IDEA_COLS);
+      histRows.innerHTML=history.map(h=>{
+        const fromLabel=h.from?IDEA_COL_MAP[h.from]||h.from:'(tạo mới)';
+        const toLabel=IDEA_COL_MAP[h.to]||h.to;
+        const timeStr=new Date(h.at).toLocaleString('vi-VN',{day:'2-digit',month:'2-digit',year:'2-digit',hour:'2-digit',minute:'2-digit'});
+        return`<div style="display:flex;align-items:center;gap:8px;padding:4px 0;border-bottom:1px solid var(--border2);font-size:11.5px"><span style="color:var(--text3);min-width:110px">🕐 ${timeStr}</span><span style="color:var(--text2)">${fromLabel} → <b>${toLabel}</b></span><span style="color:var(--text3);margin-left:auto">👤 ${esc(h.by||'?')}</span></div>`;
+      }).join('');
+    }else if(histBox)histBox.style.display='none';
   }else{
     document.getElementById('idea-modal-title').textContent='💡 Thêm Idea';
     ['idea-id','idea-title','idea-link','idea-img','idea-design','idea-deadline','idea-note'].forEach(i=>document.getElementById(i).value='');
     document.getElementById('idea-priority').value='normal';
     if(delBtn)delBtn.style.display='none';
     document.getElementById('idea-status-bar').style.display='none';
+    const histBox=document.getElementById('idea-col-history');if(histBox)histBox.style.display='none';
   }
   // tự ghép đường dẫn NAS từ SKU (tiêu đề)
   const npEl=document.getElementById('idea-naspath');
@@ -2043,12 +2137,19 @@ function renderIdeaStatusBar(id, currentStatus){
 function moveIdeaToCol(id, newStatus){
   const it=(cfg.ideas||[]).find(x=>x.id===id);
   if(!it||it.status===newStatus)return;
+  const oldStatus=it.status||'idea';
+  const now=new Date().toISOString();
+  if(!it.colHistory)it.colHistory=[];
+  it.colHistory.push({from:oldStatus,to:newStatus,by:auth?auth.name:'(?)',at:now});
+  if(newStatus==='doing'&&!it.startedAt)it.startedAt=now;
   const doneCols=['done','listed'];
-  if(doneCols.includes(newStatus)&&!doneCols.includes(it.status||'idea')){
+  if(doneCols.includes(newStatus)&&!doneCols.includes(oldStatus)){
+    it.completedAt=now;
     if(!cfg.designLog)cfg.designLog=[];
-    cfg.designLog.push({ideaId:it.id,title:it.title||'',col:newStatus,assignee:it.assignee||'(chưa giao)',by:auth?auth.name:'(?)',at:new Date().toISOString()});
+    cfg.designLog.push({ideaId:it.id,title:it.title||'',col:newStatus,assignee:it.assignee||'(chưa giao)',by:auth?auth.name:'(?)',at:now,startedAt:it.startedAt||null,minutesTotal:it.startedAt?Math.round((new Date(now)-new Date(it.startedAt))/60000):null});
   }
   it.status=newStatus;
+  addIdeaNotif(it, oldStatus, newStatus, now);
   saveCfg();cloudSaveAll();renderIdeaBoard();renderDesignReport();
   renderIdeaStatusBar(id, newStatus);
   const label=(IDEA_COLS.find(c=>c[0]===newStatus)||[,''])[1];
@@ -2074,8 +2175,21 @@ function saveIdea(){
     deadline:document.getElementById('idea-deadline').value,
     note:document.getElementById('idea-note').value.trim(),
   };
-  if(id){const it=cfg.ideas.find(x=>x.id===id);if(it)Object.assign(it,data);}
-  else{cfg.ideas.push({id:'idea_'+Date.now(),status:'unsorted',...data});}
+  if(id){
+    const it=cfg.ideas.find(x=>x.id===id);
+    if(it)Object.assign(it,data);
+  }else{
+    const now=new Date().toISOString();
+    const newIdea={id:'idea_'+Date.now(),status:'idea',...data,createdAt:now,createdBy:auth?auth.name:'(?)'};
+    if(!newIdea.colHistory)newIdea.colHistory=[];
+    newIdea.colHistory.push({from:null,to:'idea',by:auth?auth.name:'(?)',at:now});
+    cfg.ideas.push(newIdea);
+    // Thông báo tạo idea mới
+    if(!cfg.notifs)cfg.notifs=[];
+    cfg.notifs.unshift({type:'idea_new',ideaId:newIdea.id,sku:'',at:now,text:`💡 Idea mới: "${title}" (${auth?auth.name:'?'})`});
+    cfg.notifs=cfg.notifs.slice(0,100);
+    updateNotifBadge();
+  }
   saveCfg();cloudSaveAll();renderIdeaBoard();
   document.getElementById('idea-modal').classList.remove('open');
   toast('✅ Đã lưu Idea','success');
