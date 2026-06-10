@@ -1011,7 +1011,7 @@ body[data-role="seller"] .no-seller{display:none !important}
       </div>
     </div>
   </div>
-  <div id="kanban-float" style="display:none;position:fixed;z-index:150;top:72px;left:222px;width:calc(100vw - 238px);height:480px;min-width:320px;min-height:180px;background:var(--bg);border:1px solid var(--border2);border-radius:14px;box-shadow:0 8px 36px rgba(0,0,0,.16);overflow:visible">
+  <div id="kanban-float" style="display:none;position:fixed;z-index:150;top:72px;left:222px;width:calc(100vw - 238px);height:480px;min-width:320px;min-height:180px;background:#ede9e2;border:1px solid var(--border2);border-radius:14px;box-shadow:0 8px 36px rgba(0,0,0,.16);overflow:visible">
     <!-- Resize handles -->
     <div class="kf-resize" data-dir="n"  style="position:absolute;top:-4px;left:12px;right:12px;height:8px;cursor:n-resize;z-index:10"></div>
     <div class="kf-resize" data-dir="s"  style="position:absolute;bottom:-4px;left:12px;right:12px;height:8px;cursor:s-resize;z-index:10"></div>
@@ -1032,7 +1032,7 @@ body[data-role="seller"] .no-seller{display:none !important}
           <button onclick="kfReset(event)" style="background:none;border:1px solid var(--border2);border-radius:6px;padding:3px 9px;font-size:11px;cursor:pointer;color:var(--text2);font-family:inherit">↺ Reset</button>
         </div>
       </div>
-      <div id="kf-scroll" style="overflow-x:auto;overflow-y:auto;padding:12px 14px 14px;flex:1;min-height:0">
+      <div id="kf-scroll" style="overflow-x:auto;overflow-y:auto;padding:12px 14px 14px;flex:1;min-height:0;background:#ede9e2">
         <div id="kanban-board" style="display:grid;grid-template-columns:repeat(6,minmax(220px,1fr));gap:10px;align-items:start"></div>
       </div>
     </div>
@@ -1842,7 +1842,7 @@ function renderIdeaBoard(){
     }).join('')||'<div style="font-size:11px;color:var(--text3);text-align:center;padding:14px">Trống</div>';
     // Nút "+ Thêm Idea" chỉ ở cuối cột Idea, chỉ admin thấy
     const addBtn=key==='idea'&&isAdmin?`<button onclick="openIdeaModal()" style="margin-top:10px;width:100%;padding:8px;border:1.5px dashed var(--border2);border-radius:9px;background:none;color:var(--text3);cursor:pointer;font-size:12px;font-family:inherit;transition:.15s" onmouseover="this.style.borderColor='var(--green)';this.style.color='var(--green)'" onmouseout="this.style.borderColor='var(--border2)';this.style.color='var(--text3)'">＋ Thêm Idea</button>`:'';
-    return`<div ondragover="event.preventDefault()" ondrop="ideaDrop(event,'${key}')" style="background:var(--bg);border-radius:12px;padding:10px;display:flex;flex-direction:column;max-height:calc(100vh - 220px)">
+    return`<div ondragover="event.preventDefault()" ondrop="ideaDrop(event,'${key}')" style="background:#e4dfd6;border-radius:12px;padding:10px;display:flex;flex-direction:column;max-height:calc(100vh - 220px)">
       <div style="font-size:12.5px;font-weight:700;margin-bottom:10px;display:flex;justify-content:space-between;flex-shrink:0"><span>${label}</span><span style="color:var(--text3)">${items.length}</span></div>
       <div style="display:flex;flex-direction:column;gap:8px;overflow-y:auto;flex:1;padding-right:2px">${cards}</div>
       ${addBtn}
@@ -4007,6 +4007,17 @@ function kfShow(){
     p.style.left=_kfSaved.x+'px';p.style.top=_kfSaved.y+'px';
     if(_kfSaved.w)p.style.width=_kfSaved.w+'px';
     if(_kfSaved.h)p.style.height=_kfSaved.h+'px';
+  } else {
+    // Mở lần đầu → full màn hình (trừ sidebar)
+    const sb=document.querySelector('.sb');
+    const sw=(sb&&sb.offsetWidth>0)?sb.offsetWidth:0;
+    const top=8;
+    p.style.left=(sw+8)+'px';
+    p.style.top=top+'px';
+    p.style.width='calc(100vw - '+(sw+16)+'px)';
+    p.style.height=(window.innerHeight-top-8)+'px';
+    _kfFull=true;
+    const wb=document.getElementById('kf-w-btn');if(wb)wb.textContent='↔ Thu';
   }
   kfUpdateLabel();kfBind();
 }
