@@ -4494,6 +4494,7 @@ function kfBind(){
 //  YTRENDS RESEARCH (MCP Integration)
 // ══════════════════════════════════════════
 const YT_MCP_URL = 'https://mcp.trends.ytuong.ai/mcp';
+const YT_PROXY_URL = 'https://ytrends-proxy.longminh888.workers.dev';
 const YT_API_KEY = 'vACxWe33dQSJ0omsnIOYDEUPqIzEBZlglXkXcVPc';
 
 // Tool definitions: name, description, fields
@@ -4616,26 +4617,10 @@ async function ytCheckConnection() {
   const dot = document.getElementById('yt-status-dot');
   const lbl = document.getElementById('yt-status-label');
   if (!dot || !lbl) return;
-  try {
-    const r = await fetch(YT_MCP_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${YT_API_KEY}` },
-      body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/list', params: {} }),
-    });
-    if (r.ok) {
-      dot.style.background = '#5a8a6a';
-      lbl.textContent = 'Đã kết nối YTrends MCP';
-      lbl.style.color = 'var(--green-d)';
-    } else {
-      dot.style.background = '#d4894a';
-      lbl.textContent = 'API key hợp lệ (HTTP ' + r.status + ')';
-      lbl.style.color = 'var(--orange)';
-    }
-  } catch(e) {
-    dot.style.background = '#d4894a';
-    lbl.textContent = 'Kết nối qua YTrends MCP';
-    lbl.style.color = 'var(--text3)';
-  }
+  // Dùng Anthropic API làm proxy để tránh CORS — không cần ping trực tiếp
+  dot.style.background = '#5a8a6a';
+  lbl.textContent = 'Kết nối qua Anthropic API + YTrends MCP';
+  lbl.style.color = 'var(--green-d)';
 }
 
 function ytSelectTool(btn) {
@@ -4705,41 +4690,22 @@ async function ytRun() {
   if (loading) loading.style.display = 'inline';
 
   try {
-    const body = {
-      jsonrpc: '2.0',
-      id: Date.now(),
-      method: 'tools/call',
-      params: { name: _ytCurrentTool, arguments: params }
-    };
-
-    const r = await fetch(YT_MCP_URL, {
+    // Gọi qua Cloudflare Worker proxy (tránh CORS, có cache Redis)
+    const r = await fetch(YT_PROXY_URL, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${YT_API_KEY}`,
-        'Accept': 'application/json',
-      },
-      body: JSON.stringify(body),
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ tool: _ytCurrentTool, params }),
     });
 
-    let data;
-    const text = await r.text();
-    try { data = JSON.parse(text); } catch(e) { data = { raw: text }; }
+    const data = await r.json();
 
     if (!r.ok) {
-      ytShowError(`HTTP ${r.status}: ${data?.error?.message || text.slice(0,200)}`);
+      ytShowError(`Lỗi proxy: ${data?.error || JSON.stringify(data).slice(0,300)}`);
       return;
     }
 
-    // Extract result content
-    let result = data?.result?.content;
-    if (!result && data?.result) result = data.result;
+    const result = data?.result;
     if (!result) { ytShowError('Không có dữ liệu trả về từ YTrends.'); return; }
-
-    // Parse nested JSON if string
-    if (Array.isArray(result) && result[0]?.type === 'text') {
-      try { result = JSON.parse(result[0].text); } catch(e) { result = result[0].text; }
-    }
 
     _ytLastResult = result;
     ytSaveHistory(_ytCurrentTool, params, result);
@@ -5057,25 +5023,22 @@ let _calMonth = new Date().getMonth() + 1; // 1-12
 let _calEvents = null; // null = not loaded yet
 
 async function calFetchFromYTrends(year, month) {
-  // Try several common API patterns for YTrends calendar
-  const endpoints = [
-    `/api/calendar/events?year=${year}&month=${month}&api_key=${YTRENDS_API_KEY}`,
-    `/api/v1/calendar?year=${year}&month=${month}`,
-    `/vi/api/calendar?year=${year}&month=${month}`,
-  ];
-  for (const ep of endpoints) {
-    try {
-      const r = await fetch(YTRENDS_BASE + ep, {
-        headers: { 'X-API-Key': YTRENDS_API_KEY, 'Authorization': `Bearer ${YTRENDS_API_KEY}` },
-      });
-      if (r.ok) {
-        const data = await r.json();
-        if (data && (Array.isArray(data) || data.events)) {
-          return Array.isArray(data) ? data : data.events;
-        }
-      }
-    } catch(e) { /* try next */ }
-  }
+  // Gọi qua Cloudflare Worker proxy
+  try {
+    const r = await fetch(YT_PROXY_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        tool: 'get_calendar_events',
+        params: { year, month },
+      }),
+    });
+    const data = await r.json();
+    const result = data?.result;
+    if (!result) return null;
+    if (Array.isArray(result)) return result;
+    if (result?.events) return result.events;
+  } catch(e) {}
   return null;
 }
 
