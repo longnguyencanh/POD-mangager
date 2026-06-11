@@ -1,0 +1,24 @@
+{
+  "name": "POD Manager - Quản lý đơn xưởng",
+  "short_name": "POD Manager",
+  "description": "Quản lý đơn hàng Print-on-Demand, idea thiết kế, lợi nhuận",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#faf8f5",
+  "theme_color": "#2e7d46",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
