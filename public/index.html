@@ -1171,11 +1171,10 @@ body[data-role="seller"] .no-seller{display:none !important}
         <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
           <div style="font-size:13px;font-weight:600;cursor:pointer" onclick="toggleDesignReport()"><span id="dr-arrow">▶</span> 📊 Năng suất: <span id="dr-summary" style="color:#2e7d46;font-weight:700">—</span></div>
           <select class="fi" id="design-report-range" style="width:auto;padding:3px 8px;font-size:11px" onchange="renderDesignReport()">
-            <option value="today">Hôm nay</option>
-            <option value="yesterday">Hôm qua</option>
-            <option value="3">3 ngày</option>
-            <option value="7">7 ngày</option>
-            <option value="30">30 ngày</option>
+            <option value="7">7 ngày gần nhất</option>
+            <option value="10">10 ngày gần nhất</option>
+            <option value="20">20 ngày gần nhất</option>
+            <option value="30">30 ngày gần nhất</option>
           </select>
         </div>
         <div id="dr-detail" style="display:none;margin-top:10px">
@@ -2128,21 +2127,15 @@ function toggleDesignReport(){
 // Báo cáo năng suất thiết kế: đếm mẫu hoàn thành theo NV + biểu đồ ngày
 function renderDesignReport(){
   const wrap=document.getElementById('design-report');if(!wrap)return;
-  const range=(document.getElementById('design-report-range')||{}).value||'today';
+  const range=(document.getElementById('design-report-range')||{}).value||'7';
+  const numDays=parseInt(range,10)||7; // 7/10/20/30
   const log=cfg.designLog||[];
-  // Lọc theo ngày giờ Michigan
-  let inRange;
-  if(range==='yesterday'){const yk=etDayKeyOffset(1);inRange=log.filter(l=>etDateKey(l.at)===yk);}
-  else if(range==='today'){const tk=etTodayKey();inRange=log.filter(l=>etDateKey(l.at)===tk);}
-  else{
-    const n=range==='3'?2:range==='7'?6:29;
-    const fromKey=etDayKeyOffset(n);const toKey=etTodayKey();
-    inRange=log.filter(l=>{const k=etDateKey(l.at);return k>=fromKey&&k<=toKey;});
-  }
+  // Lọc theo ngày giờ Michigan — N ngày gần nhất
+  const fromKey=etDayKeyOffset(numDays-1);const toKey=etTodayKey();
+  const inRange=log.filter(l=>{const k=etDateKey(l.at);return k>=fromKey&&k<=toKey;});
   const sum=document.getElementById('dr-summary');
-  const rangeLabel={today:'hôm nay',yesterday:'hôm qua','3':'3 ngày','7':'7 ngày','30':'30 ngày'}[range]||range;
-  if(sum)sum.textContent=inRange.length+' mẫu ('+rangeLabel+')';
-  if(!inRange.length){wrap.innerHTML='<div style="color:var(--text3);font-size:13px;padding:10px;text-align:center">Chưa có mẫu nào hoàn thành.</div>';document.getElementById('design-chart').innerHTML='';return;}
+  if(sum)sum.textContent=inRange.length+' mẫu ('+numDays+' ngày gần nhất)';
+  if(!inRange.length){wrap.innerHTML='<div style="color:var(--text3);font-size:13px;padding:10px;text-align:center">Chưa có mẫu nào hoàn thành trong '+numDays+' ngày.</div>';document.getElementById('design-chart').innerHTML='';return;}
   // đếm theo người được giao (người kéo Idea→Đang làm)
   const byAssignee={};
   inRange.forEach(l=>{byAssignee[l.assignee]=(byAssignee[l.assignee]||0)+1;});
@@ -2176,27 +2169,29 @@ function renderDesignReport(){
     </div>`;
     wrap.innerHTML=`<div style="display:flex;gap:24px;flex-wrap:wrap">${mkTable(byAssignee,'Theo người được giao (kéo Idea → Đang làm)')}${timeTable}</div>`;
   }
-  // ── Biểu đồ: 7 ngày gần nhất, đủ cả ngày 0 mẫu, chia màu ──
+  // ── Biểu đồ: N ngày gần nhất (theo lựa chọn), đủ cả ngày 0 mẫu, chia màu ──
   const byDay={};inRange.forEach(l=>{const k=etDateKey(l.at);byDay[k]=(byDay[k]||0)+1;});
-  // luôn hiện 7 ngày gần nhất (kể cả 0 mẫu) để dễ so sánh
+  // hiện đủ N ngày gần nhất (kể cả 0 mẫu)
   const days=[];
-  for(let i=6;i>=0;i--)days.push(etDayKeyOffset(i));
+  for(let i=numDays-1;i>=0;i--)days.push(etDayKeyOffset(i));
   const counts=days.map(d=>byDay[d]||0);
   const max=Math.max(...counts,1);
-  const COLORS=['#2e7d46','#3a8d54','#4a9d64','#5aad74','#6abd84','#7acd94','#8add9f'];
+  const COLORS=['#2e7d46','#3a8d54','#4a9d64','#5aad74','#6abd84','#7acd94','#8add9f','#9be0aa','#5a9d6e','#46a05f'];
+  // ngày nhiều thì cột hẹp hơn
+  const minW=numDays>20?20:numDays>10?26:34;
   const chart=days.map((d,i)=>{
     const c=byDay[d]||0;
     const h=Math.round((c/max)*100);
     const label=d.slice(5).replace('-','/');
     const color=COLORS[i%COLORS.length];
-    return `<div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:4px;min-width:32px;height:100%">
-      <div style="font-size:13px;font-weight:800;color:${c>0?'#2e7d46':'var(--text3)'}">${c}</div>
-      <div style="width:70%;background:${c>0?color:'var(--border2)'};border-radius:5px 5px 0 0;height:${c>0?Math.max(h,10):4}px;transition:.2s" title="${c} mẫu"></div>
-      <div style="font-size:10px;color:var(--text3);white-space:nowrap">${label}</div>
+    return `<div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:3px;min-width:${minW}px;height:100%">
+      <div style="font-size:${numDays>20?'10px':'13px'};font-weight:800;color:${c>0?'#2e7d46':'var(--text3)'}">${c}</div>
+      <div style="width:72%;background:${c>0?color:'var(--border2)'};border-radius:5px 5px 0 0;height:${c>0?Math.max(h,10):4}px;transition:.2s" title="${label}: ${c} mẫu"></div>
+      <div style="font-size:${numDays>20?'8px':'10px'};color:var(--text3);white-space:nowrap;${numDays>20?'transform:rotate(-45deg);transform-origin:center;margin-top:4px':''}">${label}</div>
     </div>`;
   }).join('');
-  document.getElementById('design-chart').innerHTML=`<div style="font-size:12px;font-weight:600;color:var(--text2);margin-bottom:8px">📈 Mẫu hoàn thành 7 ngày gần nhất</div>
-    <div style="display:flex;align-items:flex-end;gap:6px;height:160px;background:var(--bg);border-radius:10px;padding:14px 12px 12px">${chart}</div>`;
+  document.getElementById('design-chart').innerHTML=`<div style="font-size:12px;font-weight:600;color:var(--text2);margin-bottom:8px">📈 Mẫu hoàn thành ${numDays} ngày gần nhất</div>
+    <div style="display:flex;align-items:flex-end;gap:${numDays>20?'3px':'6px'};height:170px;background:var(--bg);border-radius:10px;padding:14px 12px ${numDays>20?'24px':'12px'};overflow-x:auto">${chart}</div>`;
 }
 // ── KANBAN DRAG (pointer-based, không xung đột với kfBind) ──
 let _dragIdeaId=null;
