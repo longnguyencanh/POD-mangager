@@ -1465,15 +1465,15 @@ body[data-role="seller"] .no-seller{display:none !important}
     </div>
 
     <div class="fr c2">
-      <div class="fl"><label>Khách hàng</label><input class="fi" id="d-cust" readonly></div>
+      <div class="fl"><label>Khách hàng <span style="color:var(--text3);font-weight:400;font-size:10px">— bấm để copy</span></label><input class="fi" id="d-cust" readonly onclick="copyField(this,'Tên khách')" style="cursor:pointer" title="Bấm để copy"></div>
       <div class="fl"><label>Quốc gia</label><input class="fi" id="d-country" readonly></div>
     </div>
     <div class="fr c2">
-      <div class="fl"><label>Email</label><input class="fi" id="d-email" readonly></div>
+      <div class="fl"><label>Email <span style="color:var(--text3);font-weight:400;font-size:10px">— bấm để copy</span></label><input class="fi" id="d-email" readonly onclick="copyField(this,'Email')" style="cursor:pointer" title="Bấm để copy"></div>
       <div class="fl"><label>💵 Doanh thu / Giá bán ($) <span style="color:var(--text3);font-weight:400">— nhập tay</span></label><input class="fi" id="d-total" placeholder="vd: 28.35" oninput="changeTotal(this.value)" style="color:var(--accent);font-weight:700"></div>
     </div>
     <div class="fr">
-      <div class="fl"><label>Địa chỉ giao hàng</label><input class="fi" id="d-addr" readonly></div>
+      <div class="fl"><label>Địa chỉ giao hàng <span style="color:var(--text3);font-weight:400;font-size:10px">— bấm để copy</span></label><input class="fi" id="d-addr" readonly onclick="copyField(this,'Địa chỉ')" style="cursor:pointer" title="Bấm để copy"></div>
     </div>
 
     <div class="divider"></div>
@@ -4474,6 +4474,20 @@ function fmtDateUS(iso){if(!iso)return'—';try{return new Date(iso).toLocaleStr
 function relTime(iso){if(!iso)return'—';const d=Date.now()-new Date(iso);if(d<3600000)return Math.floor(d/60000)+' phút trước';if(d<86400000)return Math.floor(d/3600000)+' giờ trước';if(d<604800000)return Math.floor(d/86400000)+' ngày trước';return new Date(iso).toLocaleDateString('en-CA',{timeZone:US_TZ});}
 function fmtDate(iso){if(!iso)return'—';return fmtDateUS(iso);}
 function esc(s){return(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function copyField(el,label){
+  const v=(el&&el.value||'').trim();
+  if(!v||v==='—'||v==='(chưa có)'){toast('Chưa có '+(label||'nội dung').toLowerCase(),'info');return;}
+  const done=()=>{toast('📋 Đã copy '+(label||'nội dung'),'success');
+    // nháy nền xác nhận
+    if(el){const bg=el.style.background;el.style.background='#d4f5dd';setTimeout(()=>{el.style.background=bg;},400);}
+  };
+  if(navigator.clipboard&&navigator.clipboard.writeText){
+    navigator.clipboard.writeText(v).then(done).catch(()=>{fallbackCopy(v);done();});
+  }else{fallbackCopy(v);done();}
+}
+function fallbackCopy(text){
+  try{const t=document.createElement('textarea');t.value=text;t.style.position='fixed';t.style.opacity='0';document.body.appendChild(t);t.select();document.execCommand('copy');document.body.removeChild(t);}catch(e){}
+}
 function sleep(ms){return new Promise(r=>setTimeout(r,ms));}
 function toast(m,t='info'){const w=document.getElementById('toast-wrap');const e=document.createElement('div');e.className=`toast ${t}`;e.innerHTML=`<span>${{success:'✅',error:'❌',info:'ℹ️',warn:'⚠️'}[t]||''}</span><span>${m}</span>`;w.appendChild(e);setTimeout(()=>e.remove(),3500);}
 
