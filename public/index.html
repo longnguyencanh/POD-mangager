@@ -1498,6 +1498,7 @@ body[data-role="seller"] .no-seller{display:none !important}
       <button class="btn btn-sm no-support" onclick="saveGdrive()">📤 Gửi link lên</button>
       <a id="d-gdrive-open" class="btn btn-sm" target="_blank" style="display:none">↗ Mở</a>
     </div>
+    <div id="d-gdrive-saved" style="display:none;margin-top:6px;font-size:11px;background:var(--bg);border:1px solid var(--border2);border-radius:8px;padding:8px"></div>
 
     <div class="sec-title">📝 Ghi chú nội bộ</div>
     <textarea class="fi" id="d-note" rows="3" placeholder="Ghi chú cho team designer / xưởng..."></textarea>
@@ -4089,6 +4090,7 @@ function selectOrder(id){
   const lo=document.getElementById('d-lark-open');if(lo){if(o.larkLink){lo.style.display='';lo.href=o.larkLink;}else lo.style.display='none';}
   const gd=document.getElementById('d-gdrive');if(gd)gd.value=o.gdriveLink||'';
   const go=document.getElementById('d-gdrive-open');if(go){if(o.gdriveLink){go.style.display='';go.href=o.gdriveLink;}else go.style.display='none';}
+  showGdriveSaved(o);
   document.getElementById('d-time').textContent=fmtDate(o.created);
   const fb=document.getElementById('btn-flag');if(fb)fb.classList.toggle('on',!!o.urgent);
   renderProds(o.items);
@@ -4112,11 +4114,22 @@ function saveGdrive(){
   if(!current)return;
   const v=document.getElementById('d-gdrive').value.trim();
   current.gdriveLink=v;
+  current.gdriveSavedAt=v?new Date().toISOString():'';
+  current.gdriveSavedBy=v?(auth?auth.name:''):'';
   logHistory(current,v?'Cập nhật link Google Drive':'Xoá link Google Drive');
   save();
   const go=document.getElementById('d-gdrive-open');if(go){if(v){go.style.display='';go.href=v;}else go.style.display='none';}
+  showGdriveSaved(current);
   renderHistory(current);
-  toast('✅ Đã gửi link Google Drive lên','success');
+  toast('✅ Đã lưu link Google Drive (cố định, có thể check lại sau)','success');
+}
+function showGdriveSaved(o){
+  const box=document.getElementById('d-gdrive-saved');if(!box)return;
+  if(o&&o.gdriveLink){
+    box.style.display='';
+    box.innerHTML='✅ <b>Link đã lưu:</b> <a href="'+esc(o.gdriveLink)+'" target="_blank" style="color:var(--accent);word-break:break-all">'+esc(o.gdriveLink)+'</a>'+
+      (o.gdriveSavedAt?'<br><span style="color:var(--text3)">🕐 Lưu lúc '+fmtDate(o.gdriveSavedAt)+(o.gdriveSavedBy?' bởi '+esc(o.gdriveSavedBy):'')+'</span>':'');
+  }else box.style.display='none';
 }
 function saveLark(){
   if(!current)return;
