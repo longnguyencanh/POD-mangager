@@ -1021,6 +1021,7 @@ body[data-role="seller"] .no-seller{display:none !important}
         <button class="yt-tool-btn" data-tool="ytrends_explore_niche" onclick="ytSelectTool(this)">🗂 Category</button>
         <button class="yt-tool-btn" data-tool="ytrends_analyze_competition" onclick="ytSelectTool(this)">🏪 Seller Insights</button>
         <button class="yt-tool-btn" data-tool="ytrends_fetch" onclick="ytSelectTool(this)">📦 Listing Detail</button>
+        <button class="yt-tool-btn" data-tool="_multi_shop" onclick="ytSelectTool(this)">🏬 Tra nhiều Shop</button>
       </div>
 
       <!-- Input area (dynamic) -->
@@ -4724,6 +4725,14 @@ const YT_TOOLS = {
       {id:'id', label:'ID (kw:... / lst:... / cat:...)', placeholder:'vd: kw:wall art', required:true},
     ]
   },
+  _multi_shop: {
+    label: '🏬 Tra nhiều Shop',
+    desc: 'Dán danh sách shop (mỗi dòng 1 shop: tên hoặc link Etsy) → tra chỉ số từng shop, hiện bảng so sánh.',
+    fields: [
+      {id:'shops', label:'Danh sách shop (mỗi dòng 1 shop)', placeholder:'MyShopName\nhttps://etsy.com/shop/AnotherShop', type:'textarea', required:true},
+    ],
+    custom: true
+  },
 };
 
 let _ytCurrentTool = 'ytrends_research_keyword';
@@ -4789,6 +4798,12 @@ function ytRenderFields(toolName) {
   if (desc) desc.textContent = tool.desc;
   if (!fields) return;
   fields.innerHTML = tool.fields.map(f => {
+    if (f.type === 'textarea') {
+      return `<div class="fl" style="flex:1 1 100%;min-width:200px;margin:0">
+        <label style="font-size:11px;color:var(--text3);margin-bottom:4px;display:block">${f.label}${f.required?'<span style="color:var(--red)">*</span>':''}</label>
+        <textarea class="fi" id="yt-field-${f.id}" placeholder="${f.placeholder||''}" rows="5" style="padding:8px 10px;font-size:12.5px;resize:vertical;font-family:inherit"></textarea>
+      </div>`;
+    }
     if (f.type === 'select') {
       return `<div class="fl" style="flex:1;min-width:140px;margin:0">
         <label style="font-size:11px;color:var(--text3);margin-bottom:4px;display:block">${f.label}</label>
@@ -4809,6 +4824,7 @@ async function ytRun(opts) {
   opts = opts || {};
   const tool = YT_TOOLS[_ytCurrentTool];
   if (!tool) return;
+  if (tool.custom && _ytCurrentTool === '_multi_shop') { return ytRunMultiShop(); }
 
   // Pagination: nếu là "xem thêm" thì tăng trang, nếu không reset về trang 1
   if (opts.more) { _ytPage = (_ytPage || 1) + 1; }
@@ -4915,6 +4931,92 @@ function ytAddLoadMore() {
   btn.textContent = `📄 Xem thêm trang sau (trang ${(_ytPage||1)+1})`;
   btn.onclick = () => ytRun({more:true});
   body.appendChild(btn);
+}
+
+// ── Tra nhiều shop: dán danh sách → tra từng shop → bảng so sánh ──
+function ytShopName(line){
+  // Lấy tên shop từ link Etsy hoặc giữ nguyên tên
+  const s = String(line).trim();
+  if (!s) return '';
+  const m = s.match(/etsy\.com\/(?:[a-z-]+\/)?shop\/([^/?#\s]+)/i);
+  if (m) return decodeURIComponent(m[1]);
+  // nếu là URL khác → lấy phần cuối
+  if (/^https?:\/\//i.test(s)) { const parts = s.replace(/[?#].*$/,'').split('/').filter(Boolean); return parts[parts.length-1] || s; }
+  return s;
+}
+async function ytTryShop(shop){
+  // Thử lần lượt các tool có thể tra shop; trả về kết quả đầu tiên có dữ liệu
+  const attempts = [
+    { tool:'ytrends_analyze_competition', params:{ seed: shop } },
+    { tool:'ytrends_search', params:{ query: shop, limit: 10 } },
+    { tool:'ytrends_fetch', params:{ id: 'shop:'+shop } },
+  ];
+  for (const a of attempts){
+    try{
+      const r = await fetch(YT_PROXY_URL, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(a) });
+      if (!r.ok) continue;
+      const d = await r.json();
+      const res = d?.result;
+      if (res && (res.data || res.insights || res.scores)) return { shop, ok:true, via:a.tool, result:res };
+    }catch(e){}
+  }
+  return { shop, ok:false };
+}
+async function ytRunMultiShop(){
+  const ta = document.getElementById('yt-field-shops');
+  const lines = (ta?.value||'').split('\n').map(ytShopName).filter(Boolean);
+  if (!lines.length){ toast('Dán ít nhất 1 shop (mỗi dòng 1 shop)','warn'); return; }
+  if (lines.length > 30){ toast('Tối đa 30 shop mỗi lần để tránh quá tải','warn'); return; }
+  const btn = document.getElementById('yt-run-btn');
+  const loading = document.getElementById('yt-loading');
+  const resBox = document.getElementById('yt-result');
+  const body = document.getElementById('yt-result-body');
+  if (btn) btn.disabled = true;
+  if (loading){ loading.style.display='inline'; loading.textContent='⏳ Đang tra '+lines.length+' shop...'; }
+  if (resBox) resBox.style.display='block';
+  const rows = [];
+  for (let i=0;i<lines.length;i++){
+    if (loading) loading.textContent = `⏳ Đang tra shop ${i+1}/${lines.length}: ${lines[i]}`;
+    rows.push(await ytTryShop(lines[i]));
+  }
+  // Lấy mọi chỉ số có trong kết quả → cột động
+  const pick = (res)=>{
+    const out = {};
+    const src = (res?.data) || res || {};
+    const scan = (obj, prefix='')=>{
+      Object.entries(obj||{}).forEach(([k,v])=>{
+        if (v==null) return;
+        if (typeof v==='object' && !Array.isArray(v)){ scan(v, prefix); }
+        else if (!Array.isArray(v)) out[k]=v;
+      });
+    };
+    scan(src);
+    if (res?.scores) scan(res.scores);
+    return out;
+  };
+  // Tập hợp tên cột phổ biến
+  const allKeys = {};
+  rows.forEach(r=>{ if(r.ok){ const m=pick(r.result); r._metrics=m; Object.keys(m).forEach(k=>allKeys[k]=(allKeys[k]||0)+1); } });
+  // chọn tối đa 8 cột xuất hiện nhiều nhất
+  const cols = Object.entries(allKeys).sort((a,b)=>b[1]-a[1]).slice(0,8).map(x=>x[0]);
+  let html = `<div style="font-size:12px;color:var(--text3);margin-bottom:8px">Đã tra ${rows.filter(r=>r.ok).length}/${rows.length} shop có dữ liệu.</div>`;
+  if (!cols.length){
+    html += '<div style="color:var(--red);font-size:13px;padding:10px;background:var(--bg);border-radius:8px">⚠️ Không lấy được chỉ số nào từ danh sách shop. Có thể hệ thống Research tra shop bằng cách khác — bạn cho tôi biết chính xác bạn tra shop kiểu nào (tool + ô nhập), tôi sẽ chỉnh đúng.</div>';
+  } else {
+    html += '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12px;min-width:'+(cols.length*110+140)+'px">';
+    html += '<tr style="color:var(--text3);font-size:10.5px"><th style="text-align:left;padding:6px;position:sticky;left:0;background:var(--surface)">Shop</th>'+cols.map(c=>`<th style="padding:6px;text-align:right">${esc(c)}</th>`).join('')+'</tr>';
+    rows.forEach(r=>{
+      if (!r.ok){ html += `<tr style="border-top:1px solid var(--border2)"><td style="padding:6px;color:var(--text3)">🏬 ${esc(r.shop)}</td><td colspan="${cols.length}" style="padding:6px;color:var(--red);font-size:11px">không có dữ liệu</td></tr>`; return; }
+      html += `<tr style="border-top:1px solid var(--border2)"><td style="padding:6px;font-weight:600;position:sticky;left:0;background:var(--surface)">🏬 ${esc(r.shop)}</td>`+
+        cols.map(c=>{let v=r._metrics[c];if(typeof v==='number')v=Math.round(v*100)/100;return `<td style="padding:6px;text-align:right">${v!=null?esc(String(v)):'—'}</td>`;}).join('')+'</tr>';
+    });
+    html += '</table></div>';
+  }
+  if (body) body.innerHTML = html;
+  const titleEl = document.getElementById('yt-result-title');
+  if (titleEl) titleEl.textContent = '🏬 Chỉ số '+rows.length+' shop';
+  if (btn) btn.disabled = false;
+  if (loading){ loading.style.display='none'; loading.textContent='⏳ Đang gọi hệ thống Research...'; }
 }
 
 function ytApplyClientFilters(result, filters) {
