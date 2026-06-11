@@ -1405,6 +1405,29 @@ body[data-role="seller"] .no-seller{display:none !important}
       <div class="fl"><label>Mã vận đơn (tracking)</label><input class="fi" id="d-track" readonly style="color:#2e7d46;font-weight:600"></div>
     </div>
 
+    <!-- File thiết kế (đặt ngay dưới Shop để NV thao tác nhanh) -->
+    <div style="background:var(--bg);border:1px solid var(--border2);border-radius:12px;padding:12px;margin-top:12px">
+      <div style="font-size:14px;font-weight:700;margin-bottom:10px">🎨 File thiết kế</div>
+      <div class="upload-zone" onclick="document.getElementById('file-inp').click()" style="margin-bottom:10px">
+        <div class="ui">📤</div>
+        <div>Upload file thiết kế hoàn thành</div>
+        <div style="font-size:11px;margin-top:4px">PNG · JPG · PDF · AI · PSD</div>
+      </div>
+      <input type="file" id="file-inp" style="display:none" multiple onchange="onFile(this)">
+      <div id="file-list" style="margin-bottom:10px"></div>
+      <div class="push-row" style="display:flex;gap:8px;align-items:center;margin-bottom:8px">
+        <input class="fi" id="d-lark" placeholder="Dán link Lark..." style="flex:1">
+        <button class="btn btn-sm no-support" onclick="saveLark()">💾 Lưu Lark</button>
+        <a id="d-lark-open" class="btn btn-sm" target="_blank" style="display:none">↗ Mở</a>
+      </div>
+      <div class="push-row" style="display:flex;gap:8px;align-items:center">
+        <input class="fi" id="d-gdrive" placeholder="Dán link Google Drive..." style="flex:1">
+        <button class="btn btn-sm no-support" onclick="saveGdrive()">📤 Gửi link lên</button>
+        <a id="d-gdrive-open" class="btn btn-sm" target="_blank" style="display:none">↗ Mở</a>
+      </div>
+      <div id="d-gdrive-saved" style="display:none;margin-top:6px;font-size:11px;background:var(--surface);border:1px solid var(--border2);border-radius:8px;padding:8px"></div>
+    </div>
+
     <div class="act-row">
       <button class="btn btn-flag" id="btn-flag" onclick="markUrgent()">🚩 Đánh dấu đơn gấp</button>
       <button class="btn btn-proof role-support" onclick="sendProof()">✈️ Gửi proof</button>
@@ -1474,31 +1497,7 @@ body[data-role="seller"] .no-seller{display:none !important}
 
     <div class="divider"></div>
 
-    <!-- File thiết kế -->
-    <div class="sec-title">📁 File thiết kế</div>
-    <div class="upload-zone" onclick="document.getElementById('file-inp').click()">
-      <div class="ui">📤</div>
-      <div>Upload file thiết kế hoàn thành</div>
-      <div style="font-size:11px;margin-top:4px">PNG · JPG · PDF · AI · PSD</div>
-    </div>
-    <input type="file" id="file-inp" style="display:none" multiple onchange="onFile(this)">
-    <div id="file-list" style="margin-top:10px"></div>
-
-    <div class="divider"></div>
-
     <!-- Ghi chú -->
-    <div class="sec-title">🎨 File thiết kế</div>
-    <div class="push-row" style="display:flex;gap:8px;align-items:center;margin-bottom:8px">
-      <input class="fi" id="d-lark" placeholder="Dán link Lark..." style="flex:1">
-      <button class="btn btn-sm no-support" onclick="saveLark()">💾 Lưu Lark</button>
-      <a id="d-lark-open" class="btn btn-sm" target="_blank" style="display:none">↗ Mở</a>
-    </div>
-    <div class="push-row" style="display:flex;gap:8px;align-items:center">
-      <input class="fi" id="d-gdrive" placeholder="Dán link Google Drive..." style="flex:1">
-      <button class="btn btn-sm no-support" onclick="saveGdrive()">📤 Gửi link lên</button>
-      <a id="d-gdrive-open" class="btn btn-sm" target="_blank" style="display:none">↗ Mở</a>
-    </div>
-    <div id="d-gdrive-saved" style="display:none;margin-top:6px;font-size:11px;background:var(--bg);border:1px solid var(--border2);border-radius:8px;padding:8px"></div>
 
     <div class="sec-title">📝 Ghi chú nội bộ</div>
     <textarea class="fi" id="d-note" rows="3" placeholder="Ghi chú cho team designer / xưởng..."></textarea>
@@ -2231,6 +2230,7 @@ function _applyIdeaDrop(ideaId,col){
     it.reviewedAt=now;
     if(!cfg.designLog)cfg.designLog=[];
     cfg.designLog.push({ideaId:it.id,title:it.title||'',col,assignee:it.assignee||'(chưa giao)',by:auth?auth.name:'(?)',at:now,startedAt:it.startedAt||null,minutesTotal:it.startedAt?Math.round((new Date(now)-new Date(it.startedAt))/60000):null});
+    if(cfg.designLog.length>1000)cfg.designLog=cfg.designLog.slice(-1000); // giữ 1000 bản ghi gần nhất (tránh phình DB)
   }
   const doneCols=['done','listed'];
   if(doneCols.includes(col)&&!doneCols.includes(oldStatus))it.completedAt=now;
@@ -2377,7 +2377,7 @@ function delIdea(){
   const name=it?it.title:'';
   if(!confirm('⚠️ XOÁ IDEA?\n\n"'+name+'"\n\nHành động này KHÔNG thể hoàn tác. Bạn có chắc chắn muốn xoá?'))return;
   cfg.ideas=(cfg.ideas||[]).filter(x=>x.id!==id);
-  saveCfg();cloudSaveAll();renderIdeaBoard();
+  localStorage.setItem(CFG_KEY,JSON.stringify(cfg));cloudSaveCfg({fullIdeas:true});renderIdeaBoard();
   document.getElementById('idea-modal').classList.remove('open');
   toast('Đã xoá idea','info');
 }
@@ -3391,11 +3391,12 @@ function saveCfg(){
   // Đẩy cấu hình chung (skuMap...) lên database để cả team dùng chung
   cloudSaveCfg();
 }
-async function cloudSaveCfg(){
+async function cloudSaveCfg(opts){
   try{
     const headers={'Content-Type':'application/json'};
     if(auth&&auth.token)headers['X-Session']=auth.token;
     const shared={skuMap:cfg.skuMap||[],priceMap:cfg.priceMap||[],fees:cfg.fees||{},adCosts:cfg.adCosts||[],opCosts:cfg.opCosts||[],fxRate:cfg.fxRate||0,fxManual:cfg.fxManual||false,shops:cfg.shops||[],suppliers:cfg.suppliers||[],ideas:cfg.ideas||[],designLog:cfg.designLog||[],nasPathTpl:cfg.nasPathTpl||'',notifs:cfg.notifs||[]};
+    if(opts&&opts.fullIdeas)shared._fullIdeas=true; // báo backend đây là danh sách đầy đủ (cho phép xoá)
     const r=await fetch('/api/data?op=config',{method:'POST',headers,body:JSON.stringify(shared)});
     return r.ok;
   }catch(e){return false;}
