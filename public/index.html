@@ -1728,6 +1728,12 @@ async function enterApp(){
   // Rồi đồng bộ từ DB chung (nếu đã deploy + cấu hình)
   await cloudLoadCfg(); // tải bảng viết tắt SKU dùng chung
   const ok=await cloudLoad();
+  if(!ok&&window._sessionExpired){
+    window._sessionExpired=false;
+    toast('⚠️ Phiên đăng nhập hết hạn. Đăng nhập lại — dữ liệu vẫn còn nguyên trên cloud.','warn');
+    setTimeout(()=>{localStorage.removeItem('pod_session');location.reload();},2500);
+    return;
+  }
   enrichEtsyNames();
   if(ok){buildShopFilter();applyFilter();updateCounts();if(orders.length)setConn(true,`${orders.length} đơn (đồng bộ chung)`);}
   // Tự đồng bộ doanh thu đơn $0 (ngầm) khi mở app + định kỳ mỗi 10 phút
@@ -3778,6 +3784,14 @@ async function syncOrders(){
   try{
     const ok=await cloudLoad();
     if(!ok){
+      if(window._sessionExpired){
+        // Token hết hạn → KHÔNG mất dữ liệu, chỉ cần đăng nhập lại
+        window._sessionExpired=false;
+        setConn(false,'Phiên hết hạn');
+        toast('⚠️ Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại — dữ liệu vẫn còn nguyên.','warn');
+        setTimeout(()=>{localStorage.removeItem('pod_session');location.reload();},2500);
+        return;
+      }
       // chưa có database (mở local hoặc chưa cấu hình) → demo
       setConn(false,'Chưa kết nối DB — demo');toast('Chưa bật database — đang hiển thị dữ liệu demo','warn');loadDemo();
       return;
@@ -4234,13 +4248,17 @@ async function cloudLoad(){
     const headers={'Content-Type':'application/json'};
     if(auth&&auth.token)headers['X-Session']=auth.token;
     const r=await fetch('/api/data',{headers});
+    if(r.status===401){
+      // Token hết hạn → KHÔNG về demo, báo đăng nhập lại để tránh hiểu nhầm mất dữ liệu
+      window._sessionExpired=true;
+      return false;
+    }
     if(r.status===404||r.status===501)return false; // chưa có DB
     if(!r.ok)return false;
     const data=await r.json();
     cloudOn=true;
     if(data&&Array.isArray(data.orders)&&data.orders.length){
       orders=data.orders;
-      // Đổi tên shop cũ "Merchize" → "Etsy 2"
       orders.forEach(o=>{if(o.shopTitle==='Merchize'){o.shopTitle='Etsy 2';o.shopId='etsy2';}});
       localStorage.setItem('pod_orders',JSON.stringify(orders));
     }
