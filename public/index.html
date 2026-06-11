@@ -159,22 +159,26 @@ body.sb-collapsed .desk-hamb{display:block}
   .stat-grid,.stats-grid,#d-period-grid,[id$="-period-grid"]{grid-template-columns:repeat(2,1fr) !important}
   .stat-card{padding:10px 12px !important}
 
-  /* ── Kanban: 1 cột cuộn dọc, nhỏ gọn, không tràn màn hình ── */
-  #kanban-board{grid-template-columns:1fr !important;gap:10px !important;height:auto !important;max-width:340px;margin:0 auto !important;padding:0}
-  #kanban-board > div{max-height:none !important;margin:0 auto;width:100%;padding:8px !important}
-  /* Mỗi cột: giới hạn chiều cao, cuộn trong cột (không kéo dài cả màn hình) */
-  #kanban-board > div > div[style*="flex-direction:column"]{max-height:260px;overflow-y:auto}
-  /* Thẻ idea nhỏ gọn hơn */
-  #kanban-board [draggable]{margin-left:auto;margin-right:auto;font-size:12px}
-  #kanban-board [draggable] img{max-height:90px !important}
-  /* ── Kanban NỔI: trên điện thoại bỏ chế độ nổi, đưa về tĩnh, nhỏ gọn ── */
-  #kanban-float{position:static !important;top:auto !important;left:auto !important;width:100% !important;height:auto !important;min-width:0 !important;min-height:0 !important;box-shadow:none !important;border:none !important;background:transparent !important;z-index:auto !important;margin-top:8px}
+  /* ── Kanban: cả bảng cuộn dọc trong 1 khung, thấy hết các cột ── */
+  #kanban-board{grid-template-columns:1fr !important;gap:12px !important;height:auto !important;max-width:100% !important;margin:0 !important;padding:4px}
+  #kanban-board > div{max-height:none !important;margin:0;width:100%;padding:10px !important;box-sizing:border-box}
+  /* KHÔNG giới hạn chiều cao từng cột — để cả bảng cuộn chung */
+  #kanban-board > div > div[style*="flex-direction:column"]{max-height:none !important;overflow:visible !important}
+  /* Thẻ idea vừa khung, không tràn */
+  #kanban-board [draggable]{margin:0 0 8px 0 !important;width:100% !important;box-sizing:border-box;font-size:12.5px;overflow:hidden}
+  #kanban-board [draggable] img{max-height:120px !important;width:100% !important;object-fit:cover}
+  #kanban-board [draggable] a{word-break:break-all;overflow-wrap:break-word}
+  /* ── Kanban NỔI → khung cố định cao 70vh, CUỘN DỌC cả bảng ── */
+  #kanban-float{position:static !important;top:auto !important;left:auto !important;width:100% !important;height:auto !important;min-width:0 !important;min-height:0 !important;box-shadow:none !important;border:1px solid var(--border2) !important;border-radius:12px !important;background:#ede9e2 !important;z-index:auto !important;margin-top:8px;overflow:hidden}
   #kanban-float .kf-resize{display:none !important}
-  /* Giữ HEADER hiện (để có nút ✕ đóng) nhưng bỏ kéo + nút desktop */
-  #kanban-float-handle{display:flex !important;cursor:default !important;position:sticky;top:0;z-index:20;border-radius:10px;margin-bottom:8px}
+  /* Header cố định trên cùng khi cuộn */
+  #kanban-float-handle{display:flex !important;cursor:default !important;position:sticky;top:0;z-index:20;margin-bottom:0;flex-shrink:0}
   #kanban-float-handle .kf-drag-dots,#kanban-float-handle .kf-desktop-only{display:none !important}
-  #kf-scroll{overflow:visible !important;padding:0 !important;background:transparent !important}
+  /* Vùng cuộn: cao cố định 68vh, kéo xuống thấy hết các cột */
+  #kf-scroll{overflow-y:auto !important;overflow-x:hidden !important;padding:10px !important;background:#ede9e2 !important;max-height:68vh;-webkit-overflow-scrolling:touch}
   #idea-float-hint{display:none !important}
+  /* Inner wrapper: bỏ height:100% cố định để cuộn hoạt động trên mobile */
+  #kanban-float > div[style*="border-radius:14px"]{height:auto !important;display:flex !important;flex-direction:column !important}
 
   /* ── Idea modal: full width đáy màn hình ── */
   #idea-modal{padding:0 !important;align-items:flex-end !important}
