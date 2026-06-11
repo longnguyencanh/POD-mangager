@@ -2143,22 +2143,22 @@ function renderDesignReport(){
   const rangeLabel={today:'hôm nay',yesterday:'hôm qua','3':'3 ngày','7':'7 ngày','30':'30 ngày'}[range]||range;
   if(sum)sum.textContent=inRange.length+' mẫu ('+rangeLabel+')';
   if(!inRange.length){wrap.innerHTML='<div style="color:var(--text3);font-size:13px;padding:10px;text-align:center">Chưa có mẫu nào hoàn thành.</div>';document.getElementById('design-chart').innerHTML='';return;}
-  // đếm theo người được giao + người kéo
-  const byAssignee={},byDragger={};
-  inRange.forEach(l=>{byAssignee[l.assignee]=(byAssignee[l.assignee]||0)+1;byDragger[l.by]=(byDragger[l.by]||0)+1;});
+  // đếm theo người được giao (người kéo Idea→Đang làm)
+  const byAssignee={};
+  inRange.forEach(l=>{byAssignee[l.assignee]=(byAssignee[l.assignee]||0)+1;});
   const total=inRange.length;
   const mkTable=(obj,label)=>{
     const rows=Object.entries(obj).sort((a,b)=>b[1]-a[1]);
     return `<div style="flex:1;min-width:220px"><div style="font-size:12px;font-weight:600;color:var(--text2);margin-bottom:6px">${label}</div>`+
       rows.map(([n,c])=>`<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border2);font-size:13px"><span>👤 ${esc(n)}</span><span style="font-weight:700;color:var(--accent)">${c} mẫu</span></div>`).join('')+'</div>';
   };
-  wrap.innerHTML=`<div style="display:flex;gap:24px;flex-wrap:wrap">${mkTable(byAssignee,'Theo người được giao')}${mkTable(byDragger,'Theo người thao tác (kéo)')}</div>`;
-  // ── Bảng năng suất: thời gian trung bình từ "Đang làm" → "Hoàn thành" ──
+  wrap.innerHTML=`<div style="display:flex;gap:24px;flex-wrap:wrap">${mkTable(byAssignee,'Theo người được giao (kéo Idea → Đang làm)')}</div>`;
+  // ── Bảng năng suất: thời gian trung bình từ "Đang làm" → "Đợi duyệt" ──
   const withTime=inRange.filter(l=>l.minutesTotal!=null&&l.minutesTotal>=0);
   if(withTime.length){
     const byPerson={};
     withTime.forEach(l=>{
-      const n=l.assignee||'(chưa giao)';
+      const n=l.by||'(?)'; // người kéo Đang làm→Đợi duyệt = người làm
       if(!byPerson[n])byPerson[n]={count:0,total:0,min:Infinity,max:0};
       byPerson[n].count++;byPerson[n].total+=l.minutesTotal;
       if(l.minutesTotal<byPerson[n].min)byPerson[n].min=l.minutesTotal;
@@ -2172,25 +2172,31 @@ function renderDesignReport(){
         <tr style="color:var(--text3);font-size:10.5px"><th style="text-align:left;padding:4px">Người làm</th><th>Số mẫu</th><th>TB</th><th>Nhanh nhất</th><th>Chậm nhất</th></tr>
         ${rows.map(([n,d])=>`<tr style="border-top:1px solid var(--border2)"><td style="padding:5px 4px;font-weight:600">👤 ${esc(n)}</td><td style="text-align:center">${d.count}</td><td style="text-align:center;color:var(--accent);font-weight:700">${fmtM(Math.round(d.total/d.count))}</td><td style="text-align:center;color:#2e7d46">${fmtM(d.min)}</td><td style="text-align:center;color:var(--red)">${fmtM(d.max)}</td></tr>`).join('')}
       </table>
-      <div style="font-size:10px;color:var(--text3);margin-top:6px">* Tính từ lúc kéo vào "🎨 Đang làm" đến lúc kéo sang "👀 Đợi duyệt".</div>
+      <div style="font-size:10px;color:var(--text3);margin-top:6px">* Người làm = người kéo từ "🎨 Đang làm" sang "👀 Đợi duyệt".</div>
     </div>`;
-    wrap.innerHTML=`<div style="display:flex;gap:24px;flex-wrap:wrap">${mkTable(byAssignee,'Theo người được giao')}${mkTable(byDragger,'Theo người thao tác (kéo)')}${timeTable}</div>`;
+    wrap.innerHTML=`<div style="display:flex;gap:24px;flex-wrap:wrap">${mkTable(byAssignee,'Theo người được giao (kéo Idea → Đang làm)')}${timeTable}</div>`;
   }
-  // biểu đồ theo ngày (cột)
+  // ── Biểu đồ: 7 ngày gần nhất, đủ cả ngày 0 mẫu, chia màu ──
   const byDay={};inRange.forEach(l=>{const k=etDateKey(l.at);byDay[k]=(byDay[k]||0)+1;});
-  const days=Object.keys(byDay).sort();
-  const max=Math.max(...Object.values(byDay),1);
-  const chart=days.map(d=>{
-    const h=Math.round((byDay[d]/max)*100);
+  // luôn hiện 7 ngày gần nhất (kể cả 0 mẫu) để dễ so sánh
+  const days=[];
+  for(let i=6;i>=0;i--)days.push(etDayKeyOffset(i));
+  const counts=days.map(d=>byDay[d]||0);
+  const max=Math.max(...counts,1);
+  const COLORS=['#2e7d46','#3a8d54','#4a9d64','#5aad74','#6abd84','#7acd94','#8add9f'];
+  const chart=days.map((d,i)=>{
+    const c=byDay[d]||0;
+    const h=Math.round((c/max)*100);
     const label=d.slice(5).replace('-','/');
-    return `<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;min-width:28px">
-      <div style="font-size:11px;font-weight:700;color:var(--accent)">${byDay[d]}</div>
-      <div style="width:60%;background:linear-gradient(180deg,#5a9d6e,#2e7d46);border-radius:4px 4px 0 0;height:${Math.max(h,6)}px"></div>
-      <div style="font-size:10px;color:var(--text3)">${label}</div>
+    const color=COLORS[i%COLORS.length];
+    return `<div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:4px;min-width:32px;height:100%">
+      <div style="font-size:13px;font-weight:800;color:${c>0?'#2e7d46':'var(--text3)'}">${c}</div>
+      <div style="width:70%;background:${c>0?color:'var(--border2)'};border-radius:5px 5px 0 0;height:${c>0?Math.max(h,10):4}px;transition:.2s" title="${c} mẫu"></div>
+      <div style="font-size:10px;color:var(--text3);white-space:nowrap">${label}</div>
     </div>`;
   }).join('');
-  document.getElementById('design-chart').innerHTML=`<div style="font-size:12px;font-weight:600;color:var(--text2);margin-bottom:8px">📈 Mẫu hoàn thành theo ngày</div>
-    <div style="display:flex;align-items:flex-end;gap:4px;height:140px;background:var(--bg);border-radius:10px;padding:12px;overflow-x:auto">${chart}</div>`;
+  document.getElementById('design-chart').innerHTML=`<div style="font-size:12px;font-weight:600;color:var(--text2);margin-bottom:8px">📈 Mẫu hoàn thành 7 ngày gần nhất</div>
+    <div style="display:flex;align-items:flex-end;gap:6px;height:160px;background:var(--bg);border-radius:10px;padding:14px 12px 12px">${chart}</div>`;
 }
 // ── KANBAN DRAG (pointer-based, không xung đột với kfBind) ──
 let _dragIdeaId=null;
@@ -2260,10 +2266,16 @@ function _applyIdeaDrop(ideaId,col){
   if(!it.colHistory)it.colHistory=[];
   it.colHistory.push({from:oldStatus,to:col,by:auth?auth.name:'(?)',at:now});
   if(col==='doing'&&!it.startedAt)it.startedAt=now;
+  // Người kéo Idea → Đang làm = người được giao mẫu này
+  if(col==='doing'&&(oldStatus==='idea'||oldStatus==='unsorted')){
+    it.assignedBy=auth?auth.name:'(?)';
+    it.assignedAt=now;
+  }
   if(col==='review'&&oldStatus==='doing'&&!it.reviewedAt){
     it.reviewedAt=now;
     if(!cfg.designLog)cfg.designLog=[];
-    cfg.designLog.push({ideaId:it.id,title:it.title||'',col,assignee:it.assignee||'(chưa giao)',by:auth?auth.name:'(?)',at:now,startedAt:it.startedAt||null,minutesTotal:it.startedAt?Math.round((new Date(now)-new Date(it.startedAt))/60000):null});
+    // Người được giao = người kéo sang Đang làm (assignedBy); Người làm = người kéo sang Đợi duyệt (by)
+    cfg.designLog.push({ideaId:it.id,title:it.title||'',col,assignee:it.assignedBy||it.assignee||'(chưa giao)',by:auth?auth.name:'(?)',at:now,startedAt:it.startedAt||null,minutesTotal:it.startedAt?Math.round((new Date(now)-new Date(it.startedAt))/60000):null});
     if(cfg.designLog.length>1000)cfg.designLog=cfg.designLog.slice(-1000); // giữ 1000 bản ghi gần nhất (tránh phình DB)
   }
   const doneCols=['done','listed'];
