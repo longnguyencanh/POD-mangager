@@ -680,9 +680,9 @@ body[data-role="seller"] .no-seller{display:none !important}
       <span style="color:var(--border);font-size:16px">|</span>
       <select class="fi" style="width:auto;padding:5px 10px;font-size:12.5px" onchange="if(this.value){bulkStatus(this.value);this.value='';}">
         <option value="">⚡ Đổi trạng thái...</option>
-        <option value="shipped">🟢 Đã gửi</option>
-        <option value="producing">🏭 Chờ sản xuất</option>
-        <option value="hold">🟠 Hold</option>
+        <option value="producing">🏭 Đã gửi xưởng</option>
+        <option value="missing">⚠️ Thiếu info</option>
+        <option value="shipped">📦 Đã gửi đi (có tracking)</option>
         <option value="done">✓ Đã xử lý</option>
         <option value="cancelled">🔴 Huỷ</option>
       </select>
@@ -4315,17 +4315,27 @@ function filterOrders(q){searchQ=q.toLowerCase();applyFilter();}
 // Đơn mới (hôm nay ET) → Chờ xử lý (chưa có Drive) → Đã gửi xưởng (có Drive)
 //   → trong "đã gửi xưởng": Thiếu info / Có tracking / Chưa tracking
 function orderStage(o){
+  // 1) Trạng thái đặt thủ công rõ ràng được ưu tiên (đồng bộ khi đổi status tay)
   if(o.status==='cancelled')return 'cancelled';
+  if(o.status==='done')return 'has_track'; // đã xử lý xong → coi như hoàn tất (nhóm có tracking)
+  if(o.status==='missing')return 'missing';
   const hasDrive=!!(o.gdriveLink&&o.gdriveLink.trim());
-  // Chưa add Drive
+  const hasTrack=!!(o.tracking&&o.tracking.trim()&&o.tracking!=='(chưa có)');
+  // 2) Đổi status thủ công "Đã gửi đi" (shipped) → nhóm tracking
+  if(o.status==='shipped')return hasTrack?'has_track':'no_track';
+  // 3) Đổi status thủ công "Đã gửi xưởng" (producing) → nhóm đã gửi xưởng
+  if(o.status==='producing'){
+    if(hasTrack)return 'has_track';
+    return 'no_track';
+  }
+  // 4) Tự động theo dữ liệu (mặc định)
   if(!hasDrive){
-    // nếu là đơn tạo hôm nay (giờ Mỹ) → Đơn mới; còn lại → Chờ xử lý
+    // chưa add Drive → Đơn mới (nếu tạo hôm nay ET) hoặc Chờ xử lý
     if(isEtToday(o.created))return 'new_today';
     return 'wait_design';
   }
-  // Đã có Drive = đã gửi xưởng → phân nhánh
-  if(o.status==='missing')return 'missing';
-  if(o.tracking&&o.tracking.trim()&&o.tracking!=='(chưa có)')return 'has_track';
+  // đã có Drive = đã gửi xưởng → phân nhánh theo tracking
+  if(hasTrack)return 'has_track';
   return 'no_track';
 }
 function applyFilter(){
