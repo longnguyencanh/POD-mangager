@@ -579,6 +579,7 @@ body[data-role="seller"] .no-seller{display:none !important}
   <div class="sb-item no-design" id="nav-dashboard" onclick="goPage('dashboard')"><span class="ic">📈</span> Dashboard</div>
   <div class="sb-sec">Quản lý</div>
   <div class="sb-item active" id="nav-orders" onclick="goPage('orders')"><span class="ic">📦</span> Đơn hàng <span class="sb-badge" id="sb-cnt">0</span></div>
+  <div class="sb-item no-design" id="nav-case" onclick="goPage('case')"><span class="ic">🚨</span> Case / Sự cố <span class="sb-badge" id="sb-case-cnt" style="display:none">0</span></div>
   <div class="sb-item no-design" id="nav-history" onclick="goPage('history')"><span class="ic">🗂️</span> Lịch sử đơn</div>
   <div class="sb-item admin-only" id="nav-insight" onclick="goPage('insight')"><span class="ic">🔍</span> Shop Insight</div>
   <div class="sb-sec">🎨 Sáng tạo</div>
@@ -662,11 +663,10 @@ body[data-role="seller"] .no-seller{display:none !important}
     </div>
 
     <div class="tabs">
-      <div class="tab active" onclick="setTab(this,'all')">Đơn mới <span class="tc" id="tc-all">0</span></div>
-      <div class="tab" onclick="setTab(this,'pending')">Chờ xử lý <span class="tc" id="tc-pending">0</span></div>
-      <div class="tab" onclick="setTab(this,'processing')">Xử lý <span class="tc" id="tc-processing">0</span></div>
-      <div class="tab" onclick="setTab(this,'done')">Đã xử lý <span class="tc" id="tc-done">0</span></div>
-      <div class="tab" onclick="setTab(this,'missing')">Thiếu info <span class="tc" id="tc-missing">0</span></div>
+      <div class="tab active" onclick="setTab(this,'new_today')">🆕 Đơn mới <span class="tc" id="tc-new_today">0</span></div>
+      <div class="tab" onclick="setTab(this,'wait_design')">⏳ Chờ xử lý <span class="tc" id="tc-wait_design">0</span></div>
+      <div class="tab" onclick="setTab(this,'sent_factory')">🏭 Đã gửi xưởng <span class="tc" id="tc-sent_factory">0</span></div>
+      <div class="tab" onclick="setTab(this,'missing')">⚠️ Thiếu info <span class="tc" id="tc-missing">0</span></div>
       <div class="tab" onclick="setTab(this,'has_track')">📦 Có tracking <span class="tc" id="tc-has_track">0</span></div>
       <div class="tab" onclick="setTab(this,'no_track')">⏳ Chưa tracking <span class="tc" id="tc-no_track">0</span></div>
     </div>
@@ -897,6 +897,77 @@ body[data-role="seller"] .no-seller{display:none !important}
         </div>
       </div>
 
+    </div>
+  </div>
+
+  <!-- ════ PAGE: CASE / SỰ CỐ ════ -->
+  <div class="page" id="page-case">
+    <div class="ph">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+        <div><div class="ph-title">🚨 Case / Sự cố</div><div class="ph-sub">Quản lý các đơn gặp vấn đề: khiếu nại, hoàn tiền, lỗi sản xuất, ship lỗi...</div></div>
+        <button class="btn btn-green btn-sm" onclick="openCaseModal()">➕ Tạo case mới</button>
+      </div>
+    </div>
+    <div class="page-scroll">
+      <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap">
+        <button class="tab active" id="case-tab-open" onclick="setCaseTab('open')">🔴 Đang mở <span class="tc" id="cc-open">0</span></button>
+        <button class="tab" id="case-tab-resolved" onclick="setCaseTab('resolved')">✅ Đã xử lý <span class="tc" id="cc-resolved">0</span></button>
+        <button class="tab" id="case-tab-all" onclick="setCaseTab('all')">Tất cả <span class="tc" id="cc-all">0</span></button>
+      </div>
+      <div id="case-list"></div>
+    </div>
+  </div>
+
+  <!-- Modal tạo/sửa Case -->
+  <div class="modal-bg" id="case-modal">
+    <div class="modal" style="max-width:480px;position:relative">
+      <button onclick="document.getElementById('case-modal').classList.remove('open')" title="Đóng" style="position:absolute;top:10px;right:10px;width:30px;height:30px;border-radius:50%;border:1px solid var(--border);background:var(--surface);color:var(--text2);font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1;z-index:5">✕</button>
+      <div class="modal-title" style="font-size:16px;margin-bottom:12px;padding-right:36px" id="case-modal-title">🚨 Tạo Case mới</div>
+      <input type="hidden" id="case-id">
+      <div class="fl" style="margin-bottom:8px">
+        <label style="font-size:11px;color:var(--text3)">🔖 Mã đơn liên quan (tuỳ chọn)</label>
+        <input class="fi" id="case-order" placeholder="Mã đơn Etsy / RP-..." style="font-size:12.5px">
+      </div>
+      <div class="fr c2" style="margin-bottom:8px">
+        <div class="fl">
+          <label style="font-size:11px;color:var(--text3)">Loại sự cố</label>
+          <select class="fi" id="case-type" style="font-size:12.5px">
+            <option value="complaint">😠 Khiếu nại khách</option>
+            <option value="refund">💸 Hoàn tiền</option>
+            <option value="defect">🏭 Lỗi sản xuất</option>
+            <option value="shipping">📦 Lỗi vận chuyển</option>
+            <option value="address">🏠 Sai địa chỉ</option>
+            <option value="other">❓ Khác</option>
+          </select>
+        </div>
+        <div class="fl">
+          <label style="font-size:11px;color:var(--text3)">Mức độ</label>
+          <select class="fi" id="case-priority" style="font-size:12.5px">
+            <option value="high">🔴 Khẩn</option>
+            <option value="normal" selected>🟡 Bình thường</option>
+            <option value="low">⚪ Thấp</option>
+          </select>
+        </div>
+      </div>
+      <div class="fl" style="margin-bottom:8px">
+        <label style="font-size:11px;color:var(--text3)">Tiêu đề sự cố</label>
+        <input class="fi" id="case-title" placeholder="vd: Khách báo nhận sai size" style="font-size:12.5px">
+      </div>
+      <div class="fl" style="margin-bottom:8px">
+        <label style="font-size:11px;color:var(--text3)">Chi tiết / cách xử lý</label>
+        <textarea class="fi" id="case-note" rows="4" placeholder="Mô tả vấn đề, hướng xử lý, ghi chú..." style="font-size:12.5px;resize:vertical;font-family:inherit"></textarea>
+      </div>
+      <div class="fl" style="margin-bottom:12px">
+        <label style="font-size:11px;color:var(--text3)">Trạng thái</label>
+        <select class="fi" id="case-status" style="font-size:12.5px">
+          <option value="open">🔴 Đang mở</option>
+          <option value="resolved">✅ Đã xử lý</option>
+        </select>
+      </div>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-green" onclick="saveCase()" style="flex:1">💾 Lưu Case</button>
+        <button class="btn btn-sm" id="case-del-btn" onclick="delCase()" style="color:var(--red);display:none">🗑️ Xoá</button>
+      </div>
     </div>
   </div>
 
@@ -1749,7 +1820,7 @@ body[data-role="seller"] .no-seller{display:none !important}
 <script>
 const CFG_KEY='pod_cfg_v3';
 let cfg={proxyUrl:'http://localhost:3000',printifyToken:'',shopId:'',merchizeKey:'',sellerwixKey:'',sellerwixPid:'',sheetId:'',sheetToken:'',skuMap:[],mrzBase:'',mrzToken:''};
-let orders=[],filtered=[],current=null,currentTab='all',searchQ='';
+let orders=[],filtered=[],current=null,currentTab='new_today',searchQ='';
 
 const DESIGNERS=['— Chưa gán —','Nguyễn Anh','Trần Mai','Lê Hùng','Phạm Ly','Team Design'];
 const FULFILLERS=['— Chưa gán —','Merchize','Sellerwix','Xưởng A','Xưởng B'];
@@ -2670,6 +2741,110 @@ function renderSuppliers(){
     ${s.note?`<div style="font-size:12px;color:var(--text3);margin-top:6px;font-style:italic">📝 ${esc(s.note)}</div>`:''}
   </div>`).join('');
 }
+// ══════════════════════════════════════════
+//  CASE / SỰ CỐ
+// ══════════════════════════════════════════
+let _caseTab='open';
+const CASE_TYPE={complaint:'😠 Khiếu nại khách',refund:'💸 Hoàn tiền',defect:'🏭 Lỗi sản xuất',shipping:'📦 Lỗi vận chuyển',address:'🏠 Sai địa chỉ',other:'❓ Khác'};
+const CASE_PRI={high:'🔴 Khẩn',normal:'🟡 Bình thường',low:'⚪ Thấp'};
+function setCaseTab(t){_caseTab=t;document.querySelectorAll('#page-case .tab').forEach(x=>x.classList.remove('active'));document.getElementById('case-tab-'+t).classList.add('active');renderCases();}
+function renderCases(){
+  const el=document.getElementById('case-list');if(!el)return;
+  const cases=cfg.cases||[];
+  const open=cases.filter(c=>c.status==='open').length;
+  const resolved=cases.filter(c=>c.status==='resolved').length;
+  const setC=(id,n)=>{const e=document.getElementById(id);if(e)e.textContent=n;};
+  setC('cc-open',open);setC('cc-resolved',resolved);setC('cc-all',cases.length);
+  const badge=document.getElementById('sb-case-cnt');if(badge){if(open>0){badge.style.display='';badge.textContent=open;}else badge.style.display='none';}
+  let list=cases;
+  if(_caseTab==='open')list=cases.filter(c=>c.status==='open');
+  else if(_caseTab==='resolved')list=cases.filter(c=>c.status==='resolved');
+  list=list.slice().sort((a,b)=>{const pr={high:0,normal:1,low:2};const pa=pr[a.priority]??1,pb=pr[b.priority]??1;if(pa!==pb)return pa-pb;return new Date(b.createdAt||0)-new Date(a.createdAt||0);});
+  if(!list.length){el.innerHTML='<div style="color:var(--text3);font-size:13px;padding:30px;text-align:center">Không có case nào.</div>';return;}
+  el.innerHTML=list.map(c=>{
+    const pcolor=c.priority==='high'?'var(--red)':c.priority==='low'?'var(--text3)':'#b8860b';
+    const done=c.status==='resolved';
+    return `<div style="background:var(--surface);border:1px solid ${done?'var(--border)':pcolor};border-left:4px solid ${pcolor};border-radius:12px;padding:14px;margin-bottom:10px;${done?'opacity:.7':''}">
+      <div style="display:flex;justify-content:space-between;align-items:start;gap:8px">
+        <div style="font-size:14px;font-weight:700">${done?'✅ ':''}${esc(c.title||'(không tiêu đề)')}</div>
+        <div style="display:flex;gap:6px;flex-shrink:0">
+          <button class="btn btn-xs" onclick="openCaseModal('${c.id}')">✏️ Sửa</button>
+          ${!done?`<button class="btn btn-xs btn-green" onclick="resolveCase('${c.id}')">✅ Xong</button>`:''}
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px;font-size:11px">
+        <span style="background:var(--bg);padding:2px 8px;border-radius:6px">${CASE_TYPE[c.type]||c.type}</span>
+        <span style="color:${pcolor};font-weight:600">${CASE_PRI[c.priority]||''}</span>
+        ${c.orderCode?`<span style="background:var(--bg);padding:2px 8px;border-radius:6px">🔖 ${esc(c.orderCode)}</span>`:''}
+      </div>
+      ${c.note?`<div style="font-size:12.5px;color:var(--text2);margin-top:8px;white-space:pre-wrap">${esc(c.note)}</div>`:''}
+      <div style="font-size:10.5px;color:var(--text3);margin-top:8px">🕐 ${fmtDate(c.createdAt)}${c.createdBy?' · '+esc(c.createdBy):''}${done&&c.resolvedAt?' · ✅ Xử lý: '+fmtDate(c.resolvedAt):''}</div>
+    </div>`;
+  }).join('');
+}
+function openCaseModal(id){
+  document.getElementById('case-id').value=id||'';
+  const delBtn=document.getElementById('case-del-btn');
+  if(id){
+    const c=(cfg.cases||[]).find(x=>x.id===id);if(!c)return;
+    document.getElementById('case-modal-title').textContent='✏️ Sửa Case';
+    document.getElementById('case-order').value=c.orderCode||'';
+    document.getElementById('case-type').value=c.type||'other';
+    document.getElementById('case-priority').value=c.priority||'normal';
+    document.getElementById('case-title').value=c.title||'';
+    document.getElementById('case-note').value=c.note||'';
+    document.getElementById('case-status').value=c.status||'open';
+    if(delBtn)delBtn.style.display='';
+  }else{
+    document.getElementById('case-modal-title').textContent='🚨 Tạo Case mới';
+    document.getElementById('case-order').value='';
+    document.getElementById('case-type').value='complaint';
+    document.getElementById('case-priority').value='normal';
+    document.getElementById('case-title').value='';
+    document.getElementById('case-note').value='';
+    document.getElementById('case-status').value='open';
+    if(delBtn)delBtn.style.display='none';
+  }
+  document.getElementById('case-modal').classList.add('open');
+}
+function saveCase(){
+  const title=document.getElementById('case-title').value.trim();
+  if(!title){toast('Nhập tiêu đề sự cố','error');return;}
+  if(!cfg.cases)cfg.cases=[];
+  const id=document.getElementById('case-id').value;
+  const data={
+    orderCode:document.getElementById('case-order').value.trim(),
+    type:document.getElementById('case-type').value,
+    priority:document.getElementById('case-priority').value,
+    title,
+    note:document.getElementById('case-note').value.trim(),
+    status:document.getElementById('case-status').value,
+  };
+  if(id){
+    const c=cfg.cases.find(x=>x.id===id);
+    if(c){const wasOpen=c.status!=='resolved';Object.assign(c,data);if(data.status==='resolved'&&wasOpen)c.resolvedAt=new Date().toISOString();}
+  }else{
+    const now=new Date().toISOString();
+    cfg.cases.push({id:'case_'+Date.now(),...data,createdAt:now,createdBy:auth?auth.name:'(?)',resolvedAt:data.status==='resolved'?now:null});
+  }
+  saveCfg();cloudSaveAll();renderCases();
+  document.getElementById('case-modal').classList.remove('open');
+  toast('✅ Đã lưu case','success');
+}
+function resolveCase(id){
+  const c=(cfg.cases||[]).find(x=>x.id===id);if(!c)return;
+  c.status='resolved';c.resolvedAt=new Date().toISOString();
+  saveCfg();cloudSaveAll();renderCases();
+  toast('✅ Đã đánh dấu xử lý xong','success');
+}
+function delCase(){
+  const id=document.getElementById('case-id').value;if(!id)return;
+  if(!confirm('Xoá case này?'))return;
+  cfg.cases=(cfg.cases||[]).filter(x=>x.id!==id);
+  saveCfg();cloudSaveAll();renderCases();
+  document.getElementById('case-modal').classList.remove('open');
+  toast('Đã xoá case','info');
+}
 // ── CHI PHÍ VẬN HÀNH ──
 function shopList(){
   // gộp shop khai báo (cfg.shops) + shop xuất hiện trong đơn
@@ -2862,6 +3037,13 @@ async function addOrderByCode(){
       if(exist){
         if(rev)exist.total='$'+rev.toFixed(2);
         if(shop)exist.shopTitle=shop;
+        // Cập nhật trạng thái HỦY nếu Merchize báo hủy (xử lý đúng case "3 ngày sau khách hủy")
+        const mStatus=String(md.order_status||md.status||'').toLowerCase();
+        if(mStatus.includes('cancel')&&exist.status!=='cancelled'){
+          exist.status='cancelled';upCancel++;
+          if(!exist.history)exist.history=[];
+          exist.history.push({t:Date.now(),by:'Merchize (đồng bộ)',act:'🔴 Đơn bị HỦY (phát hiện khi đồng bộ Merchize)'});
+        }
         updated++;
       }else{
         orders.push({
@@ -2899,12 +3081,22 @@ async function syncMerchizePrices(opts){
     return {upRev:0,upCost:0,upShop:0};
   }
   if(!silent)toast('⏳ Đang cập nhật doanh thu từ Merchize...','info');
-  // Nếu chỉ đơn $0: lọc đơn chưa có doanh thu
+  // Chọn đơn cần đồng bộ:
+  //  - onlyZero: chỉ đơn chưa có doanh thu ($0)
+  //  - checkCancel: đơn CHƯA hủy & chưa hoàn tất (để bắt đơn hủy trễ — sau 7/10/15 ngày)
+  //  - mặc định: tất cả
   const num=o=>parseFloat(String(o.total||'').replace(/[^0-9.]/g,''))||0;
-  const pool=onlyZero?orders.filter(o=>num(o)<=0):orders;
+  let pool;
+  if(opts.checkCancel){
+    pool=orders.filter(o=>o.status!=='cancelled'&&o.status!=='done');
+  }else if(onlyZero){
+    pool=orders.filter(o=>num(o)<=0);
+  }else{
+    pool=orders;
+  }
   const codes=pool.map(o=>o.orderNumber||o.external_id||o.id).filter(Boolean).slice(0,300);
-  if(!codes.length){if(box&&!silent)box.textContent='✅ Không có đơn nào cần cập nhật.';if(!silent)toast('✅ Không có đơn $0 nào cần cập nhật doanh thu','success');return {upRev:0,upCost:0,upShop:0};}
-  let upRev=0,upCost=0,upShop=0,sampleKeys='';
+  if(!codes.length){if(box&&!silent)box.textContent='✅ Không có đơn nào cần cập nhật.';if(!silent)toast('✅ Không có đơn nào cần cập nhật','success');return {upRev:0,upCost:0,upShop:0};}
+  let upRev=0,upCost=0,upShop=0,upCancel=0,sampleKeys='';
   try{
     for(let i=0;i<codes.length;i+=50){
       const batch=codes.slice(i,i+50);
@@ -2916,6 +3108,13 @@ async function syncMerchizePrices(opts){
         const o=orders.find(x=>[x.orderNumber,x.external_id,x.id,x.external_number].filter(Boolean).map(v=>String(v).toUpperCase()).includes(mcode));
         if(!o)return;
         if(!sampleKeys)sampleKeys=JSON.stringify(Object.keys(md).slice(0,30));
+        // Phát hiện đơn HỦY (dù hủy sau bao nhiêu ngày) → cập nhật + loại doanh thu
+        const mStatus=String(md.order_status||md.status||'').toLowerCase();
+        if(mStatus.includes('cancel')&&o.status!=='cancelled'){
+          o.status='cancelled';upCancel++;
+          if(!o.history)o.history=[];
+          o.history.push({t:Date.now(),by:'Merchize (đồng bộ)',act:'🔴 Đơn bị HỦY (phát hiện khi đồng bộ Merchize)'});
+        }
         const rev=findRevenue(md);
         if(rev!=null&&rev>0){o.total='$'+rev.toFixed(2);upRev++;}
         const cost=findPrice(md);
@@ -2939,19 +3138,25 @@ async function syncMerchizePrices(opts){
     localStorage.setItem('pod_orders',JSON.stringify(orders));
     saveCfg();
     await cloudSaveAll();buildShopFilter();applyFilter();updateCounts();
-    if(box&&!silent)box.textContent=`✅ Đã đồng bộ từ Merchize:\n• Doanh thu: ${upRev} đơn\n• Basecost: ${upCost} đơn\n• Tên shop: ${upShop} đơn`+((upRev+upCost+upShop)===0?'\n⚠️ Không tìm thấy trường. Các trường có: '+sampleKeys:'');
-    if(!silent)toast(`✅ Đồng bộ Merchize: ${upRev} doanh thu, ${upShop} shop`,'success');
-    else if(upRev>0)toast(`🔄 Tự cập nhật ${upRev} doanh thu mới`,'success');
-    return {upRev,upCost,upShop};
+    if(box&&!silent)box.textContent=`✅ Đã đồng bộ từ Merchize:\n• Doanh thu: ${upRev} đơn\n• Basecost: ${upCost} đơn\n• Tên shop: ${upShop} đơn`+(upCancel>0?`\n• 🔴 Đơn hủy: ${upCancel} đơn (đã trừ doanh thu)`:'')+((upRev+upCost+upShop+upCancel)===0?'\n⚠️ Không tìm thấy trường. Các trường có: '+sampleKeys:'');
+    if(!silent)toast(`✅ Đồng bộ Merchize: ${upRev} doanh thu, ${upShop} shop`+(upCancel>0?`, 🔴 ${upCancel} hủy`:''),'success');
+    else if(upRev>0||upCancel>0)toast(`🔄 Tự cập nhật ${upRev} doanh thu`+(upCancel>0?`, ${upCancel} đơn hủy`:'')+' mới','success');
+    return {upRev,upCost,upShop,upCancel};
   }catch(e){if(box&&!silent)box.textContent='❌ Lỗi: '+e.message;return {upRev:0,upCost:0,upShop:0,error:e.message};}
 }
-// Tự đồng bộ ngầm: chỉ đơn $0, không làm phiền (gọi khi mở app + định kỳ)
+// Tự đồng bộ ngầm: luân phiên đơn $0 + kiểm tra hủy (bắt đơn hủy trễ)
 let _autoSyncRunning=false;
+let _autoSyncCount=0;
 async function autoSyncRevenue(){
   if(_autoSyncRunning)return;
   if(!(cfg.mrzToken||(document.getElementById('mrz-token')||{}).value))return; // chưa cấu hình token thì bỏ
   _autoSyncRunning=true;
-  try{await syncMerchizePrices({silent:true,onlyZero:true});}catch(e){}
+  _autoSyncCount++;
+  try{
+    // Mỗi lần: sync đơn $0; cứ 3 lần (~30 phút) thì quét kiểm tra hủy 1 lần
+    await syncMerchizePrices({silent:true,onlyZero:true});
+    if(_autoSyncCount%3===0)await syncMerchizePrices({silent:true,checkCancel:true});
+  }catch(e){}
   _autoSyncRunning=false;
 }
 // DOANH THU (giá bán Etsy) — Merchize lưu ở invoice.amount/total/subtotal
@@ -3177,6 +3382,7 @@ function goPage(page){
   if(page==='pricing'){renderPriceList();loadFees();savePriceSheetUrl_load();}
   if(page==='costs'){loadCostUI();renderAdList();renderOpList();}
   if(page==='suppliers'){renderSuppliers();}
+  if(page==='case'){renderCases();}
   if(page==='idea'){renderIdeaBoard();renderDesignReport();_kanbanHidden=false;const tb=document.getElementById('kanban-toggle-btn');if(tb)tb.textContent='📋 Ẩn bảng';kfShow();}
   else{kfHide();}
 }
@@ -3198,7 +3404,7 @@ function renderHome(){
   const today=orders.filter(o=>etDateKey(o.created)===tkey);
   const newToday=today.length; // mọi đơn tạo hôm nay (giờ Michigan)
   const num=o=>parseFloat(String(o.total||'').replace(/[^0-9.]/g,''))||0;
-  const revToday=today.reduce((s,o)=>s+num(o),0);
+  const revToday=today.filter(o=>o.status!=='cancelled').reduce((s,o)=>s+num(o),0);
   const urgent=orders.filter(o=>o.urgent).length;
   const missing=orders.filter(o=>o.status==='missing'||o.status==='missing_qty').length;
   const notPushed=orders.filter(o=>!o.pushed?.merchize&&!o.pushed?.sellerwix&&!o.pushed?.sheet&&o.status!=='done'&&o.status!=='cancelled').length;
@@ -3261,7 +3467,7 @@ function renderShopProfit(){
   const opMonthlyUSD=(cfg.opCosts||[]).reduce((x,c)=>x+(c.amount||0),0)/fx;
   const opPerShop=shops.length?opMonthlyUSD/shops.length:0;
   const rows=shops.map(s=>{
-    const ol=recent.filter(o=>o.shopTitle===s);
+    const ol=recent.filter(o=>o.shopTitle===s&&o.status!=='cancelled');
     const rev=ol.reduce((a,o)=>a+num(o),0);
     const gross=ol.reduce((a,o)=>a+prof(o),0);
     const ad=adByShop[s]||0;
@@ -3284,7 +3490,8 @@ function renderPeriodStats(){
   const dkey=o=>etDateKey(o.created||o.saleDate||o.date);
   const num=o=>parseFloat(String(o.total||'').replace(/[^0-9.]/g,''))||0;
   const prof=o=>{const p=(typeof profitFor==='function')?profitFor(o):null;return p||0;};
-  const agg=(filterFn)=>{const list=orders.filter(filterFn);return{n:list.length,rev:list.reduce((a,o)=>a+num(o),0),profit:list.reduce((a,o)=>a+prof(o),0)};};
+  // Loại đơn HỦY khỏi doanh thu/lợi nhuận
+  const agg=(filterFn)=>{const list=orders.filter(o=>o.status!=='cancelled'&&filterFn(o));return{n:list.length,rev:list.reduce((a,o)=>a+num(o),0),profit:list.reduce((a,o)=>a+prof(o),0)};};
   const periods=[
     {label:'Hôm nay',icon:'☀️',f:o=>dkey(o)===tk},
     {label:'Hôm qua',icon:'🌙',f:o=>dkey(o)===yk},
@@ -3634,7 +3841,7 @@ async function cloudSaveCfg(opts){
   try{
     const headers={'Content-Type':'application/json'};
     if(auth&&auth.token)headers['X-Session']=auth.token;
-    const shared={skuMap:cfg.skuMap||[],priceMap:cfg.priceMap||[],fees:cfg.fees||{},adCosts:cfg.adCosts||[],opCosts:cfg.opCosts||[],fxRate:cfg.fxRate||0,fxManual:cfg.fxManual||false,shops:cfg.shops||[],suppliers:cfg.suppliers||[],ideas:cfg.ideas||[],designLog:cfg.designLog||[],nasPathTpl:cfg.nasPathTpl||'',notifs:cfg.notifs||[]};
+    const shared={skuMap:cfg.skuMap||[],priceMap:cfg.priceMap||[],fees:cfg.fees||{},adCosts:cfg.adCosts||[],opCosts:cfg.opCosts||[],fxRate:cfg.fxRate||0,fxManual:cfg.fxManual||false,shops:cfg.shops||[],suppliers:cfg.suppliers||[],ideas:cfg.ideas||[],designLog:cfg.designLog||[],nasPathTpl:cfg.nasPathTpl||'',notifs:cfg.notifs||[],cases:cfg.cases||[]};
     if(opts&&opts.fullIdeas)shared._fullIdeas=true; // báo backend đây là danh sách đầy đủ (cho phép xoá)
     const r=await fetch('/api/data?op=config',{method:'POST',headers,body:JSON.stringify(shared)});
     return r.ok;
@@ -4106,20 +4313,40 @@ function onEmpFilter(v){empFilter=v;applyFilter();}
 // ── FILTER ──
 function setTab(el,tab){document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));el.classList.add('active');currentTab=tab;applyFilter();}
 function filterOrders(q){searchQ=q.toLowerCase();applyFilter();}
+// ── LUỒNG XỬ LÝ ĐƠN: mỗi đơn thuộc 1 bước duy nhất (bước mới nhất) ──
+// Đơn mới (hôm nay ET) → Chờ xử lý (chưa có Drive) → Đã gửi xưởng (có Drive)
+//   → trong "đã gửi xưởng": Thiếu info / Có tracking / Chưa tracking
+function orderStage(o){
+  if(o.status==='cancelled')return 'cancelled';
+  const hasDrive=!!(o.gdriveLink&&o.gdriveLink.trim());
+  // Chưa add Drive
+  if(!hasDrive){
+    // nếu là đơn tạo hôm nay (giờ Mỹ) → Đơn mới; còn lại → Chờ xử lý
+    if(isEtToday(o.created))return 'new_today';
+    return 'wait_design';
+  }
+  // Đã có Drive = đã gửi xưởng → phân nhánh
+  if(o.status==='missing')return 'missing';
+  if(o.tracking&&o.tracking.trim()&&o.tracking!=='(chưa có)')return 'has_track';
+  return 'no_track';
+}
 function applyFilter(){
   curPage=1; // về trang 1 khi đổi bộ lọc
   _infPage=0; // reset infinite scroll
   const isStaffScoped=auth&&auth.role!=='admin';
   const mine=isStaffScoped?myAbbrs():[];
   filtered=orders.filter(o=>{
-    // Lọc cứng theo vai trò: nhân viên chỉ thấy đơn có SKU chứa viết tắt của mình
     if(isStaffScoped){if(!orderMatchesAbbrs(o,mine))return false;}
-    // Bộ lọc nhân viên (admin chọn)
     if(empFilter&&empFilter!=='all'){if(!orderMatchesAbbrs(o,[empFilter.toUpperCase()]))return false;}
     if(shopFilter!=='all'&&o.shopTitle!==shopFilter)return false;
-    if(currentTab==='has_track'){if(!o.tracking)return false;}
-    else if(currentTab==='no_track'){if(o.tracking)return false;}
-    else if(currentTab!=='all'&&o.status!==currentTab)return false;
+    // Lọc theo bước trong luồng (mỗi đơn 1 bước)
+    if(currentTab&&currentTab!=='all'){
+      const st=orderStage(o);
+      if(currentTab==='sent_factory'){
+        // Đã gửi xưởng = tất cả đơn đã có Drive (missing/has_track/no_track)
+        if(st!=='missing'&&st!=='has_track'&&st!=='no_track')return false;
+      } else if(st!==currentTab)return false;
+    }
     if(searchQ)return o.id.includes(searchQ)||o.customer.toLowerCase().includes(searchQ)||(o.items?.[0]?.title||'').toLowerCase().includes(searchQ)||(o.external_id||'').includes(searchQ)||(o.items?.[0]?.sku||'').toLowerCase().includes(searchQ);
     return true;
   });
@@ -4138,7 +4365,10 @@ function visibleOrders(){
   if(auth&&auth.role!=='admin'){const mine=myAbbrs();return orders.filter(o=>orderMatchesAbbrs(o,mine));}
   return orders;
 }
-function updateCounts(){const vis=visibleOrders();const c={all:vis.length};vis.forEach(o=>{c[o.status]=(c[o.status]||0)+1;});c.has_track=vis.filter(o=>o.tracking).length;c.no_track=vis.filter(o=>!o.tracking).length;['all','pending','processing','done','missing','missing_qty','has_track','no_track'].forEach(k=>{const el=document.getElementById('tc-'+k);if(el)el.textContent=c[k]||0;});document.getElementById('sb-cnt').textContent=vis.length;if(currentPage==='home')renderHome();else if(currentPage==='dashboard')renderDashboard();else if(currentPage==='analytics')renderAnalytics();}
+function updateCounts(){const vis=visibleOrders();const c={new_today:0,wait_design:0,sent_factory:0,missing:0,has_track:0,no_track:0};vis.forEach(o=>{const st=orderStage(o);if(st==='cancelled')return;if(c[st]!==undefined)c[st]++;});
+  // "Đã gửi xưởng" = tổng các đơn đã có Drive (missing + has_track + no_track)
+  c.sent_factory=c.missing+c.has_track+c.no_track;
+  ['new_today','wait_design','sent_factory','missing','has_track','no_track'].forEach(k=>{const el=document.getElementById('tc-'+k);if(el)el.textContent=c[k]||0;});document.getElementById('sb-cnt').textContent=vis.length;if(currentPage==='home')renderHome();else if(currentPage==='dashboard')renderDashboard();else if(currentPage==='analytics')renderAnalytics();}
 
 const PILLS={new:['p-new','🆕 Đơn mới'],pending:['p-pending','⏳ Chờ xử lý'],processing:['p-processing','⚙️ Đang xử lý'],not_sent:['p-notsent','📦 Chưa gửi'],producing:['p-producing','🏭 Chờ sản xuất'],shipped:['p-shipped','🟢 Đã gửi'],hold:['p-hold','🟠 Hold'],done:['p-done','✓ Đã xử lý'],missing:['p-missing','⚠ Thiếu info'],missing_qty:['p-missing','⚠ Thiếu SL'],cancelled:['p-cancelled','🔴 Huỷ']};
 const STATUS_LABEL={new:'Đơn mới',pending:'Chờ xử lý',processing:'Đang xử lý',not_sent:'Chưa gửi',producing:'Đang chờ sản xuất',shipped:'Đã gửi đi',hold:'Hold',done:'Đã xử lý',missing:'Thiếu info',missing_qty:'Thiếu SL',cancelled:'Huỷ'};
@@ -4361,7 +4591,13 @@ function saveGdrive(){
   const go=document.getElementById('d-gdrive-open');if(go){if(v){go.style.display='';go.href=v;}else go.style.display='none';}
   showGdriveSaved(current);
   renderHistory(current);
-  toast('✅ Đã lưu link Google Drive (cố định, có thể check lại sau)','success');
+  if(v){
+    toast('✅ Đã lưu Drive → đơn tự chuyển sang "🏭 Đã gửi xưởng"','success');
+  }else{
+    toast('✅ Đã xoá link Google Drive','success');
+  }
+  // Cập nhật lại tab/đếm (đơn tự chuyển bước theo Drive)
+  applyFilter();updateCounts();
 }
 function showGdriveSaved(o){
   const box=document.getElementById('d-gdrive-saved');if(!box)return;
