@@ -9,15 +9,26 @@ const TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN;
 export function hasRedis() { return !!(URL && TOKEN); }
 
 // Chạy 1 lệnh Redis qua REST (POST với body JSON là mảng [cmd, ...args])
-async function cmd(args) {
-  const r = await fetch(URL, {
-    method: 'POST',
-    headers: { 'Authorization': `Bearer ${TOKEN}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify(args),
-  });
-  const data = await r.json();
-  if (data.error) throw new Error(data.error);
-  return data.result;
+async function cmd(args, retry = 1) {
+  try {
+    const r = await fetch(URL, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${TOKEN}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(args),
+    });
+    if (!r.ok) {
+      // Lỗi tạm thời (5xx) → thử lại 1 lần
+      if (r.status >= 500 && retry > 0) return cmd(args, retry - 1);
+      throw new Error('Redis HTTP ' + r.status);
+    }
+    const data = await r.json();
+    if (data.error) throw new Error(data.error);
+    return data.result;
+  } catch (e) {
+    // Lỗi mạng → thử lại 1 lần
+    if (retry > 0) return cmd(args, retry - 1);
+    throw e;
+  }
 }
 
 // Lưu một giá trị JSON theo key

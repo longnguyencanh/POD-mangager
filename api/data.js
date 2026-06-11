@@ -25,7 +25,38 @@ export default async function handler(req, res) {
     if (req.method === 'POST') {
       let body = req.body;
       if (typeof body === 'string') { try { body = JSON.parse(body); } catch (e) { body = {}; } }
-      try { await kvSet('pod:config', body || {}); res.status(200).json({ ok: true }); }
+      try {
+        // MERGE thông minh: gộp với config hiện tại để tránh mất dữ liệu khi nhiều người lưu cùng lúc
+        const existing = (await kvGet('pod:config')) || {};
+        const merged = { ...existing, ...body };
+        // Với các mảng có id (ideas) → gộp theo id, không ghi đè mất phần tử của người khác
+        if (Array.isArray(body.ideas) && Array.isArray(existing.ideas)) {
+          const map = {};
+          existing.ideas.forEach(it => { if (it && it.id) map[it.id] = it; });
+          // áp dụng thay đổi từ body (thêm mới / cập nhật)
+          body.ideas.forEach(it => { if (it && it.id) map[it.id] = it; });
+          // các id bị xoá: chỉ xoá nếu body cố ý gửi danh sách đầy đủ (có cờ _fullIdeas)
+          if (body._fullIdeas) {
+            const keepIds = new Set(body.ideas.map(it => it && it.id).filter(Boolean));
+            Object.keys(map).forEach(id => { if (!keepIds.has(id)) delete map[id]; });
+          }
+          merged.ideas = Object.values(map);
+        }
+        // designLog + notifs → gộp (nối thêm, khử trùng theo nội dung+thời gian), giữ tối đa
+        const mergeLog = (a, b, cap) => {
+          const seen = new Set(); const out = [];
+          [...(b || []), ...(a || [])].forEach(x => {
+            const k = JSON.stringify([x.ideaId || x.orderId || '', x.at || '', x.text || x.col || '']);
+            if (!seen.has(k)) { seen.add(k); out.push(x); }
+          });
+          return out.slice(0, cap);
+        };
+        if (Array.isArray(body.designLog)) merged.designLog = mergeLog(existing.designLog, body.designLog, 1000);
+        if (Array.isArray(body.notifs)) merged.notifs = mergeLog(existing.notifs, body.notifs, 100);
+        delete merged._fullIdeas;
+        await kvSet('pod:config', merged);
+        res.status(200).json({ ok: true });
+      }
       catch (e) { res.status(200).json({ ok: false, error: e.message }); }
       return;
     }
@@ -68,17 +99,25 @@ export default async function handler(req, res) {
       } else {
         // replace toàn bộ — nhưng GIỮ chỉnh sửa nội bộ nếu đơn đã tồn tại
         const incoming = body.orders || [];
+        // AN TOÀN: nếu client gửi rỗng nhưng DB đang có đơn → KHÔNG ghi đè (tránh mất sạch dữ liệu)
+        if (incoming.length === 0 && current.orders.length > 0) {
+          res.status(200).json({ ok: true, skipped: 'empty-payload-protected', count: current.orders.length });
+          return;
+        }
         const byId = {};
         current.orders.forEach(o => { byId[o.id] = o; });
         current.orders = incoming.map(o => {
           const old = byId[o.id];
           if (old) {
+            const oldItems = old.items || [];
+            const newItems = o.items || [];
             // giữ lại các field do người dùng chỉnh (trạng thái, designer, note, pushed...)
             return { ...o, status: old.status, urgent: old.urgent, note: old.note, pushed: old.pushed,
-              items: o.items.map((it, i) => old.items && old.items[i] ? { ...it,
-                supplier: old.items[i].supplier, ptype: old.items[i].ptype, material: old.items[i].material,
-                size: old.items[i].size, designer: old.items[i].designer, fulfiller: old.items[i].fulfiller,
-                confirmed: old.items[i].confirmed } : it) };
+              gdriveLink: old.gdriveLink || o.gdriveLink, larkLink: old.larkLink || o.larkLink,
+              items: newItems.map((it, i) => oldItems[i] ? { ...it,
+                supplier: oldItems[i].supplier, ptype: oldItems[i].ptype, material: oldItems[i].material,
+                size: oldItems[i].size, designer: oldItems[i].designer, fulfiller: oldItems[i].fulfiller,
+                confirmed: oldItems[i].confirmed } : it) };
           }
           return o;
         });
