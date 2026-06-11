@@ -584,7 +584,7 @@ body[data-role="seller"] .no-seller{display:none !important}
   <div class="sb-sec">🎨 Sáng tạo</div>
   <div class="sb-item role-design" id="nav-idea" onclick="goPage('idea')"><span class="ic">💡</span> Idea / Thiết kế</div>
   <div class="sb-item" id="nav-calendar" onclick="goPage('calendar')"><span class="ic">📅</span> Lịch Bán Hàng</div>
-  <div class="sb-item" id="nav-ytrends" onclick="goPage('ytrends')"><span class="ic">🔬</span> YTrends Research</div>
+  <div class="sb-item" id="nav-ytrends" onclick="goPage('ytrends')"><span class="ic">🔬</span> Research</div>
   <div class="sb-sec">Vận hành</div>
   <div class="sb-item no-design" onclick="goPage('pricing')"><span class="ic">🏭</span> Bảng giá</div>
   <div class="sb-item no-design" onclick="goPage('costs')"><span class="ic">💸</span> Chi phí</div>
@@ -941,14 +941,14 @@ body[data-role="seller"] .no-seller{display:none !important}
     <div class="ph" style="display:flex;align-items:flex-end;justify-content:space-between;flex-wrap:wrap;gap:10px">
       <div>
         <div class="ph-title">📅 Lịch Bán Hàng</div>
-        <div class="ph-sub">Lên kế hoạch đăng sản phẩm theo mùa bán hàng · dữ liệu từ YTrends</div>
+        <div class="ph-sub">Lên kế hoạch đăng sản phẩm theo mùa bán hàng · dữ liệu từ hệ thống Research</div>
       </div>
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
         <button class="btn btn-sm" onclick="calPrevMonth()" style="padding:6px 10px">◀</button>
         <span id="cal-month-label" style="font-size:14px;font-weight:700;min-width:130px;text-align:center"></span>
         <button class="btn btn-sm" onclick="calNextMonth()" style="padding:6px 10px">▶</button>
         <button class="btn btn-sm" onclick="calGoToday()" style="padding:6px 10px;border-color:var(--green);color:var(--green)">Hôm nay</button>
-        <button class="btn btn-sm" onclick="calRefreshEvents()" id="cal-refresh-btn" title="Tải lại từ YTrends" style="padding:6px 10px">🔄</button>
+        <button class="btn btn-sm" onclick="calRefreshEvents()" id="cal-refresh-btn" title="Tải lại từ hệ thống Research" style="padding:6px 10px">🔄</button>
       </div>
     </div>
     <div class="page-scroll" style="padding:10px 16px">
@@ -995,7 +995,7 @@ body[data-role="seller"] .no-seller{display:none !important}
   <div class="page" id="page-ytrends">
     <div class="ph" style="display:flex;align-items:flex-end;justify-content:space-between;flex-wrap:wrap;gap:10px">
       <div>
-        <div class="ph-title">🔬 YTrends Research</div>
+        <div class="ph-title">🔬 Research</div>
         <div class="ph-sub">Nghiên cứu keyword Etsy · tìm niche · spy listing · phân tích thị trường</div>
       </div>
       <div style="display:flex;gap:6px;align-items:center">
@@ -1030,7 +1030,7 @@ body[data-role="seller"] .no-seller{display:none !important}
         <div style="margin-top:12px;display:flex;gap:8px;align-items:center">
           <button class="btn btn-green" onclick="ytRun()" id="yt-run-btn" style="padding:9px 20px">▶ Chạy</button>
           <button class="btn btn-sm" onclick="ytClear()" style="color:var(--text3)">✕ Xoá kết quả</button>
-          <span id="yt-loading" style="display:none;font-size:12px;color:var(--text3)">⏳ Đang gọi YTrends...</span>
+          <span id="yt-loading" style="display:none;font-size:12px;color:var(--text3)">⏳ Đang gọi hệ thống Research...</span>
         </div>
       </div>
 
@@ -4643,7 +4643,7 @@ const YT_TOOLS = {
   },
   ytrends_search: {
     label: '🔎 Search',
-    desc: 'Tìm keyword, listing, category trong index YTrends.',
+    desc: 'Tìm keyword, listing, category trong hệ thống Research.',
     fields: [
       {id:'query', label:'Từ khoá tìm', placeholder:'vd: summer wedding', required:true},
       {id:'limit', label:'Số lượng', placeholder:'10', type:'number'},
@@ -4667,16 +4667,16 @@ const YT_TOOLS = {
   },
   ytrends_browse_new_listings: {
     label: '🆕 New Listings',
-    desc: 'Listing mới tạo, lọc nâng cao: fav rate, conversion, tuổi listing.',
+    desc: 'Listing mới 3-4 ngày, fav rate ≥3% — lọc sẵn để tìm mẫu hot mới lên.',
     fields: [
-      {id:'keyword', label:'Keyword / Niche', placeholder:'vd: halloween svg'},
-      {id:'listing_age_days_max', label:'Mới trong X ngày', placeholder:'30', type:'number'},
-      {id:'min_fav_rate_pct', label:'Fav Rate tối thiểu (%)', placeholder:'vd: 3', type:'number'},
-      {id:'min_conversion_pct', label:'Conversion tối thiểu (%)', placeholder:'vd: 2', type:'number'},
-      {id:'price_usd_min', label:'Giá tối thiểu ($)', placeholder:'vd: 5', type:'number'},
-      {id:'price_usd_max', label:'Giá tối đa ($)', placeholder:'vd: 50', type:'number'},
+      {id:'keyword', label:'Keyword / Hashtag (tập trung đúng từ khoá)', placeholder:'vd: halloween svg'},
+      {id:'listing_age_days_max', label:'Mới trong X ngày', placeholder:'4', type:'number', default:'4'},
+      {id:'min_fav_rate_pct', label:'Fav Rate tối thiểu (%)', placeholder:'3', type:'number', default:'3'},
+      {id:'min_conversion_pct', label:'Conversion tối thiểu (%)', placeholder:'tuỳ chọn', type:'number'},
+      {id:'price_usd_min', label:'Giá tối thiểu ($)', placeholder:'tuỳ chọn', type:'number'},
+      {id:'price_usd_max', label:'Giá tối đa ($)', placeholder:'tuỳ chọn', type:'number'},
       {id:'sort', label:'Sắp xếp', type:'select', options:['peer_ratio','newest','sales','conversion'], placeholder:'peer_ratio'},
-      {id:'limit', label:'Số lượng lấy về', placeholder:'50', type:'number'},
+      {id:'limit', label:'Số lượng lấy về (mỗi trang)', placeholder:'100', type:'number', default:'100'},
     ]
   },
   ytrends_browse_rankings: {
@@ -4754,11 +4754,11 @@ async function ytCheckConnection() {
     const d = await r.json();
     if (r.ok && d.ok !== false) {
       dot.style.background = '#5a8a6a';
-      lbl.textContent = 'Đã kết nối YTrends MCP';
+      lbl.textContent = 'Đã kết nối với hệ thống Research';
       lbl.style.color = 'var(--green-d)';
     } else {
       dot.style.background = '#d4894a';
-      lbl.textContent = 'Proxy OK · YTrends lỗi ' + (d.status || '');
+      lbl.textContent = 'Proxy OK · Research lỗi ' + (d.status || '');
       lbl.style.color = 'var(--orange)';
     }
   } catch(e) {
@@ -4799,15 +4799,20 @@ function ytRenderFields(toolName) {
     }
     return `<div class="fl" style="flex:${f.id==='keyword'||f.id==='query'||f.id==='niche'?'3':'1'};min-width:${f.id==='keyword'||f.id==='query'||f.id==='niche'?'200px':'100px'};margin:0">
       <label style="font-size:11px;color:var(--text3);margin-bottom:4px;display:block">${f.label}${f.required?'<span style="color:var(--red)">*</span>':''}</label>
-      <input class="fi" id="yt-field-${f.id}" type="${f.type||'text'}" placeholder="${f.placeholder||''}" style="padding:8px 10px;font-size:12.5px"
+      <input class="fi" id="yt-field-${f.id}" type="${f.type||'text'}" placeholder="${f.placeholder||''}" value="${f.default||''}" style="padding:8px 10px;font-size:12.5px"
         onkeydown="if(event.key==='Enter')ytRun()">
     </div>`;
   }).join('');
 }
 
-async function ytRun() {
+async function ytRun(opts) {
+  opts = opts || {};
   const tool = YT_TOOLS[_ytCurrentTool];
   if (!tool) return;
+
+  // Pagination: nếu là "xem thêm" thì tăng trang, nếu không reset về trang 1
+  if (opts.more) { _ytPage = (_ytPage || 1) + 1; }
+  else { _ytPage = 1; _ytAccum = []; }
 
   // Collect params — tách client-side filters ra riêng
   const params = {};
@@ -4819,7 +4824,6 @@ async function ytRun() {
     if (f.required && !val) { el && (el.style.borderColor = 'var(--red)'); valid = false; }
     else { el && (el.style.borderColor = ''); }
     if (val) {
-      // Client-side filter fields — không gửi lên API
       if (f.id === 'min_fav_rate_pct' || f.id === 'min_conversion_pct') {
         clientFilters[f.id] = parseFloat(val);
       } else {
@@ -4830,7 +4834,12 @@ async function ytRun() {
   if (!valid) { toast('Vui lòng điền các trường bắt buộc','warn'); return; }
 
   // Nếu có client filter → lấy nhiều hơn để có đủ sau lọc
-  if (Object.keys(clientFilters).length && !params.limit) params.limit = 50;
+  if (Object.keys(clientFilters).length && !params.limit) params.limit = 100;
+  // Tham số phân trang (thử cả page + offset để tương thích API)
+  if (_ytPage > 1) {
+    params.page = _ytPage;
+    if (params.limit) params.offset = (_ytPage - 1) * params.limit;
+  }
 
   // Clean listing_id
   if (params.listing_id) {
@@ -4858,7 +4867,7 @@ async function ytRun() {
     }
 
     let result = data?.result;
-    if (!result) { ytShowError('Không có dữ liệu trả về từ YTrends.'); return; }
+    if (!result) { ytShowError('Không có dữ liệu trả về từ hệ thống Research.'); return; }
 
     // ── Client-side filter ──
     if (Object.keys(clientFilters).length) {
@@ -4867,7 +4876,24 @@ async function ytRun() {
 
     _ytLastResult = result;
     ytSaveHistory(_ytCurrentTool, params, result);
-    ytRenderResult(_ytCurrentTool, params, result);
+    // Gom kết quả qua các trang (nếu là listing)
+    let merged = result;
+    const listKey = result?.data?.listings ? 'listings' : (result?.data?.results ? 'results' : null);
+    if (listKey && _ytPage > 1 && _ytAccum && _ytAccum.length) {
+      merged = JSON.parse(JSON.stringify(result));
+      // nối kết quả mới vào kết quả cũ, khử trùng theo listing_id/id
+      const seen = new Set(_ytAccum.map(x => x.listing_id || x.id));
+      const fresh = (result.data[listKey] || []).filter(x => !seen.has(x.listing_id || x.id));
+      merged.data[listKey] = [..._ytAccum, ...fresh];
+      _ytAccum = merged.data[listKey];
+    } else if (listKey) {
+      _ytAccum = result.data[listKey] || [];
+    }
+    ytRenderResult(_ytCurrentTool, params, merged);
+    // Thêm nút "Xem thêm trang sau" cho các tool listing
+    if (listKey && (result.data[listKey] || []).length > 0) {
+      ytAddLoadMore();
+    }
 
   } catch(e) {
     ytShowError('Lỗi kết nối: ' + e.message);
@@ -4875,6 +4901,20 @@ async function ytRun() {
     if (btn) btn.disabled = false;
     if (loading) loading.style.display = 'none';
   }
+}
+let _ytPage = 1, _ytAccum = [];
+function ytAddLoadMore() {
+  const body = document.getElementById('yt-result-body') || document.getElementById('yt-result');
+  if (!body) return;
+  let btn = document.getElementById('yt-load-more');
+  if (btn) btn.remove();
+  btn = document.createElement('button');
+  btn.id = 'yt-load-more';
+  btn.className = 'btn btn-sm';
+  btn.style.cssText = 'margin:14px auto;display:block;padding:8px 20px';
+  btn.textContent = `📄 Xem thêm trang sau (trang ${(_ytPage||1)+1})`;
+  btn.onclick = () => ytRun({more:true});
+  body.appendChild(btn);
 }
 
 function ytApplyClientFilters(result, filters) {
@@ -5573,8 +5613,8 @@ function renderCalendar() {
   if (statusEl) {
     statusEl.style.display = 'block';
     statusEl.textContent = _calEvents
-      ? `✅ Dữ liệu từ YTrends (${_calEvents.length} sự kiện)`
-      : '📅 Đang dùng dữ liệu mùa bán hàng tích hợp sẵn · Nhấn 🔄 để tải từ YTrends';
+      ? `✅ Dữ liệu từ hệ thống Research (${_calEvents.length} sự kiện)`
+      : '📅 Đang dùng dữ liệu mùa bán hàng tích hợp sẵn · Nhấn 🔄 để tải từ hệ thống Research';
   }
 }
 
@@ -5672,17 +5712,17 @@ async function calRefreshEvents() {
   const btn = document.getElementById('cal-refresh-btn');
   if (btn) { btn.textContent = '⏳'; btn.disabled = true; }
   const statusEl = document.getElementById('cal-status');
-  if (statusEl) { statusEl.style.display = 'block'; statusEl.textContent = 'Đang tải dữ liệu từ YTrends...'; }
+  if (statusEl) { statusEl.style.display = 'block'; statusEl.textContent = 'Đang tải dữ liệu từ hệ thống Research...'; }
   try {
     const data = await calFetchFromYTrends(_calYear, _calMonth);
     if (data && data.length) {
       _calEvents = data;
-      toast('✅ Đã tải ' + data.length + ' sự kiện từ YTrends', 'success');
+      toast('✅ Đã tải ' + data.length + ' sự kiện từ hệ thống Research', 'success');
     } else {
-      toast('ℹ️ YTrends không trả về dữ liệu — đang dùng dữ liệu tích hợp sẵn', 'info');
+      toast('ℹ️ Hệ thống Research không trả về dữ liệu — đang dùng dữ liệu tích hợp sẵn', 'info');
     }
   } catch(e) {
-    toast('⚠️ Không kết nối được YTrends — đang dùng dữ liệu tích hợp sẵn', 'warn');
+    toast('⚠️ Không kết nối được hệ thống Research — đang dùng dữ liệu tích hợp sẵn', 'warn');
   }
   if (btn) { btn.textContent = '🔄'; btn.disabled = false; }
   renderCalendar();
