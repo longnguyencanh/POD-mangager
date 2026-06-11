@@ -1531,7 +1531,7 @@ body[data-role="seller"] .no-seller{display:none !important}
     <!-- Thông tin đơn -->
     <div class="sec-title">Thông tin đơn</div>
     <div class="fr c2">
-      <div class="fl"><label>Mã đơn hàng (Etsy)</label><input class="fi" id="d-oid" readonly></div>
+      <div class="fl"><label>Mã đơn hàng (Etsy) <span style="color:var(--text3);font-weight:400;font-size:10px">— bấm để copy</span></label><input class="fi" id="d-oid" readonly onclick="copyField(this,'Mã đơn')" style="cursor:pointer;font-weight:600" title="Bấm để copy mã đơn"></div>
       <div class="fl"><label>Trạng thái</label>
         <select class="fi" id="d-status" onchange="onStatusChange()">
           <option value="new">🆕 Đơn mới</option>
@@ -4442,7 +4442,7 @@ function orderItemHTML(o){
   // Thêm thông tin khách hàng và quốc gia
   const custInfo=o.customer&&o.customer!=='Unknown'?`<span style="font-size:10.5px;color:var(--text2)">👤 ${esc(o.customer)}</span>`:'';
   const countryInfo=o.country&&o.country!=='—'?`<span style="font-size:10.5px;color:var(--text3)">🌍 ${esc(o.country)}</span>`:'';
-  return`<div class="oi" onclick="selectOrder('${o.id}')">${chk}<div class="oi-thumb">${img}</div><div class="oi-info"><div class="oi-code-main">${etsyCode(o)}</div><div class="oi-short">${shortName}</div><div class="oi-fullname">${fullName}</div><div class="oi-shop">🏪 ${o.shopTitle||'—'}</div><div class="oi-meta"><span class="pill ${pc}">${pl}</span>${o.urgent?'<span class="urgent-tag">🚩 Gấp</span>':''}${trk}${pfb}${pi?`<span style="font-size:11px">${pi}</span>`:''}<span class="oi-price">${o.total}</span></div><div class="oi-meta" style="margin-top:3px">${custInfo}${countryInfo}<span class="oi-time">📅 ${fmtDateShort(o.created)}</span></div></div></div>`;
+  return`<div class="oi" onclick="selectOrder('${o.id}')">${chk}<div class="oi-thumb">${img}</div><div class="oi-info"><div class="oi-code-main" onclick="event.stopPropagation();copyOrderCode(event,'${etsyCode(o)}')" style="cursor:pointer" title="Bấm để copy mã đơn">${etsyCode(o)} <span style="font-size:10px;opacity:.5">📋</span></div><div class="oi-short">${shortName}</div><div class="oi-fullname">${fullName}</div><div class="oi-shop">🏪 ${o.shopTitle||'—'}</div><div class="oi-meta"><span class="pill ${pc}">${pl}</span>${o.urgent?'<span class="urgent-tag">🚩 Gấp</span>':''}${trk}${pfb}${pi?`<span style="font-size:11px">${pi}</span>`:''}<span class="oi-price">${o.total}</span></div><div class="oi-meta" style="margin-top:3px">${custInfo}${countryInfo}<span class="oi-time">📅 ${fmtDateShort(o.created)}</span></div></div></div>`;
 }
 
 function renderList(){
@@ -4964,6 +4964,12 @@ function copyField(el,label){
 }
 function fallbackCopy(text){
   try{const t=document.createElement('textarea');t.value=text;t.style.position='fixed';t.style.opacity='0';document.body.appendChild(t);t.select();document.execCommand('copy');document.body.removeChild(t);}catch(e){}
+}
+function copyOrderCode(e,code){
+  if(e)e.stopPropagation();
+  if(!code||code==='—'){toast('Đơn này chưa có mã','info');return;}
+  if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(code).then(()=>toast('📋 Đã copy mã đơn: '+code,'success')).catch(()=>{fallbackCopy(code);toast('📋 Đã copy mã đơn: '+code,'success');});}
+  else{fallbackCopy(code);toast('📋 Đã copy mã đơn: '+code,'success');}
 }
 function copySku(e,sku){
   if(e)e.stopPropagation();
