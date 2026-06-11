@@ -1162,7 +1162,10 @@ body[data-role="seller"] .no-seller{display:none !important}
     <div class="ph" style="padding-bottom:10px">
       <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
         <div><h1>💡 Idea / Thiết kế</h1><p class="sub">Bảng giao việc thiết kế cho team. Kéo thẻ qua các cột theo tiến độ.</p></div>
-        <button class="btn btn-sm" id="kanban-toggle-btn" onclick="toggleKanban()" style="white-space:nowrap">📋 Ẩn/Hiện bảng</button>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-green btn-sm" onclick="openQuickIdea()" style="white-space:nowrap">⚡ Tạo nhanh</button>
+          <button class="btn btn-sm" id="kanban-toggle-btn" onclick="toggleKanban()" style="white-space:nowrap">📋 Ẩn/Hiện bảng</button>
+        </div>
       </div>
     </div>
     <!-- Thanh năng suất (thu gọn) -->
@@ -1223,6 +1226,53 @@ body[data-role="seller"] .no-seller{display:none !important}
       <div id="kf-scroll" style="overflow-x:auto;overflow-y:auto;padding:12px 14px 14px;flex:1;min-height:0;background:#ede9e2">
         <div id="kanban-board" style="display:grid;grid-template-columns:repeat(6,minmax(220px,1fr));gap:10px;align-items:start"></div>
       </div>
+    </div>
+  </div>
+
+  <!-- Modal TẠO NHANH Idea (kéo ảnh + dán link → tự sinh SKU) -->
+  <div class="modal-bg" id="quick-idea-modal">
+    <div class="modal" style="max-width:480px;position:relative">
+      <button onclick="document.getElementById('quick-idea-modal').classList.remove('open')" title="Đóng" style="position:absolute;top:10px;right:10px;width:30px;height:30px;border-radius:50%;border:1px solid var(--border);background:var(--surface);color:var(--text2);font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1;z-index:5">✕</button>
+      <div class="modal-title" style="font-size:16px;margin-bottom:4px;padding-right:36px">⚡ Tạo Idea nhanh</div>
+      <div style="font-size:11.5px;color:var(--text3);margin-bottom:12px">Kéo ảnh từ Etsy (hoặc dán link ảnh) + dán link Etsy → tự tạo Idea với SKU tự động.</div>
+
+      <!-- Vùng kéo thả ảnh -->
+      <div id="qi-drop" style="border:2px dashed var(--border2);border-radius:12px;padding:18px;text-align:center;cursor:pointer;transition:.15s;margin-bottom:10px;background:var(--bg)">
+        <div id="qi-preview-wrap" style="display:none;margin-bottom:8px"><img id="qi-preview" style="max-height:140px;max-width:100%;border-radius:8px"></div>
+        <div id="qi-drop-hint">
+          <div style="font-size:26px;opacity:.4">🖼️</div>
+          <div style="font-size:12.5px;color:var(--text2);margin-top:4px">Kéo ảnh từ Etsy vào đây<br>hoặc bấm để chọn ảnh / dán (Ctrl+V)</div>
+        </div>
+      </div>
+      <input type="file" id="qi-file" accept="image/*" style="display:none" onchange="qiOnFile(this)">
+
+      <div class="fl" style="margin-bottom:8px">
+        <label style="font-size:11px;color:var(--text3)">🖼️ Link ảnh (hoặc tự điền khi kéo ảnh)</label>
+        <input class="fi" id="qi-img" placeholder="https://i.etsystatic.com/..." style="font-size:12.5px" oninput="qiPreview()">
+      </div>
+      <div class="fl" style="margin-bottom:8px">
+        <label style="font-size:11px;color:var(--text3)">🔗 Link Etsy (kéo hoặc dán)</label>
+        <input class="fi" id="qi-link" placeholder="https://etsy.com/listing/..." style="font-size:12.5px">
+      </div>
+      <div class="fr c2" style="margin-bottom:8px">
+        <div class="fl">
+          <label style="font-size:11px;color:var(--text3)">👤 Người làm (đầu SKU)</label>
+          <input class="fi" id="qi-prefix" value="LN" maxlength="4" style="font-size:12.5px;text-transform:uppercase" oninput="qiUpdateSku()">
+        </div>
+        <div class="fl">
+          <label style="font-size:11px;color:var(--text3)">🏷️ SKU tự động</label>
+          <input class="fi" id="qi-sku" readonly style="font-size:12.5px;font-weight:700;color:var(--accent);background:var(--bg)">
+        </div>
+      </div>
+      <div class="fl" style="margin-bottom:8px">
+        <label style="font-size:11px;color:var(--text3)">📝 Tiêu đề (tự ghép SKU + tên — sửa được)</label>
+        <input class="fi" id="qi-title" placeholder="Tên mẫu..." style="font-size:12.5px">
+      </div>
+      <div class="fl" style="margin-bottom:12px">
+        <label style="font-size:11px;color:var(--text3)">Giao cho</label>
+        <select class="fi" id="qi-assignee" style="font-size:12.5px"></select>
+      </div>
+      <button class="btn btn-green" onclick="saveQuickIdea()" style="width:100%">⚡ Tạo Idea + đẩy vào bảng</button>
     </div>
   </div>
 
@@ -2411,6 +2461,122 @@ function saveIdea(){
   saveCfg();cloudSaveAll();renderIdeaBoard();
   document.getElementById('idea-modal').classList.remove('open');
   toast('✅ Đã lưu Idea','success');
+}
+
+// ══════════════════════════════════════════
+//  TẠO IDEA NHANH (kéo ảnh + dán link → SKU tự động)
+// ══════════════════════════════════════════
+// Sinh STT mẫu trong ngày (theo giờ VN) — đếm idea đã tạo hôm nay + 1
+function qiNextSeq(){
+  const today=new Date().toLocaleDateString('en-CA'); // giờ máy = VN
+  const todays=(cfg.ideas||[]).filter(it=>{
+    if(!it.createdAt)return false;
+    return new Date(it.createdAt).toLocaleDateString('en-CA')===today;
+  });
+  return todays.length+1;
+}
+// SKU: LN + STT(2 số) + ddmmyy (giờ VN). Vd LN01 12 06 26 → LN01120626
+function qiMakeSku(prefix){
+  const p=(prefix||'LN').toUpperCase().replace(/[^A-Z]/g,'')||'LN';
+  const seq=String(qiNextSeq()).padStart(2,'0');
+  const d=new Date(); // giờ VN (giờ máy người dùng)
+  const dd=String(d.getDate()).padStart(2,'0');
+  const mm=String(d.getMonth()+1).padStart(2,'0');
+  const yy=String(d.getFullYear()).slice(-2);
+  return p+seq+dd+mm+yy;
+}
+function qiUpdateSku(){
+  const prefix=document.getElementById('qi-prefix').value;
+  const sku=qiMakeSku(prefix);
+  document.getElementById('qi-sku').value=sku;
+  // nếu tiêu đề trống hoặc đang là SKU cũ → tự ghép SKU vào đầu
+  const tEl=document.getElementById('qi-title');
+  if(!tEl.value.trim()||/^[A-Z]{2}\d{8,}/.test(tEl.value.trim())){
+    tEl.value=sku;
+  }
+}
+function openQuickIdea(){
+  // reset
+  document.getElementById('qi-img').value='';
+  document.getElementById('qi-link').value='';
+  document.getElementById('qi-title').value='';
+  document.getElementById('qi-prefix').value='LN';
+  document.getElementById('qi-preview-wrap').style.display='none';
+  document.getElementById('qi-drop-hint').style.display='';
+  // đổ danh sách người làm
+  const asg=document.getElementById('qi-assignee');
+  const designers=(cfg.skuMap||[]).map(s=>s.name).filter(Boolean);
+  asg.innerHTML='<option value="">— Chưa giao —</option>'+[...new Set(designers)].map(n=>`<option value="${esc(n)}">${esc(n)}</option>`).join('');
+  qiUpdateSku();
+  document.getElementById('quick-idea-modal').classList.add('open');
+  qiBindDrop();
+}
+function qiPreview(){
+  const url=document.getElementById('qi-img').value.trim();
+  const wrap=document.getElementById('qi-preview-wrap');
+  const hint=document.getElementById('qi-drop-hint');
+  if(url){document.getElementById('qi-preview').src=url;wrap.style.display='';hint.style.display='none';}
+  else{wrap.style.display='none';hint.style.display='';}
+}
+function qiOnFile(input){
+  const f=input.files&&input.files[0];if(!f)return;
+  const reader=new FileReader();
+  reader.onload=e=>{document.getElementById('qi-img').value=e.target.result;qiPreview();};
+  reader.readAsDataURL(f);
+}
+let _qiDropBound=false;
+function qiBindDrop(){
+  if(_qiDropBound)return;_qiDropBound=true;
+  const drop=document.getElementById('qi-drop');
+  drop.onclick=()=>document.getElementById('qi-file').click();
+  drop.ondragover=e=>{e.preventDefault();drop.style.borderColor='var(--green)';drop.style.background='#eaf6ee';};
+  drop.ondragleave=e=>{e.preventDefault();drop.style.borderColor='var(--border2)';drop.style.background='var(--bg)';};
+  drop.ondrop=e=>{
+    e.preventDefault();drop.style.borderColor='var(--border2)';drop.style.background='var(--bg)';
+    const dt=e.dataTransfer;
+    // 1) Ảnh kéo từ Etsy → thường là URL ảnh trong text/uri-list hoặc text/html
+    const html=dt.getData('text/html');
+    const uri=dt.getData('text/uri-list')||dt.getData('text/plain');
+    if(html){const m=html.match(/<img[^>]+src=["']([^"']+)["']/i);if(m){document.getElementById('qi-img').value=m[1];qiPreview();}}
+    else if(uri&&/^https?:\/\//.test(uri)){
+      if(/\.(jpg|jpeg|png|webp|gif)/i.test(uri)||/etsystatic/.test(uri)){document.getElementById('qi-img').value=uri;qiPreview();}
+      else if(/etsy\.com\/listing/i.test(uri)){document.getElementById('qi-link').value=uri;}
+      else {document.getElementById('qi-img').value=uri;qiPreview();}
+    }
+    // 2) File ảnh kéo từ máy
+    if(dt.files&&dt.files[0]&&dt.files[0].type.startsWith('image/')){
+      const reader=new FileReader();reader.onload=ev=>{document.getElementById('qi-img').value=ev.target.result;qiPreview();};reader.readAsDataURL(dt.files[0]);
+    }
+  };
+  // Dán ảnh bằng Ctrl+V
+  drop.onpaste=e=>{
+    const items=(e.clipboardData||{}).items||[];
+    for(const it of items){
+      if(it.type&&it.type.startsWith('image/')){const f=it.getAsFile();const reader=new FileReader();reader.onload=ev=>{document.getElementById('qi-img').value=ev.target.result;qiPreview();};reader.readAsDataURL(f);}
+    }
+  };
+}
+function saveQuickIdea(){
+  const img=document.getElementById('qi-img').value.trim();
+  const link=document.getElementById('qi-link').value.trim();
+  const sku=document.getElementById('qi-sku').value.trim();
+  let title=document.getElementById('qi-title').value.trim();
+  const assignee=document.getElementById('qi-assignee').value;
+  if(!img&&!link){toast('Cần ít nhất ảnh hoặc link Etsy','error');return;}
+  if(!title)title=sku; // tiêu đề mặc định = SKU
+  // đảm bảo SKU nằm trong tiêu đề (để báo cáo/bonus nhận diện)
+  if(sku&&!title.toUpperCase().includes(sku))title=sku+' '+title;
+  if(!cfg.ideas)cfg.ideas=[];
+  const now=new Date().toISOString();
+  const newIdea={id:'idea_'+Date.now(),status:'idea',title,link,img,design:'',assignee,priority:'',deadline:'',note:'',createdAt:now,createdBy:auth?auth.name:'(?)',colHistory:[{from:null,to:'idea',by:auth?auth.name:'(?)',at:now}]};
+  cfg.ideas.push(newIdea);
+  if(!cfg.notifs)cfg.notifs=[];
+  cfg.notifs.unshift({type:'idea_new',ideaId:newIdea.id,sku,at:now,text:`⚡ Idea nhanh: "${title}" (${auth?auth.name:'?'})`});
+  cfg.notifs=cfg.notifs.slice(0,100);
+  updateNotifBadge();
+  saveCfg();cloudSaveAll();renderIdeaBoard();
+  document.getElementById('quick-idea-modal').classList.remove('open');
+  toast('⚡ Đã tạo Idea: '+sku,'success');
 }
 function delIdea(){
   const id=document.getElementById('idea-id').value;if(!id)return;
