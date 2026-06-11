@@ -1535,15 +1535,13 @@ body[data-role="seller"] .no-seller{display:none !important}
       <div class="fl"><label>Trạng thái</label>
         <select class="fi" id="d-status" onchange="onStatusChange()">
           <option value="new">🆕 Đơn mới</option>
-          <option value="pending">⏳ Chờ xử lý</option>
-          <option value="processing">⚙️ Đang xử lý</option>
-          <option value="not_sent">📦 Chưa gửi</option>
-          <option value="producing">🏭 Đang chờ sản xuất</option>
-          <option value="shipped">🟢 Đã gửi đi</option>
-          <option value="hold">🟠 Hold</option>
-          <option value="done">✓ Đã xử lý</option>
+          <option value="pending">⏳ Chờ xử lý (chưa có Drive)</option>
+          <option value="producing">🏭 Đã gửi xưởng</option>
           <option value="missing">⚠️ Thiếu info</option>
+          <option value="shipped">📦 Đã gửi đi (có tracking)</option>
+          <option value="done">✓ Đã xử lý</option>
           <option value="cancelled">🔴 Đã huỷ</option>
+          <option value="case">🚨 Mở Case / Sự cố</option>
         </select>
       </div>
     </div>
@@ -4371,7 +4369,7 @@ function updateCounts(){const vis=visibleOrders();const c={new_today:0,wait_desi
   ['new_today','wait_design','sent_factory','missing','has_track','no_track'].forEach(k=>{const el=document.getElementById('tc-'+k);if(el)el.textContent=c[k]||0;});document.getElementById('sb-cnt').textContent=vis.length;if(currentPage==='home')renderHome();else if(currentPage==='dashboard')renderDashboard();else if(currentPage==='analytics')renderAnalytics();}
 
 const PILLS={new:['p-new','🆕 Đơn mới'],pending:['p-pending','⏳ Chờ xử lý'],processing:['p-processing','⚙️ Đang xử lý'],not_sent:['p-notsent','📦 Chưa gửi'],producing:['p-producing','🏭 Chờ sản xuất'],shipped:['p-shipped','🟢 Đã gửi'],hold:['p-hold','🟠 Hold'],done:['p-done','✓ Đã xử lý'],missing:['p-missing','⚠ Thiếu info'],missing_qty:['p-missing','⚠ Thiếu SL'],cancelled:['p-cancelled','🔴 Huỷ']};
-const STATUS_LABEL={new:'Đơn mới',pending:'Chờ xử lý',processing:'Đang xử lý',not_sent:'Chưa gửi',producing:'Đang chờ sản xuất',shipped:'Đã gửi đi',hold:'Hold',done:'Đã xử lý',missing:'Thiếu info',missing_qty:'Thiếu SL',cancelled:'Huỷ'};
+const STATUS_LABEL={new:'Đơn mới',pending:'Chờ xử lý',processing:'Đang xử lý',not_sent:'Chưa gửi',producing:'Đã gửi xưởng',shipped:'Đã gửi đi',hold:'Hold',done:'Đã xử lý',missing:'Thiếu info',missing_qty:'Thiếu SL',cancelled:'Huỷ'};
 // ── CHỌN HÀNG LOẠT (chỉ admin) ──
 let bulkSel=new Set();
 let pageSize=20, curPage=1;
@@ -4707,7 +4705,31 @@ function markUrgent(){if(!current)return;current.urgent=!current.urgent;document
 function sendProof(){if(!current)return;logHistory(current,'Gửi proof tới '+current.email);save();toast(`✈️ Gửi proof tới ${current.email} (demo)`,'success');}
 function markMissing(){if(!current)return;current.status='missing';document.getElementById('d-status').value='missing';logHistory(current,'Đánh dấu thiếu info');save();applyFilter();updateCounts();toast('⚠️ Đánh dấu thiếu info','warn');}
 function openCase(){if(current)logHistory(current,'Mở case hỗ trợ');save();toast('🔓 Mở case hỗ trợ (demo)','info');}
-function onStatusChange(){if(!current)return;const old=current.status;const nw=document.getElementById('d-status').value;current.status=nw;logHistory(current,`Đổi trạng thái: ${STATUS_LABEL[old]||old} → ${STATUS_LABEL[nw]||nw}`);save();applyFilter();updateCounts();}
+function onStatusChange(){
+  if(!current)return;
+  const old=current.status;
+  const nw=document.getElementById('d-status').value;
+  // Nếu chọn "Mở Case / Sự cố" → tạo case từ đơn này, không đổi status đơn
+  if(nw==='case'){
+    document.getElementById('d-status').value=old; // giữ status cũ trên dropdown
+    openCaseFromOrder(current);
+    return;
+  }
+  current.status=nw;
+  logHistory(current,`Đổi trạng thái: ${STATUS_LABEL[old]||old} → ${STATUS_LABEL[nw]||nw}`);
+  save();applyFilter();updateCounts();
+  toast('✅ Đã cập nhật trạng thái → tự nhảy tab tương ứng','success');
+}
+// Mở modal tạo Case với mã đơn điền sẵn
+function openCaseFromOrder(o){
+  // mở trang case + modal, điền sẵn mã đơn
+  if(typeof openCaseModal==='function'){
+    openCaseModal();
+    const oc=document.getElementById('case-order');if(oc)oc.value=etsyCode(o)||o.orderNumber||o.id||'';
+    const ct=document.getElementById('case-title');if(ct)ct.value='Sự cố đơn '+(etsyCode(o)||o.id||'');
+    toast('🚨 Tạo Case cho đơn này — điền chi tiết rồi Lưu','info');
+  }
+}
 function changeShop(v){if(!current)return;const old=current.shopTitle;current.shopTitle=v;logHistory(current,`Đổi shop: ${old||'—'} → ${v}`);save();buildShopFilter();applyFilter();toast('✅ Đã đổi shop sang "'+v+'"','success');}
 function changeTotal(v){if(!current)return;const n=parseFloat(String(v).replace(/[^0-9.]/g,''))||0;current.total='$'+n.toFixed(2);save();applyFilter();}
 function saveOrder(){if(!current)return;current.note=document.getElementById('d-note').value;current.status=document.getElementById('d-status').value;logHistory(current,'Lưu thay đổi');save();applyFilter();updateCounts();toast('✅ Đã lưu thay đổi','success');closeDetail();}
