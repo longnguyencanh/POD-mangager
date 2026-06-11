@@ -164,6 +164,13 @@ body.sb-collapsed .desk-hamb{display:block}
   #kanban-board > div{max-height:none !important;margin:0 auto;width:100%}
   /* Thẻ idea căn giữa, không tràn */
   #kanban-board .idea-card,#kanban-board [draggable]{margin-left:auto;margin-right:auto}
+  /* ── Kanban NỔI: trên điện thoại bỏ chế độ nổi, đưa về tĩnh trong trang ── */
+  #kanban-float{position:static !important;top:auto !important;left:auto !important;width:100% !important;height:auto !important;min-width:0 !important;min-height:0 !important;box-shadow:none !important;border:none !important;background:transparent !important;z-index:auto !important;margin-top:8px}
+  #kanban-float .kf-resize{display:none !important}
+  #kanban-float-handle{display:none !important}
+  #kf-scroll{overflow:visible !important;padding:0 !important;background:transparent !important}
+  /* Ẩn dòng "bảng nổi" gây rối trên mobile */
+  #idea-float-hint{display:none !important}
 
   /* ── Idea modal: full width đáy màn hình ── */
   #idea-modal{padding:0 !important;align-items:flex-end !important}
@@ -4438,6 +4445,11 @@ const KF_MIN_W=320,KF_MIN_H=180;
 function kfShow(){
   const p=document.getElementById('kanban-float');if(!p)return;
   p.style.display='block';
+  // Trên điện thoại: KHÔNG dùng chế độ nổi — để CSS đưa về tĩnh, xoá inline style
+  if(window.matchMedia('(max-width:768px)').matches){
+    p.style.left='';p.style.top='';p.style.width='';p.style.height='';
+    return;
+  }
   if(_kfSaved.x!==null){
     p.style.left=_kfSaved.x+'px';p.style.top=_kfSaved.y+'px';
     if(_kfSaved.w)p.style.width=_kfSaved.w+'px';
