@@ -159,17 +159,19 @@ body.sb-collapsed .desk-hamb{display:block}
   .stat-grid,.stats-grid,#d-period-grid,[id$="-period-grid"]{grid-template-columns:repeat(2,1fr) !important}
   .stat-card{padding:10px 12px !important}
 
-  /* ── Kanban: 1 cột cuộn dọc, căn giữa giao diện ── */
-  #kanban-board{grid-template-columns:1fr !important;gap:14px !important;height:auto !important;max-width:440px;margin:0 auto !important;padding-left:8px;padding-right:8px}
-  #kanban-board > div{max-height:none !important;margin:0 auto;width:100%}
-  /* Thẻ idea căn giữa, không tràn */
-  #kanban-board .idea-card,#kanban-board [draggable]{margin-left:auto;margin-right:auto}
-  /* ── Kanban NỔI: trên điện thoại bỏ chế độ nổi, đưa về tĩnh trong trang ── */
+  /* ── Kanban: 1 cột cuộn dọc, nhỏ gọn, không tràn màn hình ── */
+  #kanban-board{grid-template-columns:1fr !important;gap:10px !important;height:auto !important;max-width:340px;margin:0 auto !important;padding:0}
+  #kanban-board > div{max-height:none !important;margin:0 auto;width:100%;padding:8px !important}
+  /* Mỗi cột: giới hạn chiều cao, cuộn trong cột (không kéo dài cả màn hình) */
+  #kanban-board > div > div[style*="flex-direction:column"]{max-height:260px;overflow-y:auto}
+  /* Thẻ idea nhỏ gọn hơn */
+  #kanban-board [draggable]{margin-left:auto;margin-right:auto;font-size:12px}
+  #kanban-board [draggable] img{max-height:90px !important}
+  /* ── Kanban NỔI: trên điện thoại bỏ chế độ nổi, đưa về tĩnh, nhỏ gọn ── */
   #kanban-float{position:static !important;top:auto !important;left:auto !important;width:100% !important;height:auto !important;min-width:0 !important;min-height:0 !important;box-shadow:none !important;border:none !important;background:transparent !important;z-index:auto !important;margin-top:8px}
   #kanban-float .kf-resize{display:none !important}
   #kanban-float-handle{display:none !important}
   #kf-scroll{overflow:visible !important;padding:0 !important;background:transparent !important}
-  /* Ẩn dòng "bảng nổi" gây rối trên mobile */
   #idea-float-hint{display:none !important}
 
   /* ── Idea modal: full width đáy màn hình ── */
@@ -1152,6 +1154,7 @@ body[data-role="seller"] .no-seller{display:none !important}
     <div class="ph" style="padding-bottom:10px">
       <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
         <div><h1>💡 Idea / Thiết kế</h1><p class="sub">Bảng giao việc thiết kế cho team. Kéo thẻ qua các cột theo tiến độ.</p></div>
+        <button class="btn btn-sm" id="kanban-toggle-btn" onclick="toggleKanban()" style="white-space:nowrap">📋 Ẩn/Hiện bảng</button>
       </div>
     </div>
     <!-- Thanh năng suất (thu gọn) -->
@@ -2960,7 +2963,7 @@ function goPage(page){
   if(page==='pricing'){renderPriceList();loadFees();savePriceSheetUrl_load();}
   if(page==='costs'){loadCostUI();renderAdList();renderOpList();}
   if(page==='suppliers'){renderSuppliers();}
-  if(page==='idea'){renderIdeaBoard();renderDesignReport();kfShow();}
+  if(page==='idea'){renderIdeaBoard();renderDesignReport();_kanbanHidden=false;const tb=document.getElementById('kanban-toggle-btn');if(tb)tb.textContent='📋 Ẩn bảng';kfShow();}
   else{kfHide();}
 }
 
@@ -4469,6 +4472,19 @@ function kfShow(){
   kfUpdateLabel();kfBind();
 }
 function kfHide(){const p=document.getElementById('kanban-float');if(p)p.style.display='none';}
+let _kanbanHidden=false;
+function toggleKanban(){
+  const p=document.getElementById('kanban-float');if(!p)return;
+  _kanbanHidden=!_kanbanHidden;
+  const btn=document.getElementById('kanban-toggle-btn');
+  if(_kanbanHidden){
+    p.style.display='none';
+    if(btn)btn.textContent='📋 Hiện bảng Kanban';
+  }else{
+    kfShow();
+    if(btn)btn.textContent='📋 Ẩn bảng';
+  }
+}
 function kfReset(e){
   if(e)e.stopPropagation();
   _kfSaved={x:null,y:null,w:null,h:null};_kfFull=false;
