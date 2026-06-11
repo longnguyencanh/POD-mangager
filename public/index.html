@@ -159,9 +159,11 @@ body.sb-collapsed .desk-hamb{display:block}
   .stat-grid,.stats-grid,#d-period-grid,[id$="-period-grid"]{grid-template-columns:repeat(2,1fr) !important}
   .stat-card{padding:10px 12px !important}
 
-  /* ── Kanban: 1 cột cuộn dọc ── */
-  #kanban-board{grid-template-columns:1fr !important;gap:14px !important;height:auto !important}
-  #kanban-board > div{max-height:none !important}
+  /* ── Kanban: 1 cột cuộn dọc, căn giữa giao diện ── */
+  #kanban-board{grid-template-columns:1fr !important;gap:14px !important;height:auto !important;max-width:440px;margin:0 auto !important;padding-left:8px;padding-right:8px}
+  #kanban-board > div{max-height:none !important;margin:0 auto;width:100%}
+  /* Thẻ idea căn giữa, không tràn */
+  #kanban-board .idea-card,#kanban-board [draggable]{margin-left:auto;margin-right:auto}
 
   /* ── Idea modal: full width đáy màn hình ── */
   #idea-modal{padding:0 !important;align-items:flex-end !important}
@@ -1208,8 +1210,9 @@ body[data-role="seller"] .no-seller{display:none !important}
 
   <!-- Modal thêm/sửa Idea -->
   <div class="modal-bg" id="idea-modal">
-    <div class="modal" style="max-width:460px">
-      <div class="modal-title" style="font-size:16px;margin-bottom:8px" id="idea-modal-title">💡 Thêm Idea</div>
+    <div class="modal" style="max-width:460px;position:relative">
+      <button onclick="document.getElementById('idea-modal').classList.remove('open')" title="Đóng" style="position:absolute;top:10px;right:10px;width:30px;height:30px;border-radius:50%;border:1px solid var(--border);background:var(--surface);color:var(--text2);font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1;z-index:5">✕</button>
+      <div class="modal-title" style="font-size:16px;margin-bottom:8px;padding-right:36px" id="idea-modal-title">💡 Thêm Idea</div>
       <!-- Thanh chuyển cột nhanh — chỉ hiện khi SỬAÄ idea -->
       <div id="idea-status-bar" style="display:none;margin-bottom:12px;background:var(--bg);border-radius:10px;padding:8px 10px">
         <div style="font-size:10px;color:var(--text3);font-weight:600;letter-spacing:.8px;text-transform:uppercase;margin-bottom:6px">Chuyển sang cột</div>
@@ -2664,11 +2667,19 @@ async function syncMerchizePrices(opts){
   const silent=opts.silent;const onlyZero=opts.onlyZero;
   const box=document.getElementById('mrz-price-box');
   if(box&&!silent){box.style.display='block';box.textContent='Đang lấy dữ liệu từ Merchize...';}
+  // Kiểm tra token Merchize trước
+  const hasToken=cfg.mrzToken||(document.getElementById('mrz-token')||{}).value;
+  if(!hasToken&&!silent){
+    toast('⚠️ Chưa có Access Token Merchize. Vào 🏭 Bảng giá để dán token trước.','error');
+    if(box)box.textContent='⚠️ Chưa cấu hình Access Token Merchize.';
+    return {upRev:0,upCost:0,upShop:0};
+  }
+  if(!silent)toast('⏳ Đang cập nhật doanh thu từ Merchize...','info');
   // Nếu chỉ đơn $0: lọc đơn chưa có doanh thu
   const num=o=>parseFloat(String(o.total||'').replace(/[^0-9.]/g,''))||0;
   const pool=onlyZero?orders.filter(o=>num(o)<=0):orders;
   const codes=pool.map(o=>o.orderNumber||o.external_id||o.id).filter(Boolean).slice(0,300);
-  if(!codes.length){if(box&&!silent)box.textContent='✅ Không có đơn nào cần cập nhật.';return {upRev:0,upCost:0,upShop:0};}
+  if(!codes.length){if(box&&!silent)box.textContent='✅ Không có đơn nào cần cập nhật.';if(!silent)toast('✅ Không có đơn $0 nào cần cập nhật doanh thu','success');return {upRev:0,upCost:0,upShop:0};}
   let upRev=0,upCost=0,upShop=0,sampleKeys='';
   try{
     for(let i=0;i<codes.length;i+=50){
