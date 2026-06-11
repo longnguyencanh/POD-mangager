@@ -157,14 +157,22 @@ export default async function handler(req, res) {
     for (const raw of rawOrders) {
       const mapped = mapMerchizeOrder(raw);
       if (byId[mapped.id] !== undefined) {
-        // giữ chỉnh sửa nội bộ của đơn cũ (trạng thái, designer, note, lark...)
+        // giữ chỉnh sửa nội bộ của đơn cũ (designer, note, lark...)
         const old = current.orders[byId[mapped.id]];
+        // QUAN TRỌNG: nếu Merchize báo HỦY → cập nhật trạng thái hủy (để loại khỏi doanh thu)
+        //   còn lại giữ trạng thái nội bộ cũ (vì app tự quản lý luồng theo Drive/tracking)
+        const newStatus = (mapped.status === 'cancelled') ? 'cancelled' : old.status;
+        const becameCancelled = mapped.status === 'cancelled' && old.status !== 'cancelled';
         current.orders[byId[mapped.id]] = {
           ...mapped,
-          status: old.status, urgent: old.urgent, note: old.note, pushed: old.pushed,
-          larkLink: old.larkLink, history: old.history || [],
+          status: newStatus, urgent: old.urgent, note: old.note, pushed: old.pushed,
+          larkLink: old.larkLink, gdriveLink: old.gdriveLink, gdriveSavedAt: old.gdriveSavedAt, gdriveSavedBy: old.gdriveSavedBy,
+          history: old.history || [],
           items: mapped.items.map((it, i) => old.items && old.items[i] ? { ...it, designer: old.items[i].designer, fulfiller: old.items[i].fulfiller, confirmed: old.items[i].confirmed, larkLink: old.items[i].larkLink } : it),
         };
+        if (becameCancelled) {
+          current.orders[byId[mapped.id]].history = [...(old.history || []), { t: Date.now(), by: 'Merchize (webhook)', act: '🔴 Đơn bị HỦY (cập nhật từ Merchize)' }];
+        }
         updated++;
       } else {
         mapped.history = [{ t: Date.now(), by: 'Merchize (webhook)', act: 'Đơn tự động nhận từ Merchize' }];
