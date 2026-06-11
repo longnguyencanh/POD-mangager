@@ -86,7 +86,7 @@ export default async function handler(req, res) {
       if (users) {
         const found = users.find(u => u.user === user);
         if (!found || !verifyPass(pass, found.pass)) { res.status(401).json({ error: 'Sai tài khoản hoặc mật khẩu' }); return; }
-        const exp = Date.now() + 12 * 3600 * 1000;
+        const exp = Date.now() + 30 * 24 * 3600 * 1000;
         res.status(200).json({ token: sign({ user: found.user, role: found.role, name: found.name, exp }), ...publicUser(found) });
         return;
       }
@@ -96,7 +96,7 @@ export default async function handler(req, res) {
       if (!list.length) list = [{ user: 'admin', pass: 'abc13579', role: 'admin', name: 'Long Nguyên' }];
       const f = list.find(u => u.user === user && u.pass === pass);
       if (!f) { res.status(401).json({ error: 'Sai tài khoản hoặc mật khẩu' }); return; }
-      const exp = Date.now() + 12 * 3600 * 1000;
+      const exp = Date.now() + 30 * 24 * 3600 * 1000;
       res.status(200).json({ token: sign({ user: f.user, role: f.role, name: f.name, exp }), ...publicUser(f) });
       return;
     }
