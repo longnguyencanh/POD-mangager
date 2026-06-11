@@ -2058,9 +2058,12 @@ function renderIdeaBoard(){
         const mins=Math.round((new Date(it.reviewedAt)-new Date(it.startedAt))/60000);
         timerStr=`<span style="font-size:9.5px;color:#2e7d46;font-weight:600">✅ ${mins<60?mins+'ph':Math.floor(mins/60)+'g'+(mins%60?mins%60+'ph':'')} đến duyệt</span>`;
       }
+      const skuVal=skuFromTitle(it.title);
+      const skuChip=skuVal?`<span onclick="event.stopPropagation();copySku(event,'${esc(skuVal)}')" style="font-size:10.5px;font-weight:700;background:var(--bg);border:1px solid var(--border2);color:var(--accent);padding:2px 8px;border-radius:6px;cursor:pointer;display:inline-flex;align-items:center;gap:3px" title="Bấm để copy SKU">📋 ${esc(skuVal)}</span>`:'';
       return`<div draggable="true" ondragstart="ideaDragStart(event,'${it.id}')" onmousedown="ideaPointerDown(event,'${it.id}')" ontouchstart="ideaPointerDown(event,'${it.id}')" onclick="openIdeaModal('${it.id}')" style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:10px;cursor:grab;box-shadow:0 1px 3px rgba(0,0,0,.06);user-select:none">
         ${img}
         <div style="font-size:13px;font-weight:600;margin-bottom:4px">${esc(it.title)}</div>
+        ${skuChip?`<div style="margin-bottom:6px">${skuChip}</div>`:''}
         ${link?`<div style="margin-bottom:4px">${link}</div>`:''}
         ${design?`<div style="margin-bottom:4px">${design}</div>`:''}
         ${it.note?`<div style="font-size:11px;color:var(--text2);margin-bottom:6px">${esc(it.note)}</div>`:''}
@@ -4487,6 +4490,13 @@ function copyField(el,label){
 }
 function fallbackCopy(text){
   try{const t=document.createElement('textarea');t.value=text;t.style.position='fixed';t.style.opacity='0';document.body.appendChild(t);t.select();document.execCommand('copy');document.body.removeChild(t);}catch(e){}
+}
+function copySku(e,sku){
+  if(e)e.stopPropagation();
+  if(!sku)return;
+  if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(sku).then(()=>toast('📋 Đã copy SKU: '+sku,'success')).catch(()=>{fallbackCopy(sku);toast('📋 Đã copy SKU: '+sku,'success');});}
+  else{fallbackCopy(sku);toast('📋 Đã copy SKU: '+sku,'success');}
+  if(e&&e.currentTarget){const el=e.currentTarget;const bg=el.style.background;el.style.background='#d4f5dd';setTimeout(()=>{el.style.background=bg;},400);}
 }
 function sleep(ms){return new Promise(r=>setTimeout(r,ms));}
 function toast(m,t='info'){const w=document.getElementById('toast-wrap');const e=document.createElement('div');e.className=`toast ${t}`;e.innerHTML=`<span>${{success:'✅',error:'❌',info:'ℹ️',warn:'⚠️'}[t]||''}</span><span>${m}</span>`;w.appendChild(e);setTimeout(()=>e.remove(),3500);}
