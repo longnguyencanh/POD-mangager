@@ -1217,6 +1217,7 @@ body[data-role="seller"] .no-seller{display:none !important}
         <span class="kf-drag-dots" style="font-size:15px;color:var(--text3);letter-spacing:3px">⠿⠿</span>
         <span style="font-size:12.5px;font-weight:700">📋 Kanban</span>
         <div style="margin-left:auto;display:flex;gap:6px;align-items:center">
+          <button onclick="event.stopPropagation();openQuickIdea()" style="background:var(--green);border:1px solid var(--green);border-radius:6px;padding:3px 10px;font-size:11px;cursor:pointer;color:#fff;font-family:inherit;font-weight:600">⚡ Tạo nhanh</button>
           <span id="kf-size-label" class="kf-desktop-only" style="font-size:10px;color:var(--text3);min-width:60px;text-align:right"></span>
           <button id="kf-w-btn" class="kf-desktop-only" onclick="kfToggleW(event)" style="background:none;border:1px solid var(--border2);border-radius:6px;padding:3px 9px;font-size:11px;cursor:pointer;color:var(--text2);font-family:inherit">↔ Full</button>
           <button class="kf-desktop-only" onclick="kfReset(event)" style="background:none;border:1px solid var(--border2);border-radius:6px;padding:3px 9px;font-size:11px;cursor:pointer;color:var(--text2);font-family:inherit">↺ Reset</button>
@@ -2518,11 +2519,37 @@ function qiPreview(){
   if(url){document.getElementById('qi-preview').src=url;wrap.style.display='';hint.style.display='none';}
   else{wrap.style.display='none';hint.style.display='';}
 }
+// Nén ảnh về tối đa ~800px + JPEG 0.7 → giảm dung lượng base64 (tránh phình database)
+function qiCompressImage(file, cb){
+  const reader=new FileReader();
+  reader.onload=e=>{
+    const img=new Image();
+    img.onload=()=>{
+      const MAX=800;
+      let w=img.width,h=img.height;
+      if(w>MAX||h>MAX){if(w>h){h=Math.round(h*MAX/w);w=MAX;}else{w=Math.round(w*MAX/h);h=MAX;}}
+      const canvas=document.createElement('canvas');canvas.width=w;canvas.height=h;
+      canvas.getContext('2d').drawImage(img,0,0,w,h);
+      const out=canvas.toDataURL('image/jpeg',0.7);
+      cb(out);
+    };
+    img.onerror=()=>cb(e.target.result); // lỗi → giữ nguyên
+    img.src=e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+function qiSetImage(dataUrl){
+  // Cảnh báo nếu ảnh quá lớn (base64) — gợi ý dùng link thay thế
+  const kb=Math.round((dataUrl.length*0.75)/1024);
+  if(dataUrl.startsWith('data:')&&kb>200){
+    toast('⚠️ Ảnh nặng '+kb+'KB. Nên dùng LINK ảnh Etsy để tiết kiệm dung lượng.','warn');
+  }
+  document.getElementById('qi-img').value=dataUrl;
+  qiPreview();
+}
 function qiOnFile(input){
   const f=input.files&&input.files[0];if(!f)return;
-  const reader=new FileReader();
-  reader.onload=e=>{document.getElementById('qi-img').value=e.target.result;qiPreview();};
-  reader.readAsDataURL(f);
+  qiCompressImage(f,qiSetImage);
 }
 let _qiDropBound=false;
 function qiBindDrop(){
@@ -2543,16 +2570,16 @@ function qiBindDrop(){
       else if(/etsy\.com\/listing/i.test(uri)){document.getElementById('qi-link').value=uri;}
       else {document.getElementById('qi-img').value=uri;qiPreview();}
     }
-    // 2) File ảnh kéo từ máy
+    // 2) File ảnh kéo từ máy → nén trước khi lưu
     if(dt.files&&dt.files[0]&&dt.files[0].type.startsWith('image/')){
-      const reader=new FileReader();reader.onload=ev=>{document.getElementById('qi-img').value=ev.target.result;qiPreview();};reader.readAsDataURL(dt.files[0]);
+      qiCompressImage(dt.files[0],qiSetImage);
     }
   };
   // Dán ảnh bằng Ctrl+V
   drop.onpaste=e=>{
     const items=(e.clipboardData||{}).items||[];
     for(const it of items){
-      if(it.type&&it.type.startsWith('image/')){const f=it.getAsFile();const reader=new FileReader();reader.onload=ev=>{document.getElementById('qi-img').value=ev.target.result;qiPreview();};reader.readAsDataURL(f);}
+      if(it.type&&it.type.startsWith('image/')){const f=it.getAsFile();qiCompressImage(f,qiSetImage);}
     }
   };
 }
