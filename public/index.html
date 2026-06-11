@@ -170,7 +170,9 @@ body.sb-collapsed .desk-hamb{display:block}
   /* ── Kanban NỔI: trên điện thoại bỏ chế độ nổi, đưa về tĩnh, nhỏ gọn ── */
   #kanban-float{position:static !important;top:auto !important;left:auto !important;width:100% !important;height:auto !important;min-width:0 !important;min-height:0 !important;box-shadow:none !important;border:none !important;background:transparent !important;z-index:auto !important;margin-top:8px}
   #kanban-float .kf-resize{display:none !important}
-  #kanban-float-handle{display:none !important}
+  /* Giữ HEADER hiện (để có nút ✕ đóng) nhưng bỏ kéo + nút desktop */
+  #kanban-float-handle{display:flex !important;cursor:default !important;position:sticky;top:0;z-index:20;border-radius:10px;margin-bottom:8px}
+  #kanban-float-handle .kf-drag-dots,#kanban-float-handle .kf-desktop-only{display:none !important}
   #kf-scroll{overflow:visible !important;padding:0 !important;background:transparent !important}
   #idea-float-hint{display:none !important}
 
@@ -1204,12 +1206,13 @@ body[data-role="seller"] .no-seller{display:none !important}
     <!-- Inner wrapper clips content only -->
     <div style="border-radius:14px;overflow:hidden;height:100%;display:flex;flex-direction:column">
       <div id="kanban-float-handle" style="background:var(--surface);border-bottom:1px solid var(--border);padding:8px 14px;display:flex;align-items:center;gap:10px;cursor:grab;user-select:none;flex-shrink:0">
-        <span style="font-size:15px;color:var(--text3);letter-spacing:3px">⠿⠿</span>
-        <span style="font-size:12.5px;font-weight:700">📋 Kanban – kéo để di chuyển</span>
+        <span class="kf-drag-dots" style="font-size:15px;color:var(--text3);letter-spacing:3px">⠿⠿</span>
+        <span style="font-size:12.5px;font-weight:700">📋 Kanban</span>
         <div style="margin-left:auto;display:flex;gap:6px;align-items:center">
-          <span id="kf-size-label" style="font-size:10px;color:var(--text3);min-width:60px;text-align:right"></span>
-          <button id="kf-w-btn" onclick="kfToggleW(event)" style="background:none;border:1px solid var(--border2);border-radius:6px;padding:3px 9px;font-size:11px;cursor:pointer;color:var(--text2);font-family:inherit">↔ Full</button>
-          <button onclick="kfReset(event)" style="background:none;border:1px solid var(--border2);border-radius:6px;padding:3px 9px;font-size:11px;cursor:pointer;color:var(--text2);font-family:inherit">↺ Reset</button>
+          <span id="kf-size-label" class="kf-desktop-only" style="font-size:10px;color:var(--text3);min-width:60px;text-align:right"></span>
+          <button id="kf-w-btn" class="kf-desktop-only" onclick="kfToggleW(event)" style="background:none;border:1px solid var(--border2);border-radius:6px;padding:3px 9px;font-size:11px;cursor:pointer;color:var(--text2);font-family:inherit">↔ Full</button>
+          <button class="kf-desktop-only" onclick="kfReset(event)" style="background:none;border:1px solid var(--border2);border-radius:6px;padding:3px 9px;font-size:11px;cursor:pointer;color:var(--text2);font-family:inherit">↺ Reset</button>
+          <button onclick="closeKanban(event)" title="Đóng bảng" style="background:none;border:1px solid var(--border2);border-radius:6px;width:28px;height:26px;font-size:14px;cursor:pointer;color:var(--red);font-family:inherit;display:flex;align-items:center;justify-content:center">✕</button>
         </div>
       </div>
       <div id="kf-scroll" style="overflow-x:auto;overflow-y:auto;padding:12px 14px 14px;flex:1;min-height:0;background:#ede9e2">
@@ -4473,6 +4476,12 @@ function kfShow(){
 }
 function kfHide(){const p=document.getElementById('kanban-float');if(p)p.style.display='none';}
 let _kanbanHidden=false;
+function closeKanban(e){
+  if(e)e.stopPropagation();
+  const p=document.getElementById('kanban-float');if(p)p.style.display='none';
+  _kanbanHidden=true;
+  const btn=document.getElementById('kanban-toggle-btn');if(btn)btn.textContent='📋 Hiện bảng Kanban';
+}
 function toggleKanban(){
   const p=document.getElementById('kanban-float');if(!p)return;
   _kanbanHidden=!_kanbanHidden;
