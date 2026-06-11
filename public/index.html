@@ -4931,12 +4931,18 @@ function etMonthKey(d){const k=etDateKey(d);return k?k.slice(0,7):'';}
 // Key ngày hôm nay theo giờ Michigan
 function etTodayKey(){return etDateKey(new Date());}
 // Key ngày hôm qua / N ngày trước theo giờ Michigan
+// Key ngày N ngày trước theo giờ Michigan (tính chuẩn, không lệch múi giờ)
 function etDayKeyOffset(days){
-  // lấy thời điểm hiện tại theo ET, lùi N ngày
-  const now=new Date();
-  const etNow=new Date(now.toLocaleString('en-US',{timeZone:US_TZ}));
-  etNow.setDate(etNow.getDate()-days);
-  return etDateKey(etNow);
+  // lấy key hôm nay theo ET, rồi lùi N ngày bằng cách cộng mốc UTC trưa (tránh lệch DST/timezone)
+  const todayKey=etTodayKey(); // 'YYYY-MM-DD' theo ET
+  const [y,m,d]=todayKey.split('-').map(Number);
+  // dùng UTC giữa trưa để phép trừ ngày không bị lệch
+  const base=new Date(Date.UTC(y,m-1,d,12,0,0));
+  base.setUTCDate(base.getUTCDate()-days);
+  const yy=base.getUTCFullYear();
+  const mm=String(base.getUTCMonth()+1).padStart(2,'0');
+  const dd=String(base.getUTCDate()).padStart(2,'0');
+  return `${yy}-${mm}-${dd}`;
 }
 // So sánh: order/log có thuộc 'hôm nay' theo giờ Michigan không
 function isEtToday(d){return etDateKey(d)===etTodayKey();}
