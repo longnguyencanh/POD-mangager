@@ -663,7 +663,8 @@ body[data-role="seller"] .no-seller{display:none !important}
     </div>
 
     <div class="tabs">
-      <div class="tab active" onclick="setTab(this,'new_today')">🆕 Đơn mới <span class="tc" id="tc-new_today">0</span></div>
+      <div class="tab active" onclick="setTab(this,'all')">📋 Tất cả <span class="tc" id="tc-all">0</span></div>
+      <div class="tab" onclick="setTab(this,'new_today')">🆕 Đơn mới <span class="tc" id="tc-new_today">0</span></div>
       <div class="tab" onclick="setTab(this,'wait_design')">⏳ Chờ xử lý <span class="tc" id="tc-wait_design">0</span></div>
       <div class="tab" onclick="setTab(this,'sent_factory')">🏭 Đã gửi xưởng <span class="tc" id="tc-sent_factory">0</span></div>
       <div class="tab" onclick="setTab(this,'missing')">⚠️ Thiếu info <span class="tc" id="tc-missing">0</span></div>
@@ -1818,7 +1819,7 @@ body[data-role="seller"] .no-seller{display:none !important}
 <script>
 const CFG_KEY='pod_cfg_v3';
 let cfg={proxyUrl:'http://localhost:3000',printifyToken:'',shopId:'',merchizeKey:'',sellerwixKey:'',sellerwixPid:'',sheetId:'',sheetToken:'',skuMap:[],mrzBase:'',mrzToken:''};
-let orders=[],filtered=[],current=null,currentTab='new_today',searchQ='';
+let orders=[],filtered=[],current=null,currentTab='all',searchQ='';
 
 const DESIGNERS=['— Chưa gán —','Nguyễn Anh','Trần Mai','Lê Hùng','Phạm Ly','Team Design'];
 const FULFILLERS=['— Chưa gán —','Merchize','Sellerwix','Xưởng A','Xưởng B'];
@@ -4355,7 +4356,11 @@ function applyFilter(){
         if(st!=='missing'&&st!=='has_track'&&st!=='no_track')return false;
       } else if(st!==currentTab)return false;
     }
-    if(searchQ)return o.id.includes(searchQ)||o.customer.toLowerCase().includes(searchQ)||(o.items?.[0]?.title||'').toLowerCase().includes(searchQ)||(o.external_id||'').includes(searchQ)||(o.items?.[0]?.sku||'').toLowerCase().includes(searchQ);
+    if(searchQ){
+      const q=searchQ.toLowerCase();
+      const code=(etsyCode(o)||'').toLowerCase();
+      return code.includes(q)||(o.id||'').toLowerCase().includes(q)||(o.external_id||'').toLowerCase().includes(q)||(o.external_number||'').toString().toLowerCase().includes(q)||(o.orderNumber||'').toLowerCase().includes(q)||(o.order_number||'').toString().toLowerCase().includes(q)||(o.customer||'').toLowerCase().includes(q)||(o.items?.[0]?.title||'').toLowerCase().includes(q)||(o.items?.[0]?.sku||'').toLowerCase().includes(q);
+    }
     return true;
   });
   // Sắp xếp
@@ -4376,7 +4381,8 @@ function visibleOrders(){
 function updateCounts(){const vis=visibleOrders();const c={new_today:0,wait_design:0,sent_factory:0,missing:0,has_track:0,no_track:0};vis.forEach(o=>{const st=orderStage(o);if(st==='cancelled')return;if(c[st]!==undefined)c[st]++;});
   // "Đã gửi xưởng" = tổng các đơn đã có Drive (missing + has_track + no_track)
   c.sent_factory=c.missing+c.has_track+c.no_track;
-  ['new_today','wait_design','sent_factory','missing','has_track','no_track'].forEach(k=>{const el=document.getElementById('tc-'+k);if(el)el.textContent=c[k]||0;});document.getElementById('sb-cnt').textContent=vis.length;if(currentPage==='home')renderHome();else if(currentPage==='dashboard')renderDashboard();else if(currentPage==='analytics')renderAnalytics();}
+  c.all=vis.filter(o=>orderStage(o)!=='cancelled').length;
+  ['all','new_today','wait_design','sent_factory','missing','has_track','no_track'].forEach(k=>{const el=document.getElementById('tc-'+k);if(el)el.textContent=c[k]||0;});document.getElementById('sb-cnt').textContent=vis.length;if(currentPage==='home')renderHome();else if(currentPage==='dashboard')renderDashboard();else if(currentPage==='analytics')renderAnalytics();}
 
 const PILLS={new:['p-new','🆕 Đơn mới'],pending:['p-pending','⏳ Chờ xử lý'],processing:['p-processing','⚙️ Đang xử lý'],not_sent:['p-notsent','📦 Chưa gửi'],producing:['p-producing','🏭 Chờ sản xuất'],shipped:['p-shipped','🟢 Đã gửi'],hold:['p-hold','🟠 Hold'],done:['p-done','✓ Đã xử lý'],missing:['p-missing','⚠ Thiếu info'],missing_qty:['p-missing','⚠ Thiếu SL'],cancelled:['p-cancelled','🔴 Huỷ']};
 const STATUS_LABEL={new:'Đơn mới',pending:'Chờ xử lý',processing:'Đang xử lý',not_sent:'Chưa gửi',producing:'Đã gửi xưởng',shipped:'Đã gửi đi',hold:'Hold',done:'Đã xử lý',missing:'Thiếu info',missing_qty:'Thiếu SL',cancelled:'Huỷ'};
