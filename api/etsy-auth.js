@@ -121,16 +121,28 @@ export default async function handler(req, res) {
       // access_token có dạng "<user_id>.<...>"; user_id đứng trước dấu chấm
       const userId = String(tok.access_token).split('.')[0];
 
-      // lấy shop_id để đặt tên shop
-      let shopId = userId, shopName = '';
+      // Lấy shop_id THẬT của user. Etsy v3: GET /users/{user_id}/shops
+      // (lưu user_id KHÁC shop_id — không được dùng user_id thay shop_id)
+      let shopId = null, shopName = '';
       try {
         const sr = await fetch(`${ETSY_API}/users/${userId}/shops`, {
           headers: { 'x-api-key': apiKeyHeader(), Authorization: `Bearer ${tok.access_token}` },
         });
         const sj = await sr.json();
-        const shop = Array.isArray(sj?.results) ? sj.results[0] : (sj.shop_id ? sj : null);
-        if (shop) { shopId = shop.shop_id; shopName = shop.shop_name || ''; }
+        // Etsy có thể trả: {results:[{shop_id,...}]} hoặc trực tiếp {shop_id,...}
+        let shop = null;
+        if (Array.isArray(sj?.results) && sj.results.length) shop = sj.results[0];
+        else if (sj && sj.shop_id) shop = sj;
+        if (shop && shop.shop_id) { shopId = shop.shop_id; shopName = shop.shop_name || ''; }
       } catch (e) {}
+
+      if (!shopId) {
+        res.status(400).json({
+          error: 'Không lấy được shop_id của tài khoản này. Tài khoản có thể chưa mở shop, hoặc thiếu scope shops_r.',
+          user_id: userId,
+        });
+        return;
+      }
 
       const record = {
         shop_id: shopId,
@@ -165,6 +177,18 @@ export default async function handler(req, res) {
         if (raw) { const s = JSON.parse(raw); shops.push({ shop_id: s.shop_id, shop_name: s.shop_name, connected_at: s.obtained_at }); }
       }
       res.status(200).json({ ok: true, count: shops.length, shops });
+      return;
+    }
+
+    // ---- remove: xoá 1 shop khỏi danh sách ----
+    if (action === 'remove') {
+      const session = verify(req.headers['x-session']);
+      if (!session) { res.status(401).json({ error: 'Chưa đăng nhập' }); return; }
+      const id = req.query.shop_id;
+      if (!id) { res.status(400).json({ error: 'Thiếu shop_id' }); return; }
+      await redis(['DEL', `etsy:shop:${id}`]);
+      await redis(['SREM', 'etsy:shops', String(id)]);
+      res.status(200).json({ ok: true, removed: id });
       return;
     }
 
