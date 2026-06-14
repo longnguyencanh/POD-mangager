@@ -1428,6 +1428,20 @@ body[data-role="seller"] .no-seller{display:none !important}
         </div>
       </div>
 
+      <!-- Khối: Kết nối Etsy -->
+      <div class="block">
+        <div class="block-title">🛍️ Kết nối Etsy</div>
+        <div style="font-size:11.5px;color:var(--text2);margin:6px 0 12px;line-height:1.6">
+          Mỗi chủ shop tự bấm "Kết nối" và đăng nhập Etsy của họ để cho phép app đọc đơn.
+          Token lưu riêng từng shop. Sau khi kết nối, bấm "Kéo đơn" để lấy đơn về.
+        </div>
+        <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
+          <button class="btn btn-green btn-sm" onclick="etsyConnect()">+ Kết nối shop Etsy</button>
+          <button class="btn btn-sm" onclick="etsyLoadShops()">↻ Tải lại danh sách</button>
+        </div>
+        <div id="etsy-shop-list" style="font-size:12.5px"></div>
+      </div>
+
       <!-- Khối 1: Cảnh báo cần xử lý -->
       <div class="block">
         <div class="block-title">🔔 Cảnh báo cần xử lý</div>
@@ -3975,6 +3989,56 @@ function nasPathFor(sku){
 function saveMrzCfg(){cfg.mrzBase=document.getElementById('mrz-base').value.trim();cfg.mrzToken=document.getElementById('mrz-token').value.trim();saveCfg();toast('✅ Đã lưu cấu hình Merchize','success');}
 function saveSettings(){saveMrzCfg();closeSettings();}
 // ── KÉO ĐƠN TỪ MERCHIZE ──
+// --- Kết nối Etsy: mở cửa sổ đăng nhập Etsy để chủ shop bấm Allow ---
+async function etsyConnect(){
+  try{
+    const r = await fetch('/api/etsy-auth?action=start', { headers: { 'X-Session': auth.token } });
+    const d = await r.json();
+    if(!d.ok || !d.url){ alert('Không tạo được link kết nối: ' + (d.error||'lỗi')); return; }
+    window.open(d.url, '_blank');
+  }catch(e){ alert('Lỗi: ' + e.message); }
+}
+
+// --- Tải danh sách shop đã kết nối ---
+async function etsyLoadShops(){
+  const box = document.getElementById('etsy-shop-list');
+  box.innerHTML = '<div style="color:var(--text3)">Đang tải…</div>';
+  try{
+    const r = await fetch('/api/etsy-auth?action=list', { headers: { 'X-Session': auth.token } });
+    const d = await r.json();
+    if(!d.ok){ box.innerHTML = '<div style="color:var(--red)">'+(d.error||'Lỗi')+'</div>'; return; }
+    if(!d.shops || !d.shops.length){ box.innerHTML = '<div style="color:var(--text3)">Chưa có shop nào kết nối.</div>'; return; }
+    box.innerHTML = d.shops.map(s => `
+      <div style="display:flex;align-items:center;gap:10px;padding:8px 10px;border:1px solid var(--border);border-radius:8px;margin-bottom:6px;background:var(--surface)">
+        <div style="flex:1">
+          <div style="font-weight:600">${s.shop_name||('Shop '+s.shop_id)}</div>
+          <div style="font-size:10.5px;color:var(--text3)">ID: ${s.shop_id}</div>
+        </div>
+        <button class="btn btn-sm" onclick="etsyPull('${s.shop_id}')">Kéo đơn</button>
+      </div>`).join('');
+  }catch(e){ box.innerHTML = '<div style="color:var(--red)">'+e.message+'</div>'; }
+}
+
+// --- Kéo đơn từ 1 shop Etsy về, gộp vào kho đơn hiện có (pod_orders) ---
+async function etsyPull(shopId){
+  try{
+    const r = await fetch('/api/etsy?action=orders&shop_id='+encodeURIComponent(shopId)+'&limit=100', { headers: { 'X-Session': auth.token } });
+    const d = await r.json();
+    if(!d.ok){ alert('Kéo đơn lỗi: '+(d.error||'?')); return; }
+    let orders = [];
+    try{ orders = JSON.parse(localStorage.getItem('pod_orders')||'[]'); }catch(e){}
+    const existing = new Set(orders.map(o => String(o.order_id||o.external_number)));
+    let added = 0;
+    for(const o of d.data){ if(!existing.has(String(o.order_id))){ orders.push(o); added++; } }
+    localStorage.setItem('pod_orders', JSON.stringify(orders));
+    if(typeof buildShopFilter==='function') buildShopFilter();
+    if(typeof applyFilter==='function') applyFilter();
+    if(typeof updateCounts==='function') updateCounts();
+    if(typeof cloudSaveAll==='function') await cloudSaveAll();
+    alert('Đã kéo '+d.count+' đơn từ shop '+shopId+' ('+added+' đơn mới).');
+  }catch(e){ alert('Lỗi: '+e.message); }
+}
+
 function mrzHeaders(){
   const h={'Content-Type':'application/json'};
   if(auth&&auth.token)h['X-Session']=auth.token;
