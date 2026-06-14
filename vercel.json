@@ -4,5 +4,9 @@
   "cleanUrls": true,
   "rewrites": [
     { "source": "/", "destination": "/index.html" }
-  ]
+  ],
+  "functions": {
+    "api/etsy-auth.js": { "regions": ["iad1"] },
+    "api/etsy.js": { "regions": ["iad1"] }
+  }
 }
