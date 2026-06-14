@@ -28,6 +28,9 @@ const rGet = (k) => redis(['GET', k]);
 const rSet = (k, v) => redis(['SET', k, v]);
 
 const KEY = () => process.env.ETSY_KEYSTRING || '';
+const SECRET = () => process.env.ETSY_SHARED_SECRET || '';
+// Etsy yêu cầu x-api-key dạng "keystring:shared_secret" cho các request đã xác thực
+const apiKeyHeader = () => SECRET() ? `${KEY()}:${SECRET()}` : KEY();
 
 // Lấy record shop; nếu token sắp hết hạn thì refresh và lưu lại
 async function getValidToken(shopId) {
@@ -93,7 +96,7 @@ async function fetchAllReceipts(shopId, token, limit) {
   const pageSize = Math.min(limit || 50, 100);
   while (out.length < (limit || 50)) {
     const url = `${ETSY_API}/shops/${shopId}/receipts?limit=${pageSize}&offset=${offset}`;
-    const r = await fetch(url, { headers: { 'x-api-key': KEY(), Authorization: `Bearer ${token}` } });
+    const r = await fetch(url, { headers: { 'x-api-key': apiKeyHeader(), Authorization: `Bearer ${token}` } });
     if (!r.ok) { const text = await r.text(); throw new Error(`Etsy ${r.status}: ${text.slice(0, 160)}`); }
     const j = await r.json();
     const batch = j.results || [];

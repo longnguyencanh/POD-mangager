@@ -49,8 +49,15 @@ function pkce() {
 function cfg() {
   return {
     key: process.env.ETSY_KEYSTRING || '',
+    secret: process.env.ETSY_SHARED_SECRET || '',
     redirect: process.env.ETSY_REDIRECT_URI || '',
   };
+}
+// Etsy yêu cầu x-api-key dạng "keystring:shared_secret" cho request đã xác thực
+function apiKeyHeader() {
+  const k = process.env.ETSY_KEYSTRING || '';
+  const s = process.env.ETSY_SHARED_SECRET || '';
+  return s ? `${k}:${s}` : k;
 }
 
 export default async function handler(req, res) {
@@ -118,7 +125,7 @@ export default async function handler(req, res) {
       let shopId = userId, shopName = '';
       try {
         const sr = await fetch(`${ETSY_API}/users/${userId}/shops`, {
-          headers: { 'x-api-key': key, Authorization: `Bearer ${tok.access_token}` },
+          headers: { 'x-api-key': apiKeyHeader(), Authorization: `Bearer ${tok.access_token}` },
         });
         const sj = await sr.json();
         const shop = Array.isArray(sj?.results) ? sj.results[0] : (sj.shop_id ? sj : null);
