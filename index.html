@@ -9,7 +9,10 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="POD Manager">
-<link rel="apple-touch-icon" href="/icon-192.png">
+<link rel="icon" href="/favicon.ico" sizes="any">
+<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="/favicon-16.png">
+<link rel="apple-touch-icon" href="/favicon-180.png">
 <title>79ECOM</title>
 <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@300;400;500;600;700&family=Lora:wght@500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
@@ -1904,7 +1907,7 @@ async function enterApp(){
   // Tự đồng bộ doanh thu đơn $0 (ngầm) khi mở app + định kỳ mỗi 10 phút
   setTimeout(autoSyncRevenue,3000);
   if(!window._autoSyncTimer)window._autoSyncTimer=setInterval(autoSyncRevenue,10*60*1000);
-  setTimeout(openIdeaFromHash,800);
+  setTimeout(routeFromHash,800);
   setTimeout(detectChanges,1500);
   // Cập nhật thông báo định kỳ
   if(!window._notifTimer)window._notifTimer=setInterval(()=>{detectChanges();},2*60*1000);
@@ -2716,14 +2719,35 @@ function copyIdeaLink(){
   });
 }
 // Mở idea từ link share (#idea=xxx) sau khi đăng nhập
-function openIdeaFromHash(){
-  const m=location.hash.match(/idea=([\w]+)/);
+function openIdeaFromHash(tries){
+  tries = (tries==null) ? 0 : tries;
+  const m=location.hash.match(/idea=([^&]+)/);
   if(!m)return;
-  const id=m[1];
-  const it=(cfg.ideas||[]).find(x=>x.id===id);
-  if(it){goPage('idea');setTimeout(()=>openIdeaModal(id),300);}
-  history.replaceState(null,'',location.pathname);
+  const id=decodeURIComponent(m[1]);
+  const ideas=(cfg&&cfg.ideas)||[];
+  const it=ideas.find(x=>x.id===id);
+  if(it){
+    goPage('idea');
+    setTimeout(()=>openIdeaModal(id),300);
+    history.replaceState(null,'',location.pathname); // chỉ xoá hash KHI đã mở được
+    return;
+  }
+  // Chưa tìm thấy (dữ liệu idea có thể chưa tải xong) → thử lại tối đa ~10 lần (5 giây)
+  if(tries<10){ setTimeout(()=>openIdeaFromHash(tries+1),500); }
+  // Không tìm thấy sau khi thử: GIỮ nguyên hash, không xoá (để có thể mở lại / báo đúng)
 }
+
+// Danh sách trang hợp lệ để điều hướng bằng link (#orders, #idea, ...)
+const _validPages=['home','dashboard','orders','idea','analytics','insight','history','sysadmin','pricing','costs','suppliers','case','calendar','ytrends'];
+function routeFromHash(){
+  const h=(location.hash||'').replace(/^#/,'');
+  if(!h) return;
+  if(h.indexOf('idea=')===0){ openIdeaFromHash(); return; } // link tới 1 idea cụ thể
+  const page=h.split('&')[0];
+  if(_validPages.indexOf(page)>=0){ goPage(page,true); }
+}
+// Bấm back/forward trình duyệt → chuyển đúng trang
+window.addEventListener('popstate',function(){ routeFromHash(); });
 // ── NHÀ CUNG CẤP (XƯỞNG) ──
 function addSupplier(){
   const name=document.getElementById('sup-name').value.trim();
@@ -3376,7 +3400,7 @@ function toggleSidebar(force){
   sb.classList.toggle('open',open);
   ov.classList.toggle('show',open);
 }
-function goPage(page){
+function goPage(page,fromHash){
   // Chặn staff vào trang analytics
   if((page==='analytics'||page==='insight'||page==='sysadmin')&&(!auth||auth.role!=='admin')){toast('Bạn không có quyền xem trang này','error');return;}
   toggleSidebar(false); // đóng menu sau khi chọn (mobile)
@@ -3400,6 +3424,11 @@ function goPage(page){
   if(page==='case'){renderCases();}
   if(page==='idea'){renderIdeaBoard();renderDesignReport();_kanbanHidden=false;const tb=document.getElementById('kanban-toggle-btn');if(tb)tb.textContent='📋 Ẩn bảng';kfShow();}
   else{kfHide();}
+  // Cập nhật URL để mỗi trang có link riêng (vd #orders, #idea). fromHash=true khi do back/forward gọi → không ghi lại.
+  if(!fromHash){
+    const want='#'+page;
+    if(location.hash!==want) history.pushState({page:page},'',want);
+  }
 }
 
 // ── helper: orders in period ──
