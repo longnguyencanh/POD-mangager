@@ -670,6 +670,7 @@ body[data-role="seller"] .no-seller{display:none !important}
       <div class="tab" onclick="setTab(this,'missing')">⚠️ Thiếu info <span class="tc" id="tc-missing">0</span></div>
       <div class="tab" onclick="setTab(this,'has_track')">📦 Có tracking <span class="tc" id="tc-has_track">0</span></div>
       <div class="tab" onclick="setTab(this,'no_track')">⏳ Chưa tracking <span class="tc" id="tc-no_track">0</span></div>
+      <div class="tab" onclick="setTab(this,'care_needed')">💬 Cần chăm sóc <span class="tc" id="tc-care_needed">0</span></div>
     </div>
     </div><!-- end scroll-hide-group -->
 
@@ -1593,6 +1594,7 @@ body[data-role="seller"] .no-seller{display:none !important}
 
     <div class="act-row">
       <button class="btn btn-flag" id="btn-flag" onclick="markUrgent()">🚩 Đánh dấu đơn gấp</button>
+      <button class="btn" id="btn-care" onclick="markCared()" style="display:none">💬 Đã chăm sóc khách</button>
       <button class="btn btn-proof role-support" onclick="sendProof()">✈️ Gửi proof</button>
       <button class="btn btn-warn-o" onclick="markMissing()" style="margin-left:auto">⚠️ Thiếu info</button>
       <button class="btn btn-case role-support" onclick="openCase()">🔓 Mở case</button>
@@ -1902,7 +1904,7 @@ async function enterApp(){
   // Tự đồng bộ doanh thu đơn $0 (ngầm) khi mở app + định kỳ mỗi 10 phút
   setTimeout(autoSyncRevenue,3000);
   if(!window._autoSyncTimer)window._autoSyncTimer=setInterval(autoSyncRevenue,10*60*1000);
-  setTimeout(openIdeaFromHash,800);
+  setTimeout(routeFromHash,800);
   setTimeout(detectChanges,1500);
   // Cập nhật thông báo định kỳ
   if(!window._notifTimer)window._notifTimer=setInterval(()=>{detectChanges();},2*60*1000);
@@ -2714,14 +2716,35 @@ function copyIdeaLink(){
   });
 }
 // Mở idea từ link share (#idea=xxx) sau khi đăng nhập
-function openIdeaFromHash(){
-  const m=location.hash.match(/idea=([\w]+)/);
+function openIdeaFromHash(tries){
+  tries = (tries==null) ? 0 : tries;
+  const m=location.hash.match(/idea=([^&]+)/);
   if(!m)return;
-  const id=m[1];
-  const it=(cfg.ideas||[]).find(x=>x.id===id);
-  if(it){goPage('idea');setTimeout(()=>openIdeaModal(id),300);}
-  history.replaceState(null,'',location.pathname);
+  const id=decodeURIComponent(m[1]);
+  const ideas=(cfg&&cfg.ideas)||[];
+  const it=ideas.find(x=>x.id===id);
+  if(it){
+    goPage('idea');
+    setTimeout(()=>openIdeaModal(id),300);
+    history.replaceState(null,'',location.pathname); // chỉ xoá hash KHI đã mở được
+    return;
+  }
+  // Chưa tìm thấy (dữ liệu idea có thể chưa tải xong) → thử lại tối đa ~10 lần (5 giây)
+  if(tries<10){ setTimeout(()=>openIdeaFromHash(tries+1),500); }
+  // Không tìm thấy sau khi thử: GIỮ nguyên hash, không xoá (để có thể mở lại / báo đúng)
 }
+
+// Danh sách trang hợp lệ để điều hướng bằng link (#orders, #idea, ...)
+const _validPages=['home','dashboard','orders','idea','analytics','insight','history','sysadmin','pricing','costs','suppliers','case','calendar','ytrends'];
+function routeFromHash(){
+  const h=(location.hash||'').replace(/^#/,'');
+  if(!h) return;
+  if(h.indexOf('idea=')===0){ openIdeaFromHash(); return; } // link tới 1 idea cụ thể
+  const page=h.split('&')[0];
+  if(_validPages.indexOf(page)>=0){ goPage(page,true); }
+}
+// Bấm back/forward trình duyệt → chuyển đúng trang
+window.addEventListener('popstate',function(){ routeFromHash(); });
 // ── NHÀ CUNG CẤP (XƯỞNG) ──
 function addSupplier(){
   const name=document.getElementById('sup-name').value.trim();
@@ -3374,7 +3397,7 @@ function toggleSidebar(force){
   sb.classList.toggle('open',open);
   ov.classList.toggle('show',open);
 }
-function goPage(page){
+function goPage(page,fromHash){
   // Chặn staff vào trang analytics
   if((page==='analytics'||page==='insight'||page==='sysadmin')&&(!auth||auth.role!=='admin')){toast('Bạn không có quyền xem trang này','error');return;}
   toggleSidebar(false); // đóng menu sau khi chọn (mobile)
@@ -3398,6 +3421,11 @@ function goPage(page){
   if(page==='case'){renderCases();}
   if(page==='idea'){renderIdeaBoard();renderDesignReport();_kanbanHidden=false;const tb=document.getElementById('kanban-toggle-btn');if(tb)tb.textContent='📋 Ẩn bảng';kfShow();}
   else{kfHide();}
+  // Cập nhật URL để mỗi trang có link riêng (vd #orders, #idea). fromHash=true khi do back/forward gọi → không ghi lại.
+  if(!fromHash){
+    const want='#'+page;
+    if(location.hash!==want) history.pushState({page:page},'',want);
+  }
 }
 
 // ── helper: orders in period ──
@@ -3576,7 +3604,7 @@ function renderDashboard(){
 function setPeriod(el,p){document.querySelectorAll('.period-btn').forEach(b=>b.classList.remove('active'));el.classList.add('active');analyticsPeriod=p;renderAnalytics();}
 
 function renderAnalytics(){
-  const list=ordersInPeriod();
+  const list=ordersInPeriod().filter(o=>o.status!=='cancelled');
   const cost=numOf(document.getElementById('a-cost')?.value||8);
   const ship=numOf(document.getElementById('a-ship')?.value||4.99);
   const pct=numOf(document.getElementById('a-pct')?.value||20)/100;
@@ -4414,11 +4442,15 @@ function applyFilter(){
     if(shopFilter!=='all'&&o.shopTitle!==shopFilter)return false;
     // Lọc theo bước trong luồng (mỗi đơn 1 bước)
     if(currentTab&&currentTab!=='all'){
+      if(currentTab==='care_needed'){
+        if(!o.careNeeded)return false;
+      } else {
       const st=orderStage(o);
       if(currentTab==='sent_factory'){
         // Đã gửi xưởng = tất cả đơn đã có Drive (missing/has_track/no_track)
         if(st!=='missing'&&st!=='has_track'&&st!=='no_track')return false;
       } else if(st!==currentTab)return false;
+      }
     }
     if(searchQ){
       const q=searchQ.toLowerCase();
@@ -4445,8 +4477,9 @@ function visibleOrders(){
 function updateCounts(){const vis=visibleOrders();const c={new_today:0,wait_design:0,sent_factory:0,missing:0,has_track:0,no_track:0};vis.forEach(o=>{const st=orderStage(o);if(st==='cancelled')return;if(c[st]!==undefined)c[st]++;});
   // "Đã gửi xưởng" = tổng các đơn đã có Drive (missing + has_track + no_track)
   c.sent_factory=c.missing+c.has_track+c.no_track;
+  c.care_needed=vis.filter(o=>o.careNeeded).length;
   c.all=vis.filter(o=>orderStage(o)!=='cancelled').length;
-  ['all','new_today','wait_design','sent_factory','missing','has_track','no_track'].forEach(k=>{const el=document.getElementById('tc-'+k);if(el)el.textContent=c[k]||0;});document.getElementById('sb-cnt').textContent=vis.length;if(currentPage==='home')renderHome();else if(currentPage==='dashboard')renderDashboard();else if(currentPage==='analytics')renderAnalytics();}
+  ['all','new_today','wait_design','sent_factory','missing','has_track','no_track','care_needed'].forEach(k=>{const el=document.getElementById('tc-'+k);if(el)el.textContent=c[k]||0;});document.getElementById('sb-cnt').textContent=vis.length;if(currentPage==='home')renderHome();else if(currentPage==='dashboard')renderDashboard();else if(currentPage==='analytics')renderAnalytics();}
 
 const PILLS={new:['p-new','🆕 Đơn mới'],pending:['p-pending','⏳ Chờ xử lý'],processing:['p-processing','⚙️ Đang xử lý'],not_sent:['p-notsent','📦 Chưa gửi'],producing:['p-producing','🏭 Chờ sản xuất'],shipped:['p-shipped','🟢 Đã gửi'],hold:['p-hold','🟠 Hold'],done:['p-done','✓ Đã xử lý'],missing:['p-missing','⚠ Thiếu info'],missing_qty:['p-missing','⚠ Thiếu SL'],cancelled:['p-cancelled','🔴 Huỷ']};
 const STATUS_LABEL={new:'Đơn mới',pending:'Chờ xử lý',processing:'Đang xử lý',not_sent:'Chưa gửi',producing:'Đã gửi xưởng',shipped:'Đã gửi đi',hold:'Hold',done:'Đã xử lý',missing:'Thiếu info',missing_qty:'Thiếu SL',cancelled:'Huỷ'};
@@ -4512,7 +4545,7 @@ function orderItemHTML(o){
   // Thêm thông tin khách hàng và quốc gia
   const custInfo=o.customer&&o.customer!=='Unknown'?`<span style="font-size:10.5px;color:var(--text2)">👤 ${esc(o.customer)}</span>`:'';
   const countryInfo=o.country&&o.country!=='—'?`<span style="font-size:10.5px;color:var(--text3)">🌍 ${esc(o.country)}</span>`:'';
-  return`<div class="oi" onclick="selectOrder('${o.id}')">${chk}<div class="oi-thumb">${img}</div><div class="oi-info"><div class="oi-code-main" onclick="event.stopPropagation();copyOrderCode(event,'${etsyCode(o)}')" style="cursor:pointer" title="Bấm để copy mã đơn">${etsyCode(o)} <span style="font-size:10px;opacity:.5">📋</span></div><div class="oi-short">${shortName}</div><div class="oi-fullname">${fullName}</div><div class="oi-shop">🏪 ${o.shopTitle||'—'}</div><div class="oi-meta"><span class="pill ${pc}">${pl}</span>${o.urgent?'<span class="urgent-tag">🚩 Gấp</span>':''}${trk}${pfb}${pi?`<span style="font-size:11px">${pi}</span>`:''}<span class="oi-price">${o.total}</span></div><div class="oi-meta" style="margin-top:3px">${custInfo}${countryInfo}<span class="oi-time">📅 ${fmtDateShort(o.created)}</span></div></div></div>`;
+  return`<div class="oi" onclick="selectOrder('${o.id}')">${chk}<div class="oi-thumb">${img}</div><div class="oi-info"><div class="oi-code-main" onclick="event.stopPropagation();copyOrderCode(event,'${etsyCode(o)}')" style="cursor:pointer" title="Bấm để copy mã đơn">${etsyCode(o)} <span style="font-size:10px;opacity:.5">📋</span></div><div class="oi-short">${shortName}</div><div class="oi-fullname">${fullName}</div><div class="oi-shop">🏪 ${o.shopTitle||'—'}</div><div class="oi-meta"><span class="pill ${pc}">${pl}</span>${o.urgent?'<span class="urgent-tag">🚩 Gấp</span>':''}${o.careNeeded?'<span class="yt-badge yt-badge-green" style="margin-left:4px">💬 Cần chăm sóc</span>':''}${trk}${pfb}${pi?`<span style="font-size:11px">${pi}</span>`:''}<span class="oi-price">${o.total}</span></div><div class="oi-meta" style="margin-top:3px">${custInfo}${countryInfo}<span class="oi-time">📅 ${fmtDateShort(o.created)}</span></div></div></div>`;
 }
 
 function renderList(){
@@ -4641,6 +4674,7 @@ function selectOrder(id){
   showGdriveSaved(o);
   document.getElementById('d-time').textContent=fmtDate(o.created);
   const fb=document.getElementById('btn-flag');if(fb)fb.classList.toggle('on',!!o.urgent);
+  const cb=document.getElementById('btn-care');if(cb)cb.style.display=o.careNeeded?'':'none';
   renderProds(o.items);
   if(cfg.merchizeKey)document.getElementById('mz-key').value=cfg.merchizeKey;
   if(cfg.sellerwixKey)document.getElementById('sw-key').value=cfg.sellerwixKey;
@@ -4782,6 +4816,7 @@ function sheetRow(o){const it=o.items?.[0]||{};return[o.id,o.external_id,o.custo
 
 // ── ACTIONS ──
 function markUrgent(){if(!current)return;current.urgent=!current.urgent;document.getElementById('btn-flag').classList.toggle('on',current.urgent);logHistory(current,current.urgent?'Đánh dấu đơn gấp':'Bỏ đánh dấu gấp');save();renderList();toast(current.urgent?'🚩 Đánh dấu đơn gấp!':'Bỏ đánh dấu gấp',current.urgent?'error':'info');}
+function markCared(){if(!current)return;current.careNeeded=false;document.getElementById('btn-care').style.display='none';logHistory(current,'Đã chăm sóc khách sau giao hàng');save();renderList();updateCounts();toast('💬 Đã đánh dấu chăm sóc xong','success');}
 function sendProof(){if(!current)return;logHistory(current,'Gửi proof tới '+current.email);save();toast(`✈️ Gửi proof tới ${current.email} (demo)`,'success');}
 function markMissing(){if(!current)return;current.status='missing';document.getElementById('d-status').value='missing';logHistory(current,'Đánh dấu thiếu info');save();applyFilter();updateCounts();toast('⚠️ Đánh dấu thiếu info','warn');}
 function openCase(){if(current)logHistory(current,'Mở case hỗ trợ');save();toast('🔓 Mở case hỗ trợ (demo)','info');}
