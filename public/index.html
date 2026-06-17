@@ -9,7 +9,10 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="POD Manager">
-<link rel="apple-touch-icon" href="/icon-192.png">
+<link rel="icon" href="/favicon.ico" sizes="any">
+<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="/favicon-16.png">
+<link rel="apple-touch-icon" href="/favicon-180.png">
 <title>79ECOM</title>
 <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@300;400;500;600;700&family=Lora:wght@500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
@@ -1845,9 +1848,16 @@ const MATERIALS=['— Chọn —','Cotton','Polyester','Ceramic','Glass','Canvas
 const SIZES=['— Chọn —','XS','S','M','L','XL','XXL','9"','11"','15oz','One Size'];
 
 window.onload=()=>{
-  // Khôi phục phiên đăng nhập nếu còn
+  // Khôi phục phiên đăng nhập nếu còn (và chưa quá 8 tiếng)
+  const SESSION_MAX_MS=8*60*60*1000; // 8 tiếng
   const sess=localStorage.getItem('pod_session');
-  if(sess){try{auth=JSON.parse(sess);if(auth&&auth.token){enterApp();}}catch(e){}}
+  if(sess){try{
+    auth=JSON.parse(sess);
+    // Hết hạn sau 8 tiếng kể từ lúc đăng nhập → bắt đăng nhập lại
+    if(auth&&auth.loginAt&&(Date.now()-auth.loginAt>SESSION_MAX_MS)){
+      localStorage.removeItem('pod_session');auth=null;
+    } else if(auth&&auth.token){enterApp();}
+  }catch(e){}}
 };
 
 // ══════════════════════════════════════════
@@ -1877,6 +1887,7 @@ async function doLogin(){
       if(!r.ok)throw new Error(data.error||'Đăng nhập thất bại');
       auth={token:data.token,role:data.role,name:data.name,user:data.user};
     }
+    auth.loginAt=Date.now(); // mốc thời gian đăng nhập, dùng để hết hạn sau 8 tiếng
     localStorage.setItem('pod_session',JSON.stringify(auth));
     enterApp();
   }catch(e){errEl.style.display='block';errEl.textContent=e.message;}
@@ -1912,6 +1923,16 @@ async function enterApp(){
   if(auth&&auth.role==='design'&&!location.hash.includes('idea'))setTimeout(()=>goPage('idea'),200);
   // Bắt đầu auto-refresh webhook health mỗi 5 phút
   whStartAutoRefresh();
+  // Tự đăng xuất khi đạt mốc 8 tiếng kể từ lúc đăng nhập (kể cả khi app đang mở)
+  if(window._sessionTimer)clearInterval(window._sessionTimer);
+  window._sessionTimer=setInterval(()=>{
+    if(auth&&auth.loginAt&&(Date.now()-auth.loginAt>8*60*60*1000)){
+      clearInterval(window._sessionTimer);
+      localStorage.removeItem('pod_session');
+      alert('Phiên đăng nhập đã hết hạn (8 tiếng). Vui lòng đăng nhập lại.');
+      location.reload();
+    }
+  },60*1000); // kiểm mỗi phút
 }
 // Ghép tên SP + ảnh từ đơn Merchize sang đơn Etsy có cùng SKU (Etsy không có tên SP)
 function enrichEtsyNames(){
@@ -1954,6 +1975,12 @@ function detectChanges(){
       newNotifs.push({type:'status',orderId:o.id,code,shop:o.shopTitle,sku:(o.items&&o.items[0]&&o.items[0].sku)||'',at:new Date().toISOString(),text:`🔄 Đơn ${code} → ${lbl}`});
     }
   });
+  // Nếu một lần có QUÁ NHIỀU đơn mới cùng lúc (>15) → đây là nạp hàng loạt (kéo/đồng bộ),
+  // KHÔNG tạo thông báo cho từng đơn để tránh báo ồ ạt. Vẫn giữ thông báo đổi trạng thái.
+  const bulkNew=newNotifs.filter(n=>n.type==='new');
+  if(bulkNew.length>15){
+    newNotifs=newNotifs.filter(n=>n.type!=='new');
+  }
   if(newNotifs.length){
     cfg.notifs=[...newNotifs,...cfg.notifs].slice(0,100); // giữ 100 mới nhất
     saveCfg();
