@@ -74,6 +74,9 @@ function mergeOrders(existingOrders, incoming, team) {
         gdriveLink: old.gdriveLink || o.gdriveLink, larkLink: old.larkLink || o.larkLink,
         tracking: old.tracking || o.tracking,
         ingestTeam: old.ingestTeam || team,
+        // careNeeded: giữ true nếu một trong hai bên đang bật (đơn vừa giao cần chăm sóc),
+        // chỉ tắt khi nhân viên bấm "đã chăm sóc" trong app tổng (qua /api/data).
+        careNeeded: o.careNeeded || old.careNeeded || false,
         items: newItems.map((it, i) => oldItems[i] ? {
           ...it,
           supplier: oldItems[i].supplier, ptype: oldItems[i].ptype, material: oldItems[i].material,
