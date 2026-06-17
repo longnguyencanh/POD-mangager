@@ -106,7 +106,8 @@ export default async function handler(req, res) {
         }
         const byId = {};
         current.orders.forEach(o => { byId[o.id] = o; });
-        current.orders = incoming.map(o => {
+        const incomingIds = new Set(incoming.map(o => o.id));
+        const merged = incoming.map(o => {
           const old = byId[o.id];
           if (old) {
             const oldItems = old.items || [];
@@ -114,6 +115,7 @@ export default async function handler(req, res) {
             // giữ lại các field do người dùng chỉnh (trạng thái, designer, note, pushed...)
             return { ...o, status: old.status, urgent: old.urgent, note: old.note, pushed: old.pushed,
               gdriveLink: old.gdriveLink || o.gdriveLink, larkLink: old.larkLink || o.larkLink,
+              ingestTeam: old.ingestTeam || o.ingestTeam,
               items: newItems.map((it, i) => oldItems[i] ? { ...it,
                 supplier: oldItems[i].supplier, ptype: oldItems[i].ptype, material: oldItems[i].material,
                 size: oldItems[i].size, designer: oldItems[i].designer, fulfiller: oldItems[i].fulfiller,
@@ -121,6 +123,15 @@ export default async function handler(req, res) {
           }
           return o;
         });
+        // BẢO TOÀN đơn do hệ thống tự kéo về (ingest/Etsy) mà trình duyệt KHÔNG gửi lên.
+        // Trình duyệt của user chỉ giữ danh sách đơn nó từng thấy; nếu nó lưu đè, các đơn
+        // Etsy mới ingest (chưa có trên máy user) sẽ bị mất. Giữ lại chúng ở đây.
+        current.orders.forEach(o => {
+          if (!incomingIds.has(o.id) && (o.ingestTeam || o.source === 'etsy')) {
+            merged.push(o);
+          }
+        });
+        current.orders = merged;
       }
 
       current.updatedAt = Date.now();
