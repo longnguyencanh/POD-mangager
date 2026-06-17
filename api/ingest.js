@@ -64,9 +64,13 @@ function mergeOrders(existingOrders, incoming, team) {
     if (old) {
       const oldItems = old.items || [];
       const newItems = o.items || [];
-      byId[o.id] = {
+      // Bình thường GIỮ status cũ (không để đồng bộ đè trạng thái gán tay).
+      // Ngoại lệ: đơn có cờ forceStatus (vd webhook "đã giao") → cho phép cập nhật status.
+      const keepStatus = o.forceStatus ? o.status : old.status;
+      const merged_o = {
         ...o,
-        status: old.status, urgent: old.urgent, note: old.note, pushed: old.pushed,
+        status: keepStatus,
+        urgent: old.urgent, note: old.note, pushed: old.pushed,
         gdriveLink: old.gdriveLink || o.gdriveLink, larkLink: old.larkLink || o.larkLink,
         tracking: old.tracking || o.tracking,
         ingestTeam: old.ingestTeam || team,
@@ -77,8 +81,11 @@ function mergeOrders(existingOrders, incoming, team) {
           confirmed: oldItems[i].confirmed,
         } : it),
       };
+      delete merged_o.forceStatus; // không lưu cờ tạm vào DB
+      byId[o.id] = merged_o;
       updated++;
     } else {
+      delete o.forceStatus;
       byId[o.id] = o;
       added++;
     }
