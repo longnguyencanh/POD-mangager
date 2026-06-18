@@ -9,10 +9,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="POD Manager">
-<link rel="icon" href="/favicon.ico" sizes="any">
-<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png">
-<link rel="icon" type="image/png" sizes="16x16" href="/favicon-16.png">
-<link rel="apple-touch-icon" href="/favicon-180.png">
+<link rel="apple-touch-icon" href="/icon-192.png">
 <title>79ECOM</title>
 <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@300;400;500;600;700&family=Lora:wght@500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
@@ -551,8 +548,9 @@ body[data-role="seller"] .no-seller{display:none !important}
 <div id="login-screen" style="position:fixed;inset:0;z-index:1000;background:var(--bg);display:flex;align-items:center;justify-content:center">
   <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:36px;width:360px;max-width:92vw;box-shadow:0 20px 60px rgba(0,0,0,.1)">
     <div style="text-align:center;margin-bottom:24px">
-      <img src="/logo-79ecom.png" alt="79ECOM" style="height:56px;width:auto;margin:0 auto;display:block">
-      <div style="font-size:12px;color:var(--text3);margin-top:10px">Đăng nhập để tiếp tục</div>
+      <div style="font-size:32px">🏷️</div>
+      <div style="font-family:'Lora',serif;font-size:22px;font-weight:600;margin-top:8px">79ECOM</div>
+      <div style="font-size:12px;color:var(--text3);margin-top:4px">Đăng nhập để tiếp tục</div>
     </div>
     <div class="fl" style="margin-bottom:12px"><label>Tài khoản</label><input class="fi" id="login-user" placeholder="Tên đăng nhập" onkeydown="if(event.key==='Enter')doLogin()"></div>
     <div class="fl" style="margin-bottom:18px"><label>Mật khẩu</label><input class="fi" type="password" id="login-pass" placeholder="Mật khẩu" onkeydown="if(event.key==='Enter')doLogin()"></div>
@@ -569,8 +567,8 @@ body[data-role="seller"] .no-seller{display:none !important}
   <div class="sb-logo">
     <div style="display:flex;align-items:center;justify-content:space-between">
       <div>
-        <img src="/logo-79ecom.png" alt="79ECOM" style="height:30px;width:auto;display:block">
-        <div class="sb-logo-s" style="margin-top:4px">Quản lý đơn hàng</div>
+        <div class="sb-logo-t">🏷️ 79ECOM</div>
+        <div class="sb-logo-s">Quản lý đơn hàng</div>
       </div>
       <button class="hamb desk-collapse" onclick="collapseSidebar()" title="Thu gọn menu" style="width:30px;height:30px;font-size:14px">«</button>
     </div>
@@ -584,6 +582,7 @@ body[data-role="seller"] .no-seller{display:none !important}
   <div class="sb-item no-design" id="nav-case" onclick="goPage('case')"><span class="ic">🚨</span> Case / Sự cố <span class="sb-badge" id="sb-case-cnt" style="display:none">0</span></div>
   <div class="sb-item no-design" id="nav-history" onclick="goPage('history')"><span class="ic">🗂️</span> Lịch sử đơn</div>
   <div class="sb-item admin-only" id="nav-insight" onclick="goPage('insight')"><span class="ic">🔍</span> Shop Insight</div>
+  <div class="sb-item admin-only" id="nav-salestrack" onclick="goPage('salestrack')"><span class="ic">📈</span> Theo dõi Sales</div>
   <div class="sb-sec">🎨 Sáng tạo</div>
   <div class="sb-item role-design" id="nav-idea" onclick="goPage('idea')"><span class="ic">💡</span> Idea / Thiết kế</div>
   <div class="sb-item" id="nav-calendar" onclick="goPage('calendar')"><span class="ic">📅</span> Lịch Bán Hàng</div>
@@ -672,7 +671,6 @@ body[data-role="seller"] .no-seller{display:none !important}
       <div class="tab" onclick="setTab(this,'missing')">⚠️ Thiếu info <span class="tc" id="tc-missing">0</span></div>
       <div class="tab" onclick="setTab(this,'has_track')">📦 Có tracking <span class="tc" id="tc-has_track">0</span></div>
       <div class="tab" onclick="setTab(this,'no_track')">⏳ Chưa tracking <span class="tc" id="tc-no_track">0</span></div>
-      <div class="tab" onclick="setTab(this,'care_needed')">💬 Cần chăm sóc <span class="tc" id="tc-care_needed">0</span></div>
     </div>
     </div><!-- end scroll-hide-group -->
 
@@ -1388,6 +1386,53 @@ body[data-role="seller"] .no-seller{display:none !important}
     </div>
   </div>
 
+  <!-- ════ PAGE: THEO DÕI SALES ETSY ════ -->
+  <div class="page" id="page-salestrack">
+    <div class="ph">
+      <h1>📈 Theo dõi Sales các shop Etsy</h1>
+      <p class="sub">Quét tổng số sales từ trang shop Etsy, tính số đơn mới mỗi ngày. Bấm "Chạy ngay" hoặc để cron tự chạy hằng ngày.</p>
+    </div>
+    <div class="page-scroll">
+      <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap">
+        <button class="btn btn-sm" onclick="esAddRow()">+ Thêm shop</button>
+        <button class="btn btn-sm" onclick="esSaveShops()">💾 Lưu danh sách</button>
+        <button class="btn btn-green btn-sm" onclick="esRunNow()" id="es-run-btn">▶ Chạy ngay</button>
+        <button class="btn btn-sm" onclick="esLoad()">🔄 Tải lại</button>
+        <span id="esMsg" style="align-self:center;font-size:12px;color:var(--text2)"></span>
+      </div>
+
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:18px;max-width:880px;margin-bottom:18px">
+        <div style="font-size:14px;font-weight:700;margin-bottom:12px">🏬 Danh sách shop theo dõi</div>
+        <table style="width:100%;border-collapse:collapse;font-size:13px">
+          <thead>
+            <tr style="text-align:left;color:var(--text2)">
+              <th style="padding:6px 8px;border-bottom:1px solid var(--border)">Tên shop</th>
+              <th style="padding:6px 8px;border-bottom:1px solid var(--border)">URL Etsy</th>
+              <th style="padding:6px 8px;border-bottom:1px solid var(--border);width:60px;text-align:center">Bật</th>
+              <th style="padding:6px 8px;border-bottom:1px solid var(--border);width:36px"></th>
+            </tr>
+          </thead>
+          <tbody id="esShopRows"></tbody>
+        </table>
+      </div>
+
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:18px;max-width:880px">
+        <div style="font-size:14px;font-weight:700;margin-bottom:12px">📊 Lịch sử <span id="esHistCount" style="font-weight:600;color:var(--orange);font-size:12px"></span></div>
+        <table style="width:100%;border-collapse:collapse;font-size:13px">
+          <thead>
+            <tr style="text-align:left;color:var(--text2)">
+              <th style="padding:6px 8px;border-bottom:1px solid var(--border)">Ngày</th>
+              <th style="padding:6px 8px;border-bottom:1px solid var(--border)">Shop</th>
+              <th style="padding:6px 8px;border-bottom:1px solid var(--border);text-align:right">Đơn hôm đó</th>
+              <th style="padding:6px 8px;border-bottom:1px solid var(--border);text-align:right">Tổng sales</th>
+            </tr>
+          </thead>
+          <tbody id="esHistRows"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
   <!-- ════ PAGE: NHÀ CUNG CẤP (XƯỞNG) ════ -->
   <div class="page" id="page-suppliers">
     <div class="ph">
@@ -1429,20 +1474,6 @@ body[data-role="seller"] .no-seller{display:none !important}
           <div class="fl" style="flex:1"><label>Tên shop mới</label><input class="fi" id="shop-name" placeholder="vd: My Etsy Shop 3"></div>
           <button class="btn btn-green btn-sm" onclick="addShop()">+ Thêm shop</button>
         </div>
-      </div>
-
-      <!-- Khối: Kết nối Etsy -->
-      <div class="block">
-        <div class="block-title">🛍️ Kết nối Etsy</div>
-        <div style="font-size:11.5px;color:var(--text2);margin:6px 0 12px;line-height:1.6">
-          Mỗi chủ shop tự bấm "Kết nối" và đăng nhập Etsy của họ để cho phép app đọc đơn.
-          Token lưu riêng từng shop. Sau khi kết nối, bấm "Kéo đơn" để lấy đơn về.
-        </div>
-        <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
-          <button class="btn btn-green btn-sm" onclick="etsyConnect()">+ Kết nối shop Etsy</button>
-          <button class="btn btn-sm" onclick="etsyLoadShops()">↻ Tải lại danh sách</button>
-        </div>
-        <div id="etsy-shop-list" style="font-size:12.5px"></div>
       </div>
 
       <!-- Khối 1: Cảnh báo cần xử lý -->
@@ -1596,7 +1627,6 @@ body[data-role="seller"] .no-seller{display:none !important}
 
     <div class="act-row">
       <button class="btn btn-flag" id="btn-flag" onclick="markUrgent()">🚩 Đánh dấu đơn gấp</button>
-      <button class="btn" id="btn-care" onclick="markCared()" style="display:none">💬 Đã chăm sóc khách</button>
       <button class="btn btn-proof role-support" onclick="sendProof()">✈️ Gửi proof</button>
       <button class="btn btn-warn-o" onclick="markMissing()" style="margin-left:auto">⚠️ Thiếu info</button>
       <button class="btn btn-case role-support" onclick="openCase()">🔓 Mở case</button>
@@ -1847,16 +1877,9 @@ const MATERIALS=['— Chọn —','Cotton','Polyester','Ceramic','Glass','Canvas
 const SIZES=['— Chọn —','XS','S','M','L','XL','XXL','9"','11"','15oz','One Size'];
 
 window.onload=()=>{
-  // Khôi phục phiên đăng nhập nếu còn (và chưa quá 8 tiếng)
-  const SESSION_MAX_MS=8*60*60*1000; // 8 tiếng
+  // Khôi phục phiên đăng nhập nếu còn
   const sess=localStorage.getItem('pod_session');
-  if(sess){try{
-    auth=JSON.parse(sess);
-    // Hết hạn sau 8 tiếng kể từ lúc đăng nhập → bắt đăng nhập lại
-    if(auth&&auth.loginAt&&(Date.now()-auth.loginAt>SESSION_MAX_MS)){
-      localStorage.removeItem('pod_session');auth=null;
-    } else if(auth&&auth.token){enterApp();}
-  }catch(e){}}
+  if(sess){try{auth=JSON.parse(sess);if(auth&&auth.token){enterApp();}}catch(e){}}
 };
 
 // ══════════════════════════════════════════
@@ -1886,7 +1909,6 @@ async function doLogin(){
       if(!r.ok)throw new Error(data.error||'Đăng nhập thất bại');
       auth={token:data.token,role:data.role,name:data.name,user:data.user};
     }
-    auth.loginAt=Date.now(); // mốc thời gian đăng nhập, dùng để hết hạn sau 8 tiếng
     localStorage.setItem('pod_session',JSON.stringify(auth));
     enterApp();
   }catch(e){errEl.style.display='block';errEl.textContent=e.message;}
@@ -1914,7 +1936,7 @@ async function enterApp(){
   // Tự đồng bộ doanh thu đơn $0 (ngầm) khi mở app + định kỳ mỗi 10 phút
   setTimeout(autoSyncRevenue,3000);
   if(!window._autoSyncTimer)window._autoSyncTimer=setInterval(autoSyncRevenue,10*60*1000);
-  setTimeout(routeFromHash,800);
+  setTimeout(openIdeaFromHash,800);
   setTimeout(detectChanges,1500);
   // Cập nhật thông báo định kỳ
   if(!window._notifTimer)window._notifTimer=setInterval(()=>{detectChanges();},2*60*1000);
@@ -1922,16 +1944,6 @@ async function enterApp(){
   if(auth&&auth.role==='design'&&!location.hash.includes('idea'))setTimeout(()=>goPage('idea'),200);
   // Bắt đầu auto-refresh webhook health mỗi 5 phút
   whStartAutoRefresh();
-  // Tự đăng xuất khi đạt mốc 8 tiếng kể từ lúc đăng nhập (kể cả khi app đang mở)
-  if(window._sessionTimer)clearInterval(window._sessionTimer);
-  window._sessionTimer=setInterval(()=>{
-    if(auth&&auth.loginAt&&(Date.now()-auth.loginAt>8*60*60*1000)){
-      clearInterval(window._sessionTimer);
-      localStorage.removeItem('pod_session');
-      alert('Phiên đăng nhập đã hết hạn (8 tiếng). Vui lòng đăng nhập lại.');
-      location.reload();
-    }
-  },60*1000); // kiểm mỗi phút
 }
 // Ghép tên SP + ảnh từ đơn Merchize sang đơn Etsy có cùng SKU (Etsy không có tên SP)
 function enrichEtsyNames(){
@@ -1974,12 +1986,6 @@ function detectChanges(){
       newNotifs.push({type:'status',orderId:o.id,code,shop:o.shopTitle,sku:(o.items&&o.items[0]&&o.items[0].sku)||'',at:new Date().toISOString(),text:`🔄 Đơn ${code} → ${lbl}`});
     }
   });
-  // Nếu một lần có QUÁ NHIỀU đơn mới cùng lúc (>15) → đây là nạp hàng loạt (kéo/đồng bộ),
-  // KHÔNG tạo thông báo cho từng đơn để tránh báo ồ ạt. Vẫn giữ thông báo đổi trạng thái.
-  const bulkNew=newNotifs.filter(n=>n.type==='new');
-  if(bulkNew.length>15){
-    newNotifs=newNotifs.filter(n=>n.type!=='new');
-  }
   if(newNotifs.length){
     cfg.notifs=[...newNotifs,...cfg.notifs].slice(0,100); // giữ 100 mới nhất
     saveCfg();
@@ -2230,7 +2236,7 @@ function renderIdeaBoard(){
         ${design?`<div style="margin-bottom:4px">${design}</div>`:''}
         ${it.note?`<div style="font-size:11px;color:var(--text2);margin-bottom:6px">${esc(it.note)}</div>`:''}
         <div style="display:flex;flex-direction:column;gap:2px;margin-bottom:4px">${createdStr}${movedStr}${timerStr}</div>
-        <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">${who}${pr}${dl}<span onclick="event.stopPropagation();copyIdeaLinkById('${it.id}')" style="font-size:10px;color:var(--accent);cursor:pointer;margin-left:auto" title="Copy idea gửi nhân viên">📋 Copy</span></div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">${who}${pr}${dl}<span onclick="event.stopPropagation();aiTitleForIdea('${it.id}')" style="font-size:10px;color:#7c3aed;cursor:pointer;font-weight:600" title="AI viết tiêu đề SEO">✨ AI tiêu đề</span><span onclick="event.stopPropagation();copyIdeaLinkById('${it.id}')" style="font-size:10px;color:var(--accent);cursor:pointer;margin-left:auto" title="Copy idea gửi nhân viên">📋 Copy</span></div>
       </div>`;
     }).join('')||'<div style="font-size:11px;color:var(--text3);text-align:center;padding:14px">Trống</div>';
     // Nút "+ Thêm Idea" chỉ ở cuối cột Idea, chỉ admin thấy
@@ -2742,35 +2748,14 @@ function copyIdeaLink(){
   });
 }
 // Mở idea từ link share (#idea=xxx) sau khi đăng nhập
-function openIdeaFromHash(tries){
-  tries = (tries==null) ? 0 : tries;
-  const m=location.hash.match(/idea=([^&]+)/);
+function openIdeaFromHash(){
+  const m=location.hash.match(/idea=([\w]+)/);
   if(!m)return;
-  const id=decodeURIComponent(m[1]);
-  const ideas=(cfg&&cfg.ideas)||[];
-  const it=ideas.find(x=>x.id===id);
-  if(it){
-    goPage('idea');
-    setTimeout(()=>openIdeaModal(id),300);
-    history.replaceState(null,'',location.pathname); // chỉ xoá hash KHI đã mở được
-    return;
-  }
-  // Chưa tìm thấy (dữ liệu idea có thể chưa tải xong) → thử lại tối đa ~10 lần (5 giây)
-  if(tries<10){ setTimeout(()=>openIdeaFromHash(tries+1),500); }
-  // Không tìm thấy sau khi thử: GIỮ nguyên hash, không xoá (để có thể mở lại / báo đúng)
+  const id=m[1];
+  const it=(cfg.ideas||[]).find(x=>x.id===id);
+  if(it){goPage('idea');setTimeout(()=>openIdeaModal(id),300);}
+  history.replaceState(null,'',location.pathname);
 }
-
-// Danh sách trang hợp lệ để điều hướng bằng link (#orders, #idea, ...)
-const _validPages=['home','dashboard','orders','idea','analytics','insight','history','sysadmin','pricing','costs','suppliers','case','calendar','ytrends'];
-function routeFromHash(){
-  const h=(location.hash||'').replace(/^#/,'');
-  if(!h) return;
-  if(h.indexOf('idea=')===0){ openIdeaFromHash(); return; } // link tới 1 idea cụ thể
-  const page=h.split('&')[0];
-  if(_validPages.indexOf(page)>=0){ goPage(page,true); }
-}
-// Bấm back/forward trình duyệt → chuyển đúng trang
-window.addEventListener('popstate',function(){ routeFromHash(); });
 // ── NHÀ CUNG CẤP (XƯỞNG) ──
 function addSupplier(){
   const name=document.getElementById('sup-name').value.trim();
@@ -2788,6 +2773,88 @@ function addSupplier(){
   toast('✅ Đã thêm xưởng "'+name+'"','success');
 }
 function delSupplier(i){if(!confirm('Xoá nhà cung cấp này?'))return;cfg.suppliers.splice(i,1);saveCfg();renderSuppliers();}
+
+// ══════════════════════════════════════════
+//  THEO DÕI SALES ETSY
+// ══════════════════════════════════════════
+let esShops=[];
+function esHeaders(json){
+  const h={};
+  if(auth&&auth.token)h['X-Session']=auth.token;
+  if(json)h['Content-Type']='application/json';
+  return h;
+}
+function esSetMsg(t){const e=document.getElementById('esMsg');if(e)e.textContent=t||'';}
+async function esLoad(){
+  esSetMsg('Đang tải...');
+  try{
+    const r=await fetch('/api/etsy-sales?action=shops',{headers:esHeaders()});
+    const d=await r.json();
+    if(!d.ok){esSetMsg(d.error||d.message||'Lỗi tải.');return;}
+    esShops=(d.shops&&d.shops.length)?d.shops:[{name:'',url:'',active:true}];
+    esRenderShops();
+    esRenderHistory(d.history||[]);
+    esSetMsg('');
+  }catch(e){esSetMsg('Lỗi kết nối: '+e.message);}
+}
+function esRenderShops(){
+  const tb=document.getElementById('esShopRows');if(!tb)return;
+  tb.innerHTML='';
+  esShops.forEach((s,i)=>{
+    const tr=document.createElement('tr');
+    tr.innerHTML=
+      '<td style="padding:5px 8px;border-bottom:1px solid var(--border)"><input class="fi" value="'+esc(s.name||'')+'" oninput="esShops['+i+'].name=this.value" placeholder="NeoPaws" style="width:100%"></td>'+
+      '<td style="padding:5px 8px;border-bottom:1px solid var(--border)"><input class="fi" value="'+esc(s.url||'')+'" oninput="esShops['+i+'].url=this.value" placeholder="https://www.etsy.com/shop/NeoPaws" style="width:100%"></td>'+
+      '<td style="padding:5px 8px;border-bottom:1px solid var(--border);text-align:center"><input type="checkbox" '+(s.active!==false?'checked':'')+' onchange="esShops['+i+'].active=this.checked"></td>'+
+      '<td style="padding:5px 8px;border-bottom:1px solid var(--border)"><button class="btn btn-sm" onclick="esRemoveRow('+i+')" style="padding:2px 9px">×</button></td>';
+    tb.appendChild(tr);
+  });
+}
+function esRenderHistory(history){
+  const tb=document.getElementById('esHistRows');if(!tb)return;
+  const total=history.reduce((s,h)=>s+(Number(h.ordersToday)||0),0);
+  const c=document.getElementById('esHistCount');
+  if(c)c.textContent='· '+history.length+' dòng · '+total+' đơn';
+  tb.innerHTML='';
+  if(!history.length){
+    tb.innerHTML='<tr><td colspan="4" style="padding:10px 8px;color:var(--text2)">Chưa có dữ liệu. Bấm "Chạy ngay" để quét lần đầu (lần đầu cột Đơn = tổng sales, làm mốc; từ lần sau mới là số đơn mới thật).</td></tr>';
+    return;
+  }
+  history.forEach(h=>{
+    const tr=document.createElement('tr');
+    tr.innerHTML=
+      '<td style="padding:6px 8px;border-bottom:1px solid var(--border)">'+esc(h.dateOnly||'')+'</td>'+
+      '<td style="padding:6px 8px;border-bottom:1px solid var(--border)">'+esc(h.shopName||'')+'</td>'+
+      '<td style="padding:6px 8px;border-bottom:1px solid var(--border);text-align:right;font-weight:700;color:var(--green-d)">'+(h.ordersToday||0)+'</td>'+
+      '<td style="padding:6px 8px;border-bottom:1px solid var(--border);text-align:right">'+(h.totalSales||0)+'</td>';
+    tb.appendChild(tr);
+  });
+}
+function esAddRow(){esShops.push({name:'',url:'',active:true});esRenderShops();}
+function esRemoveRow(i){esShops.splice(i,1);esRenderShops();}
+async function esSaveShops(){
+  esSetMsg('Đang lưu...');
+  try{
+    const r=await fetch('/api/etsy-sales?action=save',{method:'POST',headers:esHeaders(true),body:JSON.stringify({shops:esShops})});
+    const d=await r.json();
+    if(d.ok){esShops=d.shops;esRenderShops();esSetMsg('✅ Đã lưu '+d.shops.length+' shop hợp lệ.');toast('✅ Đã lưu danh sách shop','success');}
+    else esSetMsg(d.error||'Lỗi khi lưu.');
+  }catch(e){esSetMsg('Lỗi: '+e.message);}
+}
+async function esRunNow(){
+  const btn=document.getElementById('es-run-btn');
+  if(btn){btn.disabled=true;btn.textContent='⏳ Đang quét...';}
+  esSetMsg('Đang quét sales... (có thể mất 10–30s tuỳ số shop)');
+  try{
+    const r=await fetch('/api/etsy-sales?action=run',{headers:esHeaders()});
+    const d=await r.json();
+    esSetMsg(d.ok?('✅ '+d.message):('Lỗi: '+(d.message||d.error)));
+    if(d.ok)toast('✅ '+d.message,'success');
+    esLoad();
+  }catch(e){esSetMsg('Lỗi: '+e.message);}
+  if(btn){btn.disabled=false;btn.textContent='▶ Chạy ngay';}
+}
+
 function renderSuppliers(){
   const el=document.getElementById('sup-list');if(!el)return;
   const list=cfg.suppliers||[];
@@ -2892,6 +2959,31 @@ function saveCase(){
   saveCfg();cloudSaveAll();renderCases();
   document.getElementById('case-modal').classList.remove('open');
   toast('✅ Đã lưu case','success');
+}
+// ── AI viết tiêu đề SEO cho idea ──
+async function aiTitleForIdea(id){
+  const it=(cfg.ideas||[]).find(x=>x.id===id);if(!it){toast('Không tìm thấy idea','error');return;}
+  toast('✨ AI đang viết tiêu đề...','info');
+  try{
+    const headers={'Content-Type':'application/json'};
+    if(auth&&auth.token)headers['X-Session']=auth.token;
+    const r=await fetch('/api/ai',{method:'POST',headers,body:JSON.stringify({
+      note:it.note||it.title||'',sku:skuFromTitle(it.title)||'',imageUrl:(it.img&&/^https?:\/\//.test(it.img))?it.img:'',link:it.link||''
+    })});
+    const data=await r.json();
+    if(r.status===501||data.error==='no-key'){toast('⚠️ Chưa cấu hình API key AI trên Vercel (ANTHROPIC_API_KEY)','error');return;}
+    if(data.error){toast('Lỗi AI: '+data.error,'error');return;}
+    if(!data.title){toast('AI không trả về tiêu đề','error');return;}
+    // Ghép giữ SKU ở đầu (để báo cáo/bonus nhận diện)
+    const sku=skuFromTitle(it.title);
+    let newTitle=data.title;
+    if(sku&&!newTitle.toUpperCase().includes(sku))newTitle=sku+' '+newTitle;
+    it.title=newTitle;
+    saveCfg();cloudSaveAll();renderIdeaBoard();
+    // copy luôn cho tiện dán lên Etsy
+    if(navigator.clipboard)navigator.clipboard.writeText(data.title).catch(()=>{});
+    toast('✨ Đã tạo tiêu đề + copy: '+data.title.slice(0,40)+'...','success');
+  }catch(e){toast('Lỗi kết nối AI: '+e.message,'error');}
 }
 function resolveCase(id){
   const c=(cfg.cases||[]).find(x=>x.id===id);if(!c)return;
@@ -3423,9 +3515,9 @@ function toggleSidebar(force){
   sb.classList.toggle('open',open);
   ov.classList.toggle('show',open);
 }
-function goPage(page,fromHash){
+function goPage(page){
   // Chặn staff vào trang analytics
-  if((page==='analytics'||page==='insight'||page==='sysadmin')&&(!auth||auth.role!=='admin')){toast('Bạn không có quyền xem trang này','error');return;}
+  if((page==='analytics'||page==='insight'||page==='sysadmin'||page==='salestrack')&&(!auth||auth.role!=='admin')){toast('Bạn không có quyền xem trang này','error');return;}
   toggleSidebar(false); // đóng menu sau khi chọn (mobile)
   currentPage=page;
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
@@ -3444,14 +3536,10 @@ function goPage(page,fromHash){
   if(page==='pricing'){renderPriceList();loadFees();savePriceSheetUrl_load();}
   if(page==='costs'){loadCostUI();renderAdList();renderOpList();}
   if(page==='suppliers'){renderSuppliers();}
+  if(page==='salestrack'){esLoad();}
   if(page==='case'){renderCases();}
   if(page==='idea'){renderIdeaBoard();renderDesignReport();_kanbanHidden=false;const tb=document.getElementById('kanban-toggle-btn');if(tb)tb.textContent='📋 Ẩn bảng';kfShow();}
   else{kfHide();}
-  // Cập nhật URL để mỗi trang có link riêng (vd #orders, #idea). fromHash=true khi do back/forward gọi → không ghi lại.
-  if(!fromHash){
-    const want='#'+page;
-    if(location.hash!==want) history.pushState({page:page},'',want);
-  }
 }
 
 // ── helper: orders in period ──
@@ -3630,7 +3718,7 @@ function renderDashboard(){
 function setPeriod(el,p){document.querySelectorAll('.period-btn').forEach(b=>b.classList.remove('active'));el.classList.add('active');analyticsPeriod=p;renderAnalytics();}
 
 function renderAnalytics(){
-  const list=ordersInPeriod().filter(o=>o.status!=='cancelled');
+  const list=ordersInPeriod();
   const cost=numOf(document.getElementById('a-cost')?.value||8);
   const ship=numOf(document.getElementById('a-ship')?.value||4.99);
   const pct=numOf(document.getElementById('a-pct')?.value||20)/100;
@@ -4043,56 +4131,6 @@ function nasPathFor(sku){
 function saveMrzCfg(){cfg.mrzBase=document.getElementById('mrz-base').value.trim();cfg.mrzToken=document.getElementById('mrz-token').value.trim();saveCfg();toast('✅ Đã lưu cấu hình Merchize','success');}
 function saveSettings(){saveMrzCfg();closeSettings();}
 // ── KÉO ĐƠN TỪ MERCHIZE ──
-// --- Kết nối Etsy: mở cửa sổ đăng nhập Etsy để chủ shop bấm Allow ---
-async function etsyConnect(){
-  try{
-    const r = await fetch('/api/etsy-auth?action=start', { headers: { 'X-Session': auth.token } });
-    const d = await r.json();
-    if(!d.ok || !d.url){ alert('Không tạo được link kết nối: ' + (d.error||'lỗi')); return; }
-    window.open(d.url, '_blank');
-  }catch(e){ alert('Lỗi: ' + e.message); }
-}
-
-// --- Tải danh sách shop đã kết nối ---
-async function etsyLoadShops(){
-  const box = document.getElementById('etsy-shop-list');
-  box.innerHTML = '<div style="color:var(--text3)">Đang tải…</div>';
-  try{
-    const r = await fetch('/api/etsy-auth?action=list', { headers: { 'X-Session': auth.token } });
-    const d = await r.json();
-    if(!d.ok){ box.innerHTML = '<div style="color:var(--red)">'+(d.error||'Lỗi')+'</div>'; return; }
-    if(!d.shops || !d.shops.length){ box.innerHTML = '<div style="color:var(--text3)">Chưa có shop nào kết nối.</div>'; return; }
-    box.innerHTML = d.shops.map(s => `
-      <div style="display:flex;align-items:center;gap:10px;padding:8px 10px;border:1px solid var(--border);border-radius:8px;margin-bottom:6px;background:var(--surface)">
-        <div style="flex:1">
-          <div style="font-weight:600">${s.shop_name||('Shop '+s.shop_id)}</div>
-          <div style="font-size:10.5px;color:var(--text3)">ID: ${s.shop_id}</div>
-        </div>
-        <button class="btn btn-sm" onclick="etsyPull('${s.shop_id}')">Kéo đơn</button>
-      </div>`).join('');
-  }catch(e){ box.innerHTML = '<div style="color:var(--red)">'+e.message+'</div>'; }
-}
-
-// --- Kéo đơn từ 1 shop Etsy về, gộp vào kho đơn hiện có (pod_orders) ---
-async function etsyPull(shopId){
-  try{
-    const r = await fetch('/api/etsy?action=orders&shop_id='+encodeURIComponent(shopId)+'&limit=100', { headers: { 'X-Session': auth.token } });
-    const d = await r.json();
-    if(!d.ok){ alert('Kéo đơn lỗi: '+(d.error||'?')); return; }
-    let orders = [];
-    try{ orders = JSON.parse(localStorage.getItem('pod_orders')||'[]'); }catch(e){}
-    const existing = new Set(orders.map(o => String(o.order_id||o.external_number)));
-    let added = 0;
-    for(const o of d.data){ if(!existing.has(String(o.order_id))){ orders.push(o); added++; } }
-    localStorage.setItem('pod_orders', JSON.stringify(orders));
-    if(typeof buildShopFilter==='function') buildShopFilter();
-    if(typeof applyFilter==='function') applyFilter();
-    if(typeof updateCounts==='function') updateCounts();
-    if(typeof cloudSaveAll==='function') await cloudSaveAll();
-    alert('Đã kéo '+d.count+' đơn từ shop '+shopId+' ('+added+' đơn mới).');
-  }catch(e){ alert('Lỗi: '+e.message); }
-}
-
 function mrzHeaders(){
   const h={'Content-Type':'application/json'};
   if(auth&&auth.token)h['X-Session']=auth.token;
@@ -4468,15 +4506,11 @@ function applyFilter(){
     if(shopFilter!=='all'&&o.shopTitle!==shopFilter)return false;
     // Lọc theo bước trong luồng (mỗi đơn 1 bước)
     if(currentTab&&currentTab!=='all'){
-      if(currentTab==='care_needed'){
-        if(!o.careNeeded)return false;
-      } else {
       const st=orderStage(o);
       if(currentTab==='sent_factory'){
         // Đã gửi xưởng = tất cả đơn đã có Drive (missing/has_track/no_track)
         if(st!=='missing'&&st!=='has_track'&&st!=='no_track')return false;
       } else if(st!==currentTab)return false;
-      }
     }
     if(searchQ){
       const q=searchQ.toLowerCase();
@@ -4503,9 +4537,8 @@ function visibleOrders(){
 function updateCounts(){const vis=visibleOrders();const c={new_today:0,wait_design:0,sent_factory:0,missing:0,has_track:0,no_track:0};vis.forEach(o=>{const st=orderStage(o);if(st==='cancelled')return;if(c[st]!==undefined)c[st]++;});
   // "Đã gửi xưởng" = tổng các đơn đã có Drive (missing + has_track + no_track)
   c.sent_factory=c.missing+c.has_track+c.no_track;
-  c.care_needed=vis.filter(o=>o.careNeeded).length;
   c.all=vis.filter(o=>orderStage(o)!=='cancelled').length;
-  ['all','new_today','wait_design','sent_factory','missing','has_track','no_track','care_needed'].forEach(k=>{const el=document.getElementById('tc-'+k);if(el)el.textContent=c[k]||0;});document.getElementById('sb-cnt').textContent=vis.length;if(currentPage==='home')renderHome();else if(currentPage==='dashboard')renderDashboard();else if(currentPage==='analytics')renderAnalytics();}
+  ['all','new_today','wait_design','sent_factory','missing','has_track','no_track'].forEach(k=>{const el=document.getElementById('tc-'+k);if(el)el.textContent=c[k]||0;});document.getElementById('sb-cnt').textContent=vis.length;if(currentPage==='home')renderHome();else if(currentPage==='dashboard')renderDashboard();else if(currentPage==='analytics')renderAnalytics();}
 
 const PILLS={new:['p-new','🆕 Đơn mới'],pending:['p-pending','⏳ Chờ xử lý'],processing:['p-processing','⚙️ Đang xử lý'],not_sent:['p-notsent','📦 Chưa gửi'],producing:['p-producing','🏭 Chờ sản xuất'],shipped:['p-shipped','🟢 Đã gửi'],hold:['p-hold','🟠 Hold'],done:['p-done','✓ Đã xử lý'],missing:['p-missing','⚠ Thiếu info'],missing_qty:['p-missing','⚠ Thiếu SL'],cancelled:['p-cancelled','🔴 Huỷ']};
 const STATUS_LABEL={new:'Đơn mới',pending:'Chờ xử lý',processing:'Đang xử lý',not_sent:'Chưa gửi',producing:'Đã gửi xưởng',shipped:'Đã gửi đi',hold:'Hold',done:'Đã xử lý',missing:'Thiếu info',missing_qty:'Thiếu SL',cancelled:'Huỷ'};
@@ -4571,7 +4604,7 @@ function orderItemHTML(o){
   // Thêm thông tin khách hàng và quốc gia
   const custInfo=o.customer&&o.customer!=='Unknown'?`<span style="font-size:10.5px;color:var(--text2)">👤 ${esc(o.customer)}</span>`:'';
   const countryInfo=o.country&&o.country!=='—'?`<span style="font-size:10.5px;color:var(--text3)">🌍 ${esc(o.country)}</span>`:'';
-  return`<div class="oi" onclick="selectOrder('${o.id}')">${chk}<div class="oi-thumb">${img}</div><div class="oi-info"><div class="oi-code-main" onclick="event.stopPropagation();copyOrderCode(event,'${etsyCode(o)}')" style="cursor:pointer" title="Bấm để copy mã đơn">${etsyCode(o)} <span style="font-size:10px;opacity:.5">📋</span></div><div class="oi-short">${shortName}</div><div class="oi-fullname">${fullName}</div><div class="oi-shop">🏪 ${o.shopTitle||'—'}</div><div class="oi-meta"><span class="pill ${pc}">${pl}</span>${o.urgent?'<span class="urgent-tag">🚩 Gấp</span>':''}${o.careNeeded?'<span class="yt-badge yt-badge-green" style="margin-left:4px">💬 Cần chăm sóc</span>':''}${trk}${pfb}${pi?`<span style="font-size:11px">${pi}</span>`:''}<span class="oi-price">${o.total}</span></div><div class="oi-meta" style="margin-top:3px">${custInfo}${countryInfo}<span class="oi-time">📅 ${fmtDateShort(o.created)}</span></div></div></div>`;
+  return`<div class="oi" onclick="selectOrder('${o.id}')">${chk}<div class="oi-thumb">${img}</div><div class="oi-info"><div class="oi-code-main" onclick="event.stopPropagation();copyOrderCode(event,'${etsyCode(o)}')" style="cursor:pointer" title="Bấm để copy mã đơn">${etsyCode(o)} <span style="font-size:10px;opacity:.5">📋</span></div><div class="oi-short">${shortName}</div><div class="oi-fullname">${fullName}</div><div class="oi-shop">🏪 ${o.shopTitle||'—'}</div><div class="oi-meta"><span class="pill ${pc}">${pl}</span>${o.urgent?'<span class="urgent-tag">🚩 Gấp</span>':''}${trk}${pfb}${pi?`<span style="font-size:11px">${pi}</span>`:''}<span class="oi-price">${o.total}</span></div><div class="oi-meta" style="margin-top:3px">${custInfo}${countryInfo}<span class="oi-time">📅 ${fmtDateShort(o.created)}</span></div></div></div>`;
 }
 
 function renderList(){
@@ -4700,7 +4733,6 @@ function selectOrder(id){
   showGdriveSaved(o);
   document.getElementById('d-time').textContent=fmtDate(o.created);
   const fb=document.getElementById('btn-flag');if(fb)fb.classList.toggle('on',!!o.urgent);
-  const cb=document.getElementById('btn-care');if(cb)cb.style.display=o.careNeeded?'':'none';
   renderProds(o.items);
   if(cfg.merchizeKey)document.getElementById('mz-key').value=cfg.merchizeKey;
   if(cfg.sellerwixKey)document.getElementById('sw-key').value=cfg.sellerwixKey;
@@ -4842,7 +4874,6 @@ function sheetRow(o){const it=o.items?.[0]||{};return[o.id,o.external_id,o.custo
 
 // ── ACTIONS ──
 function markUrgent(){if(!current)return;current.urgent=!current.urgent;document.getElementById('btn-flag').classList.toggle('on',current.urgent);logHistory(current,current.urgent?'Đánh dấu đơn gấp':'Bỏ đánh dấu gấp');save();renderList();toast(current.urgent?'🚩 Đánh dấu đơn gấp!':'Bỏ đánh dấu gấp',current.urgent?'error':'info');}
-function markCared(){if(!current)return;current.careNeeded=false;document.getElementById('btn-care').style.display='none';logHistory(current,'Đã chăm sóc khách sau giao hàng');save();renderList();updateCounts();toast('💬 Đã đánh dấu chăm sóc xong','success');}
 function sendProof(){if(!current)return;logHistory(current,'Gửi proof tới '+current.email);save();toast(`✈️ Gửi proof tới ${current.email} (demo)`,'success');}
 function markMissing(){if(!current)return;current.status='missing';document.getElementById('d-status').value='missing';logHistory(current,'Đánh dấu thiếu info');save();applyFilter();updateCounts();toast('⚠️ Đánh dấu thiếu info','warn');}
 function openCase(){if(current)logHistory(current,'Mở case hỗ trợ');save();toast('🔓 Mở case hỗ trợ (demo)','info');}
