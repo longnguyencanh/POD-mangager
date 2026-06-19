@@ -1390,65 +1390,29 @@ body[data-role="seller"] .no-seller{display:none !important}
   <div class="page" id="page-salestrack">
     <div class="ph">
       <h1>📈 Theo dõi Sales các shop Etsy</h1>
-      <p class="sub">Quét tổng số sales từ trang shop Etsy, tính số đơn mới mỗi ngày. Bấm "Chạy ngay" hoặc để cron tự chạy hằng ngày.</p>
+      <p class="sub">Số đơn mỗi ngày theo từng shop · dữ liệu tự động đẩy sang từ Google Sheet (Apps Script).</p>
     </div>
     <div class="page-scroll">
-      <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap">
-        <button class="btn btn-sm" onclick="esOpenPaste()">📋 Dán danh sách (Excel)</button>
-        <button class="btn btn-sm" onclick="esAddRow()">+ Thêm shop</button>
-        <button class="btn btn-sm" onclick="esSaveShops()">💾 Lưu danh sách</button>
-        <button class="btn btn-green btn-sm" onclick="esRunNow(false)" id="es-run-btn">▶ Quét đợt này</button>
-        <button class="btn btn-sm" onclick="esRunNow(true)" id="es-reset-btn">🔁 Quét lại từ đầu</button>
-        <button class="btn btn-sm" onclick="esLoad()">🔄 Tải lại</button>
+      <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;align-items:center">
+        <button class="btn btn-sm" onclick="esLoad()" id="es-reload-btn">🔄 Tải lại dữ liệu</button>
+        <input class="fi" id="es-search-shop" placeholder="🔍 Lọc shop theo tên..." oninput="esRenderMatrix()" style="width:auto;min-width:200px;padding:6px 10px">
+        <select class="fi" id="es-days" onchange="esRenderMatrix()" style="width:auto;padding:6px 10px">
+          <option value="14">14 ngày gần nhất</option>
+          <option value="30" selected>30 ngày gần nhất</option>
+          <option value="60">60 ngày gần nhất</option>
+          <option value="9999">Tất cả</option>
+        </select>
+        <button class="btn btn-sm" onclick="esExportCSV()">⬇ Xuất CSV</button>
         <span id="esMsg" style="align-self:center;font-size:12px;color:var(--text2)"></span>
       </div>
-      <div id="esProgress" style="display:none;margin-bottom:14px;padding:10px 14px;background:var(--accent-l);border:1px solid #edd8b0;border-radius:10px;font-size:12.5px"></div>
 
-      <!-- Ô dán danh sách hàng loạt -->
-      <div id="esPasteBox" style="display:none;margin-bottom:14px;padding:14px;background:var(--surface);border:1px solid var(--border);border-radius:12px;max-width:880px">
-        <div style="font-size:13px;font-weight:700;margin-bottom:6px">📋 Dán danh sách shop từ Excel / Google Sheet</div>
-        <div style="font-size:11.5px;color:var(--text2);margin-bottom:8px;line-height:1.6">
-          Mỗi dòng 1 shop. Có thể chỉ <b>tên shop</b> (app tự tạo URL Etsy), hoặc <b>tên + URL</b> ngăn bằng Tab/phẩy.<br>
-          Ví dụ:<br>
-          <code style="font-size:11px">NeoPaws</code><br>
-          <code style="font-size:11px">MyShop, https://www.etsy.com/shop/MyShop</code>
+      <div id="esInfo" style="display:none;margin-bottom:12px;padding:10px 14px;background:var(--accent-l);border:1px solid #edd8b0;border-radius:10px;font-size:12.5px"></div>
+
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:14px;overflow:auto;max-height:calc(100vh - 220px)">
+        <table id="esMatrix" style="border-collapse:collapse;font-size:12.5px;white-space:nowrap"></table>
+        <div id="esEmpty" style="display:none;padding:30px;text-align:center;color:var(--text3)">
+          Chưa có dữ liệu. Cấu hình Apps Script đẩy số liệu sang (xem hướng dẫn), hoặc chạy <code>pushAllHistoryToTool()</code> để nạp lịch sử cũ.
         </div>
-        <textarea id="esPasteText" class="fi" rows="8" placeholder="NeoPaws&#10;AnotherShop&#10;ThirdShop, https://www.etsy.com/shop/ThirdShop" style="width:100%;font-family:monospace;font-size:12px;resize:vertical"></textarea>
-        <div style="display:flex;gap:8px;margin-top:8px">
-          <button class="btn btn-green btn-sm" onclick="esApplyPaste(false)">➕ Thêm vào danh sách</button>
-          <button class="btn btn-sm" onclick="esApplyPaste(true)">🔄 Thay toàn bộ danh sách</button>
-          <button class="btn btn-sm" onclick="esOpenPaste()">Đóng</button>
-        </div>
-      </div>
-
-      <div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:18px;max-width:880px;margin-bottom:18px">
-        <div style="font-size:14px;font-weight:700;margin-bottom:12px">🏬 Danh sách shop theo dõi</div>
-        <table style="width:100%;border-collapse:collapse;font-size:13px">
-          <thead>
-            <tr style="text-align:left;color:var(--text2)">
-              <th style="padding:6px 8px;border-bottom:1px solid var(--border)">Tên shop</th>
-              <th style="padding:6px 8px;border-bottom:1px solid var(--border)">URL Etsy</th>
-              <th style="padding:6px 8px;border-bottom:1px solid var(--border);width:60px;text-align:center">Bật</th>
-              <th style="padding:6px 8px;border-bottom:1px solid var(--border);width:36px"></th>
-            </tr>
-          </thead>
-          <tbody id="esShopRows"></tbody>
-        </table>
-      </div>
-
-      <div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:18px;max-width:880px">
-        <div style="font-size:14px;font-weight:700;margin-bottom:12px">📊 Lịch sử <span id="esHistCount" style="font-weight:600;color:var(--orange);font-size:12px"></span></div>
-        <table style="width:100%;border-collapse:collapse;font-size:13px">
-          <thead>
-            <tr style="text-align:left;color:var(--text2)">
-              <th style="padding:6px 8px;border-bottom:1px solid var(--border)">Ngày</th>
-              <th style="padding:6px 8px;border-bottom:1px solid var(--border)">Shop</th>
-              <th style="padding:6px 8px;border-bottom:1px solid var(--border);text-align:right">Đơn hôm đó</th>
-              <th style="padding:6px 8px;border-bottom:1px solid var(--border);text-align:right">Tổng sales</th>
-            </tr>
-          </thead>
-          <tbody id="esHistRows"></tbody>
-        </table>
       </div>
     </div>
   </div>
@@ -2794,10 +2758,11 @@ function addSupplier(){
 }
 function delSupplier(i){if(!confirm('Xoá nhà cung cấp này?'))return;cfg.suppliers.splice(i,1);saveCfg();renderSuppliers();}
 
+
 // ══════════════════════════════════════════
-//  THEO DÕI SALES ETSY
+//  THEO DÕI SALES ETSY (dữ liệu do Apps Script đẩy sang)
 // ══════════════════════════════════════════
-let esShops=[];
+let esData = { shops: [], rows: {} }; // rows: { 'YYYY-MM-DD': { shop: soDon } }
 function esHeaders(json){
   const h={};
   if(auth&&auth.token)h['X-Session']=auth.token;
@@ -2805,121 +2770,95 @@ function esHeaders(json){
   return h;
 }
 function esSetMsg(t){const e=document.getElementById('esMsg');if(e)e.textContent=t||'';}
-function esRenderProgress(p){
-  const box=document.getElementById('esProgress');if(!box)return;
-  if(!p||!p.total){box.style.display='none';return;}
-  box.style.display='block';
-  const pct=p.total?Math.round(p.done/p.total*100):0;
-  const remain=Math.max(0,p.total-p.done);
-  box.innerHTML='📊 Tiến độ quét hôm nay ('+esc(p.date||'')+'): <b>'+p.done+'/'+p.total+'</b> shop ('+pct+'%). '+
-    (remain>0?('Còn '+remain+' shop chưa quét — bấm "▶ Quét đợt này" để tiếp.'):'<b style="color:var(--green-d)">✅ Đã quét xong tất cả!</b>');
-}
 async function esLoad(){
   esSetMsg('Đang tải...');
+  const btn=document.getElementById('es-reload-btn');if(btn)btn.disabled=true;
   try{
-    const r=await fetch('/api/etsy-sales?action=shops',{headers:esHeaders()});
+    const r=await fetch('/api/etsy-sales?action=data',{headers:esHeaders()});
     const d=await r.json();
     if(!d.ok){esSetMsg(d.error||d.message||'Lỗi tải.');return;}
-    esShops=(d.shops&&d.shops.length)?d.shops:[{name:'',url:'',active:true}];
-    esRenderShops();
-    esRenderHistory(d.history||[]);
-    esRenderProgress(d.progress);
+    esData={shops:d.shops||[],rows:d.rows||{}};
+    esRenderMatrix();
     esSetMsg('');
   }catch(e){esSetMsg('Lỗi kết nối: '+e.message);}
+  if(btn)btn.disabled=false;
 }
-// ── Dán danh sách hàng loạt ──
-function esOpenPaste(){
-  const b=document.getElementById('esPasteBox');if(!b)return;
-  b.style.display=b.style.display==='none'?'block':'none';
+// Lấy danh sách ngày đã sort giảm dần (mới nhất trước), giới hạn theo bộ chọn
+function esSortedDates(){
+  const all=Object.keys(esData.rows||{}).sort().reverse();
+  const sel=document.getElementById('es-days');
+  const lim=sel?parseInt(sel.value,10)||30:30;
+  return all.slice(0,lim);
 }
-function esApplyPaste(replace){
-  const ta=document.getElementById('esPasteText');
-  const raw=(ta&&ta.value||'').trim();
-  if(!raw){toast('Dán danh sách shop vào ô trước','warn');return;}
-  const lines=raw.split(/\r?\n/).map(l=>l.trim()).filter(Boolean);
-  const parsed=[];
-  lines.forEach(line=>{
-    // tách bằng tab hoặc dấu phẩy
-    const parts=line.split(/\t|,/).map(x=>x.trim()).filter(Boolean);
-    let name='',url='';
-    parts.forEach(p=>{
-      if(/^https?:\/\//i.test(p))url=p;
-      else if(!name)name=p;
-    });
-    // nếu chỉ dán URL, lấy tên shop từ URL
-    if(!name&&url){const m=url.match(/\/shop\/([^\/?#]+)/i);if(m)name=decodeURIComponent(m[1]);}
-    if(name||url)parsed.push({name,url,active:true});
-  });
-  if(!parsed.length){toast('Không đọc được shop nào','error');return;}
-  if(replace)esShops=parsed;
-  else{
-    // bỏ dòng trống mặc định nếu có
-    esShops=esShops.filter(s=>s.name||s.url);
-    esShops=esShops.concat(parsed);
-  }
-  esRenderShops();
-  document.getElementById('esPasteBox').style.display='none';
-  if(ta)ta.value='';
-  esSetMsg('Đã nạp '+parsed.length+' shop vào bảng. Bấm "💾 Lưu danh sách" để lưu.');
-  toast('✅ Đã nạp '+parsed.length+' shop. Nhớ bấm Lưu danh sách.','success');
+// Danh sách shop (lọc theo ô tìm kiếm)
+function esVisibleShops(){
+  const q=((document.getElementById('es-search-shop')||{}).value||'').toLowerCase().trim();
+  let shops=esData.shops||[];
+  if(q)shops=shops.filter(s=>String(s).toLowerCase().includes(q));
+  return shops;
 }
-function esRenderShops(){
-  const tb=document.getElementById('esShopRows');if(!tb)return;
-  tb.innerHTML='';
-  esShops.forEach((s,i)=>{
-    const tr=document.createElement('tr');
-    tr.innerHTML=
-      '<td style="padding:5px 8px;border-bottom:1px solid var(--border)"><input class="fi" value="'+esc(s.name||'')+'" oninput="esShops['+i+'].name=this.value" placeholder="NeoPaws" style="width:100%"></td>'+
-      '<td style="padding:5px 8px;border-bottom:1px solid var(--border)"><input class="fi" value="'+esc(s.url||'')+'" oninput="esShops['+i+'].url=this.value" placeholder="(để trống — tự tạo từ tên)" style="width:100%"></td>'+
-      '<td style="padding:5px 8px;border-bottom:1px solid var(--border);text-align:center"><input type="checkbox" '+(s.active!==false?'checked':'')+' onchange="esShops['+i+'].active=this.checked"></td>'+
-      '<td style="padding:5px 8px;border-bottom:1px solid var(--border)"><button class="btn btn-sm" onclick="esRemoveRow('+i+')" style="padding:2px 9px">×</button></td>';
-    tb.appendChild(tr);
-  });
-}
-function esRenderHistory(history){
-  const tb=document.getElementById('esHistRows');if(!tb)return;
-  const total=history.reduce((s,h)=>s+(Number(h.ordersToday)||0),0);
-  const c=document.getElementById('esHistCount');
-  if(c)c.textContent='· '+history.length+' dòng · '+total+' đơn';
-  tb.innerHTML='';
-  if(!history.length){
-    tb.innerHTML='<tr><td colspan="4" style="padding:10px 8px;color:var(--text2)">Chưa có dữ liệu. Thêm shop, Lưu, rồi bấm "Quét đợt này" (lần đầu cột Đơn = tổng sales làm mốc; từ lần sau mới là số đơn mới thật).</td></tr>';
+function esRenderMatrix(){
+  const tbl=document.getElementById('esMatrix');
+  const empty=document.getElementById('esEmpty');
+  const info=document.getElementById('esInfo');
+  if(!tbl)return;
+  const dates=esSortedDates();
+  const shops=esVisibleShops();
+  if(!dates.length||!shops.length){
+    tbl.innerHTML='';
+    if(empty)empty.style.display='block';
+    if(info)info.style.display='none';
     return;
   }
-  history.forEach(h=>{
-    const tr=document.createElement('tr');
-    tr.innerHTML=
-      '<td style="padding:6px 8px;border-bottom:1px solid var(--border)">'+esc(h.dateOnly||'')+'</td>'+
-      '<td style="padding:6px 8px;border-bottom:1px solid var(--border)">'+esc(h.shopName||'')+'</td>'+
-      '<td style="padding:6px 8px;border-bottom:1px solid var(--border);text-align:right;font-weight:700;color:var(--green-d)">'+(h.ordersToday||0)+'</td>'+
-      '<td style="padding:6px 8px;border-bottom:1px solid var(--border);text-align:right">'+(h.totalSales||0)+'</td>';
-    tb.appendChild(tr);
+  if(empty)empty.style.display='none';
+  if(info){
+    const totalDays=Object.keys(esData.rows||{}).length;
+    info.style.display='block';
+    info.innerHTML='📊 Đang xem <b>'+dates.length+'</b> ngày gần nhất · <b>'+shops.length+'</b> shop (tổng có '+totalDays+' ngày, '+(esData.shops||[]).length+' shop). Số trong ô = đơn ngày đó.';
+  }
+  // Header: cột đầu = Ngày, các cột sau = tên shop
+  let head='<thead><tr>';
+  head+='<th style="position:sticky;left:0;top:0;z-index:3;background:var(--green);color:#fff;padding:8px 10px;text-align:left;border:1px solid var(--border)">Ngày</th>';
+  shops.forEach(s=>{
+    head+='<th style="position:sticky;top:0;z-index:2;background:var(--bg);padding:8px 8px;border:1px solid var(--border);font-size:11px;max-width:90px;overflow:hidden;text-overflow:ellipsis" title="'+esc(String(s))+'">'+esc(String(s))+'</th>';
   });
+  head+='</tr></thead>';
+  // Body: mỗi dòng 1 ngày
+  let body='<tbody>';
+  dates.forEach(date=>{
+    const row=esData.rows[date]||{};
+    body+='<tr>';
+    body+='<td style="position:sticky;left:0;z-index:1;background:var(--green-l);color:var(--green-d);font-weight:700;padding:6px 10px;border:1px solid var(--border)">'+esc(esFmtDate(date))+'</td>';
+    shops.forEach(s=>{
+      const v=row[s];
+      const has=v!=null&&v!=='';
+      const num=Number(v)||0;
+      const color=!has?'var(--text3)':(num>0?'var(--text)':'#c0bcb4');
+      body+='<td style="padding:6px 8px;border:1px solid var(--border);text-align:right;color:'+color+';font-weight:'+(num>0?'600':'400')+'">'+(has?num:'·')+'</td>';
+    });
+    body+='</tr>';
+  });
+  body+='</tbody>';
+  tbl.innerHTML=head+body;
 }
-function esAddRow(){esShops.push({name:'',url:'',active:true});esRenderShops();}
-function esRemoveRow(i){esShops.splice(i,1);esRenderShops();}
-async function esSaveShops(){
-  esSetMsg('Đang lưu...');
-  try{
-    const r=await fetch('/api/etsy-sales?action=save',{method:'POST',headers:esHeaders(true),body:JSON.stringify({shops:esShops})});
-    const d=await r.json();
-    if(d.ok){esShops=d.shops.length?d.shops:[{name:'',url:'',active:true}];esRenderShops();esSetMsg('✅ Đã lưu '+d.shops.length+' shop.');toast('✅ Đã lưu '+d.shops.length+' shop','success');esLoad();}
-    else esSetMsg(d.error||'Lỗi khi lưu.');
-  }catch(e){esSetMsg('Lỗi: '+e.message);}
+// Đổi 'YYYY-MM-DD' -> 'DD/MM' cho gọn
+function esFmtDate(d){
+  const m=String(d).match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if(m)return m[3]+'/'+m[2]+'/'+m[1].slice(2);
+  return d;
 }
-async function esRunNow(reset){
-  const btn=document.getElementById('es-run-btn');
-  if(btn){btn.disabled=true;btn.textContent='⏳ Đang quét...';}
-  esSetMsg('Đang quét 1 đợt... (tối đa ~15 shop, chờ 10–30s)');
-  try{
-    const url='/api/etsy-sales?action=run'+(reset?'&reset=1':'');
-    const r=await fetch(url,{headers:esHeaders()});
-    const d=await r.json();
-    esSetMsg(d.ok?('✅ '+d.message):('Lỗi: '+(d.message||d.error)));
-    if(d.ok)toast(d.finished?('✅ '+d.message):('Đợt xong: '+d.done+'/'+d.total+' shop'),d.finished?'success':'info');
-    esLoad();
-  }catch(e){esSetMsg('Lỗi: '+e.message);}
-  if(btn){btn.disabled=false;btn.textContent='▶ Quét đợt này';}
+function esExportCSV(){
+  const dates=esSortedDates();
+  const shops=esVisibleShops();
+  if(!dates.length||!shops.length){toast('Chưa có dữ liệu để xuất','warn');return;}
+  let csv='Ngày,'+shops.map(s=>'"'+String(s).replace(/"/g,'""')+'"').join(',')+'\n';
+  dates.forEach(date=>{
+    const row=esData.rows[date]||{};
+    csv+=esFmtDate(date)+','+shops.map(s=>{const v=row[s];return v!=null&&v!==''?Number(v)||0:'';}).join(',')+'\n';
+  });
+  const blob=new Blob(['\ufeff'+csv],{type:'text/csv;charset=utf-8'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='etsy-sales-tracker.csv';a.click();
+  toast('✅ Đã xuất CSV','success');
 }
 
 function renderSuppliers(){
