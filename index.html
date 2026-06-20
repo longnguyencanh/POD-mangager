@@ -1386,54 +1386,75 @@ body[data-role="seller"] .no-seller{display:none !important}
     </div>
   </div>
 
-  <!-- ════ PAGE: NHÀ CUNG CẤP (XƯỞNG) ════ -->
   <!-- ════ PAGE: THEO DÕI SALES ETSY ════ -->
   <div class="page" id="page-salestrack">
-    <div class="ph">
-      <h1>📈 Theo dõi Sales các shop Etsy</h1>
-      <p class="sub">Quét tổng số sales từ trang shop Etsy, tính số đơn mới mỗi ngày. Bấm "Chạy ngay" hoặc để cron tự chạy hằng ngày.</p>
+    <div class="ph" style="padding-bottom:8px">
+      <h1 style="font-size:18px;margin:0">📈 Theo dõi Sales</h1>
     </div>
     <div class="page-scroll">
-      <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap">
-        <button class="btn btn-sm" onclick="esAddRow()">+ Thêm shop</button>
-        <button class="btn btn-sm" onclick="esSaveShops()">💾 Lưu danh sách</button>
-        <button class="btn btn-green btn-sm" onclick="esRunNow()" id="es-run-btn">▶ Chạy ngay</button>
-        <button class="btn btn-sm" onclick="esLoad()">🔄 Tải lại</button>
+      <div class="es-toolbar" style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap;align-items:center">
+        <button class="btn btn-sm" onclick="esLoad()" id="es-reload-btn">🔄 Tải lại</button>
+        <input class="fi" id="es-search-shop" placeholder="🔍 Lọc shop..." oninput="esRenderMatrix()" style="width:auto;min-width:130px;flex:1;padding:6px 10px">
+        <select class="fi" id="es-days" onchange="esRenderMatrix()" style="width:auto;padding:6px 8px">
+          <option value="14">14 ngày</option>
+          <option value="30" selected>30 ngày</option>
+          <option value="60">60 ngày</option>
+          <option value="9999">Tất cả</option>
+        </select>
+        <select class="fi" id="es-sort" onchange="esRenderMatrix()" style="width:auto;padding:6px 8px">
+          <option value="spike">🔥 Đột biến</option>
+          <option value="today">📊 Đơn cao nhất</option>
+          <option value="name">🔤 Tên A→Z</option>
+        </select>
+        <label style="display:flex;align-items:center;gap:4px;font-size:12px;color:var(--text2);cursor:pointer;white-space:nowrap"><input type="checkbox" id="es-heatmap" checked onchange="esRenderMatrix()"> Màu nhiệt</label>
+        <button class="btn btn-sm" onclick="esToggleHidden()" id="es-hidden-btn">🙈 Shop ẩn</button>
+        <button class="btn btn-sm" onclick="esExportCSV()">⬇ CSV</button>
         <span id="esMsg" style="align-self:center;font-size:12px;color:var(--text2)"></span>
       </div>
 
-      <div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:18px;max-width:880px;margin-bottom:18px">
-        <div style="font-size:14px;font-weight:700;margin-bottom:12px">🏬 Danh sách shop theo dõi</div>
-        <table style="width:100%;border-collapse:collapse;font-size:13px">
-          <thead>
-            <tr style="text-align:left;color:var(--text2)">
-              <th style="padding:6px 8px;border-bottom:1px solid var(--border)">Tên shop</th>
-              <th style="padding:6px 8px;border-bottom:1px solid var(--border)">URL Etsy</th>
-              <th style="padding:6px 8px;border-bottom:1px solid var(--border);width:60px;text-align:center">Bật</th>
-              <th style="padding:6px 8px;border-bottom:1px solid var(--border);width:36px"></th>
-            </tr>
-          </thead>
-          <tbody id="esShopRows"></tbody>
-        </table>
+      <!-- Khu quản lý shop đã ẩn -->
+      <div id="esHiddenBox" style="display:none;margin-bottom:12px;padding:12px 14px;background:var(--surface);border:1px solid var(--border);border-radius:12px">
+        <div style="font-size:12.5px;font-weight:700;margin-bottom:8px">🙈 Shop đang ẩn khỏi bảng <span style="font-weight:400;color:var(--text3)">(vẫn theo dõi trong Sheet, chỉ ẩn cho gọn)</span></div>
+        <div id="esHiddenList" style="display:flex;flex-wrap:wrap;gap:6px"></div>
       </div>
 
-      <div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:18px;max-width:880px">
-        <div style="font-size:14px;font-weight:700;margin-bottom:12px">📊 Lịch sử <span id="esHistCount" style="font-weight:600;color:var(--orange);font-size:12px"></span></div>
-        <table style="width:100%;border-collapse:collapse;font-size:13px">
-          <thead>
-            <tr style="text-align:left;color:var(--text2)">
-              <th style="padding:6px 8px;border-bottom:1px solid var(--border)">Ngày</th>
-              <th style="padding:6px 8px;border-bottom:1px solid var(--border)">Shop</th>
-              <th style="padding:6px 8px;border-bottom:1px solid var(--border);text-align:right">Đơn hôm đó</th>
-              <th style="padding:6px 8px;border-bottom:1px solid var(--border);text-align:right">Tổng sales</th>
-            </tr>
-          </thead>
-          <tbody id="esHistRows"></tbody>
-        </table>
+      <div id="esInfo" style="display:none;margin-bottom:10px;padding:8px 12px;background:var(--accent-l);border:1px solid #edd8b0;border-radius:10px;font-size:12px"></div>
+
+      <!-- 🔥 Bảng shop đang tăng đột biến -->
+      <div id="esSpikeBox" style="display:none;margin-bottom:14px;background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:14px">
+        <div style="font-size:13.5px;font-weight:700;margin-bottom:4px">🔥 Shop đang tăng đột biến</div>
+        <div style="font-size:11px;color:var(--text2);margin-bottom:10px">So đơn ngày mới nhất với TB 7 ngày trước. Tăng mạnh = có thể vừa trúng mẫu hot, bấm để mở shop.</div>
+        <div id="esSpikeList" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:8px"></div>
+      </div>
+
+      <div class="es-tablewrap" style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:10px;overflow:auto;max-height:calc(100vh - 200px);-webkit-overflow-scrolling:touch">
+        <table id="esMatrix" style="border-collapse:collapse;font-size:12px;white-space:nowrap"></table>
+        <div id="esEmpty" style="display:none;padding:30px;text-align:center;color:var(--text3)">
+          Chưa có dữ liệu. Chạy <code>pushAllHistoryToTool()</code> bên Apps Script để nạp dữ liệu.
+        </div>
       </div>
     </div>
   </div>
 
+  <style>
+  /* Tối ưu trang Theo dõi Sales cho điện thoại */
+  @media (max-width:768px){
+    #page-salestrack .ph{padding:10px 12px 6px}
+    #page-salestrack h1{font-size:16px}
+    #page-salestrack .page-scroll{padding:0 10px 10px}
+    #page-salestrack .es-toolbar{gap:5px}
+    #page-salestrack .es-toolbar .btn{font-size:11.5px;padding:5px 8px}
+    #page-salestrack .es-toolbar .fi{font-size:12px}
+    #page-salestrack #es-search-shop{min-width:100px;flex:1 1 100%;order:-1}
+    #page-salestrack .es-tablewrap{max-height:calc(100vh - 240px);padding:6px}
+    #page-salestrack #esMatrix{font-size:11px}
+    #page-salestrack #esMatrix th,#page-salestrack #esMatrix td{padding:4px 6px !important}
+    #page-salestrack #esSpikeList{grid-template-columns:repeat(auto-fill,minmax(140px,1fr))}
+  }
+  </style>
+  </div>
+
+  <!-- ════ PAGE: NHÀ CUNG CẤP (XƯỞNG) ════ -->
   <div class="page" id="page-suppliers">
     <div class="ph">
       <h1>🚚 Nhà cung cấp (Xưởng sản xuất)</h1>
@@ -2773,6 +2794,256 @@ function addSupplier(){
   toast('✅ Đã thêm xưởng "'+name+'"','success');
 }
 function delSupplier(i){if(!confirm('Xoá nhà cung cấp này?'))return;cfg.suppliers.splice(i,1);saveCfg();renderSuppliers();}
+
+
+// ══════════════════════════════════════════
+//  THEO DÕI SALES ETSY (dữ liệu do Apps Script đẩy sang)
+// ══════════════════════════════════════════
+let esData = { shops: [], rows: {} }; // rows: { 'YYYY-MM-DD': { shop: soDon } }
+function esHeaders(json){
+  const h={};
+  if(auth&&auth.token)h['X-Session']=auth.token;
+  if(json)h['Content-Type']='application/json';
+  return h;
+}
+function esSetMsg(t){const e=document.getElementById('esMsg');if(e)e.textContent=t||'';}
+async function esLoad(){
+  esSetMsg('Đang tải...');
+  const btn=document.getElementById('es-reload-btn');if(btn)btn.disabled=true;
+  try{
+    const r=await fetch('/api/etsy-sales?action=data',{headers:esHeaders()});
+    const d=await r.json();
+    if(!d.ok){esSetMsg(d.error||d.message||'Lỗi tải.');return;}
+    esData={shops:d.shops||[],rows:d.rows||{}};
+    esLoadHidden();
+    esRenderHiddenBox();
+    esRenderMatrix();
+    esSetMsg('');
+  }catch(e){esSetMsg('Lỗi kết nối: '+e.message);}
+  if(btn)btn.disabled=false;
+}
+// Lấy danh sách ngày đã sort giảm dần (mới nhất trước), giới hạn theo bộ chọn
+// Hôm nay (yyyy-mm-dd) theo giờ địa phương — để loại ngày tương lai
+function esTodayKey(){
+  const d=new Date();
+  const y=d.getFullYear(),m=('0'+(d.getMonth()+1)).slice(-2),dd=('0'+d.getDate()).slice(-2);
+  return y+'-'+m+'-'+dd;
+}
+// Một ngày có "dữ liệu thật" nếu có ít nhất 1 shop số > 0
+function esDayHasData(date){
+  const row=esData.rows[date]||{};
+  for(const k in row){if((Number(row[k])||0)>0)return true;}
+  return false;
+}
+// Tất cả ngày KHÔNG ở tương lai, sort mới→cũ
+function esAllValidDates(){
+  const today=esTodayKey();
+  return Object.keys(esData.rows||{})
+    .filter(d=>d<=today)        // bỏ ngày tương lai
+    .sort().reverse();
+}
+// Ngày "mới nhất có dữ liệu" — dùng làm mốc "hôm nay" cho đột biến
+function esLatestDataDate(){
+  const dates=esAllValidDates();
+  for(const d of dates){if(esDayHasData(d))return d;}
+  return dates[0]||null;
+}
+function esSortedDates(){
+  // Lấy các ngày không tương lai; nếu có ngày dữ liệu thì bắt đầu từ ngày dữ liệu mới nhất
+  let all=esAllValidDates();
+  const latest=esLatestDataDate();
+  if(latest){
+    const idx=all.indexOf(latest);
+    if(idx>0)all=all.slice(idx); // bỏ các ngày (không tương lai nhưng) rỗng nằm trên ngày dữ liệu mới nhất
+  }
+  const sel=document.getElementById('es-days');
+  const lim=sel?parseInt(sel.value,10)||30:30;
+  return all.slice(0,lim);
+}
+// Danh sách shop ẩn (lưu trong memory + đẩy lên server qua config nếu có; ở đây dùng biến + localStorage thay thế bằng cfg)
+let esHidden=[];
+function esIsHidden(s){return esHidden.indexOf(String(s))>=0;}
+function esHideShop(s){
+  if(esIsHidden(s))return;
+  if(!confirm('Ẩn shop "'+s+'" khỏi bảng?\n\n(Chỉ ẩn cho gọn mắt — Sheet vẫn theo dõi shop này bình thường. Bấm 🙈 Shop ẩn để hiện lại.)'))return;
+  esHidden.push(String(s));esPersistHidden();esRenderMatrix();esRenderHiddenBox();
+}
+function esUnhideShop(s){esHidden=esHidden.filter(x=>x!==String(s));esPersistHidden();esRenderMatrix();esRenderHiddenBox();}
+function esPersistHidden(){try{if(typeof cfg==='object'){cfg.esHiddenShops=esHidden;if(typeof saveCfg==='function')saveCfg();}}catch(e){}}
+function esLoadHidden(){try{if(typeof cfg==='object'&&Array.isArray(cfg.esHiddenShops))esHidden=cfg.esHiddenShops.slice();}catch(e){}}
+function esToggleHidden(){
+  const box=document.getElementById('esHiddenBox');if(!box)return;
+  box.style.display=box.style.display==='none'?'block':'none';
+  esRenderHiddenBox();
+}
+function esRenderHiddenBox(){
+  const list=document.getElementById('esHiddenList');if(!list)return;
+  const btn=document.getElementById('es-hidden-btn');
+  if(btn)btn.textContent='🙈 Shop ẩn'+(esHidden.length?(' ('+esHidden.length+')'):'');
+  if(!esHidden.length){list.innerHTML='<span style="font-size:12px;color:var(--text3)">Chưa ẩn shop nào. Bấm ✕ trên đầu cột shop để ẩn.</span>';return;}
+  list.innerHTML=esHidden.map(s=>'<span style="display:inline-flex;align-items:center;gap:5px;background:var(--bg);border:1px solid var(--border2);border-radius:20px;padding:4px 10px;font-size:12px">'+esc(String(s))+' <button onclick="esUnhideShop(\''+esc(String(s)).replace(/'/g,"\\'")+'\')" style="border:none;background:none;cursor:pointer;color:var(--green-d);font-weight:700;font-size:13px" title="Hiện lại">↩</button></span>').join('');
+}
+// Danh sách shop (lọc theo ô tìm kiếm + bỏ shop đã ẩn)
+function esVisibleShops(){
+  const q=((document.getElementById('es-search-shop')||{}).value||'').toLowerCase().trim();
+  let shops=(esData.shops||[]).filter(s=>!esIsHidden(s));
+  if(q)shops=shops.filter(s=>String(s).toLowerCase().includes(q));
+  return shops;
+}
+// Tính chỉ số đột biến cho 1 shop: đơn ngày mới nhất CÓ DỮ LIỆU so với TB 7 ngày trước đó
+function esSpikeInfo(shop){
+  const allDates=esAllValidDates(); // bỏ tương lai, mới→cũ
+  if(!allDates.length)return {today:0,avg:0,ratio:0};
+  // mốc "hôm nay" = ngày dữ liệu mới nhất
+  const latest=esLatestDataDate();
+  const startIdx=latest?Math.max(0,allDates.indexOf(latest)):0;
+  const today=Number((esData.rows[allDates[startIdx]]||{})[shop])||0;
+  // TB 7 ngày liền trước mốc đó
+  let sum=0,cnt=0;
+  for(let i=startIdx+1;i<=startIdx+7&&i<allDates.length;i++){
+    const v=(esData.rows[allDates[i]]||{})[shop];
+    if(v!=null&&v!==''){sum+=Number(v)||0;cnt++;}
+  }
+  const avg=cnt?sum/cnt:0;
+  const ratio=avg>0?today/avg:(today>0?99:0);
+  return {today,avg,ratio};
+}
+// Màu nền ô theo độ "nóng" (heatmap). max = giá trị lớn nhất trong bảng đang xem
+function esHeatColor(v,max){
+  if(!v||v<=0)return '';
+  const t=Math.min(1,v/(max||1));
+  // từ vàng nhạt (#fdf3e0) tới cam đậm (#e8741a)
+  const r=Math.round(253+(232-253)*t);
+  const g=Math.round(243+(116-243)*t);
+  const b=Math.round(224+(26-224)*t);
+  const dark=t>0.55;
+  return 'background:rgb('+r+','+g+','+b+')'+(dark?';color:#fff':'');
+}
+function esShopUrl(shop){
+  return 'https://www.etsy.com/shop/'+encodeURIComponent(String(shop).trim());
+}
+// Render bảng "đang tăng đột biến"
+function esRenderSpikes(shops){
+  const box=document.getElementById('esSpikeBox');
+  const list=document.getElementById('esSpikeList');
+  if(!box||!list)return;
+  const allDates=Object.keys(esData.rows||{}).sort().reverse();
+  if(allDates.length<2){box.style.display='none';return;}
+  // chỉ lấy shop có tăng: ratio>=1.8 và hôm nay >=3 đơn (lọc nhiễu)
+  const spikes=shops.map(s=>({shop:s,...esSpikeInfo(s)}))
+    .filter(x=>x.ratio>=1.8&&x.today>=3)
+    .sort((a,b)=>b.ratio-a.ratio)
+    .slice(0,12);
+  if(!spikes.length){
+    box.style.display='block';
+    list.innerHTML='<div style="grid-column:1/-1;color:var(--text3);font-size:12.5px;padding:8px">Hôm nay chưa có shop nào tăng đột biến rõ rệt (cần gấp ≥1.8 lần TB tuần và ≥3 đơn).</div>';
+    return;
+  }
+  box.style.display='block';
+  list.innerHTML=spikes.map(x=>{
+    const mult=x.avg>0?('×'+x.ratio.toFixed(1)):'MỚI';
+    const color=x.ratio>=3?'var(--red)':'var(--orange)';
+    return '<a href="'+esShopUrl(x.shop)+'" target="_blank" style="text-decoration:none;display:block;border:1px solid var(--border2);border-left:4px solid '+color+';border-radius:10px;padding:10px 12px;background:var(--bg)">'+
+      '<div style="font-size:13px;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">🏬 '+esc(String(x.shop))+'</div>'+
+      '<div style="display:flex;justify-content:space-between;align-items:baseline;margin-top:6px">'+
+        '<span style="font-size:20px;font-weight:800;color:'+color+'">'+mult+'</span>'+
+        '<span style="font-size:11.5px;color:var(--text2)">hôm nay <b>'+x.today+'</b> · TB <b>'+x.avg.toFixed(1)+'</b></span>'+
+      '</div>'+
+      '<div style="font-size:10.5px;color:var(--accent);margin-top:4px">🔗 Mở shop trên Etsy</div>'+
+    '</a>';
+  }).join('');
+}
+function esRenderMatrix(){
+  const tbl=document.getElementById('esMatrix');
+  const empty=document.getElementById('esEmpty');
+  const info=document.getElementById('esInfo');
+  if(!tbl)return;
+  const dates=esSortedDates();
+  let shops=esVisibleShops();
+  if(!dates.length||!shops.length){
+    tbl.innerHTML='';
+    if(empty)empty.style.display='block';
+    if(info)info.style.display='none';
+    const sb=document.getElementById('esSpikeBox');if(sb)sb.style.display='none';
+    return;
+  }
+  if(empty)empty.style.display='none';
+
+  // Sắp xếp shop theo lựa chọn
+  const sortBy=(document.getElementById('es-sort')||{}).value||'spike';
+  const today=dates[0];
+  const todayRow=esData.rows[today]||{};
+  if(sortBy==='spike'){
+    shops=[...shops].sort((a,b)=>esSpikeInfo(b).ratio-esSpikeInfo(a).ratio);
+  }else if(sortBy==='today'){
+    shops=[...shops].sort((a,b)=>(Number(todayRow[b])||0)-(Number(todayRow[a])||0));
+  }else{
+    shops=[...shops].sort((a,b)=>String(a).localeCompare(String(b)));
+  }
+
+  // Bảng đột biến
+  esRenderSpikes(esVisibleShops());
+
+  // Max để tô heatmap (trong phạm vi ngày đang xem)
+  const heaton=(document.getElementById('es-heatmap')||{}).checked;
+  let maxV=0;
+  if(heaton){dates.forEach(d=>{const row=esData.rows[d]||{};shops.forEach(s=>{const v=Number(row[s])||0;if(v>maxV)maxV=v;});});}
+
+  if(info){
+    const totalDays=Object.keys(esData.rows||{}).length;
+    info.style.display='block';
+    info.innerHTML='📊 Xem <b>'+dates.length+'</b> ngày · <b>'+shops.length+'</b> shop (tổng '+totalDays+' ngày, '+(esData.shops||[]).length+' shop). Ô = đơn ngày đó. '+(heaton?'Ô càng <b style="color:#e8741a">cam đậm</b> = bán càng nhiều.':'');
+  }
+
+  // Header
+  let head='<thead><tr>';
+  head+='<th style="position:sticky;left:0;top:0;z-index:3;background:var(--green);color:#fff;padding:6px 7px;text-align:left;border:1px solid var(--border);font-size:11px">Ngày</th>';
+  shops.forEach(s=>{
+    const sp=esSpikeInfo(s);
+    const hot=sp.ratio>=1.8&&sp.today>=3?' 🔥':'';
+    head+='<th style="position:sticky;top:0;z-index:2;background:var(--bg);padding:6px 8px;border:1px solid var(--border);font-size:11px;max-width:100px" title="'+esc(String(s))+(sp.avg>0?(' — mới nhất '+sp.today+', TB tuần '+sp.avg.toFixed(1)):'')+'"><div style="display:flex;align-items:center;gap:3px;justify-content:space-between"><a href="'+esShopUrl(s)+'" target="_blank" style="color:var(--text2);text-decoration:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:80px">'+esc(String(s))+hot+'</a><button onclick="esHideShop(\''+esc(String(s)).replace(/'/g,"\\'")+'\')" style="border:none;background:none;cursor:pointer;color:var(--text3);font-size:12px;padding:0 2px;line-height:1" title="Ẩn shop này">✕</button></div></th>';
+  });
+  head+='</tr></thead>';
+
+  // Body
+  let body='<tbody>';
+  dates.forEach((date,di)=>{
+    const row=esData.rows[date]||{};
+    body+='<tr>';
+    body+='<td style="position:sticky;left:0;z-index:1;background:var(--green-l);color:var(--green-d);font-weight:700;padding:4px 7px;border:1px solid var(--border);font-size:11px;white-space:nowrap">'+esc(esFmtDate(date))+(di===0?' <span style="font-size:8px;background:var(--green);color:#fff;padding:1px 4px;border-radius:6px">mới</span>':'')+'</td>';
+    shops.forEach(s=>{
+      const v=row[s];
+      const has=v!=null&&v!=='';
+      const num=Number(v)||0;
+      let style='padding:6px 8px;border:1px solid var(--border);text-align:right;';
+      if(heaton&&num>0){style+=esHeatColor(num,maxV)+';font-weight:600';}
+      else{style+='color:'+(!has?'var(--text3)':(num>0?'var(--text)':'#c0bcb4'));}
+      body+='<td style="'+style+'">'+(has?num:'·')+'</td>';
+    });
+    body+='</tr>';
+  });
+  body+='</tbody>';
+  tbl.innerHTML=head+body;
+}
+function esFmtDate(d){
+  const m=String(d).match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if(m)return m[3]+'/'+m[2];
+  return d;
+}
+function esExportCSV(){
+  const dates=esSortedDates();
+  const shops=esVisibleShops();
+  if(!dates.length||!shops.length){toast('Chưa có dữ liệu để xuất','warn');return;}
+  let csv='Ngày,'+shops.map(s=>'"'+String(s).replace(/"/g,'""')+'"').join(',')+'\n';
+  dates.forEach(date=>{
+    const row=esData.rows[date]||{};
+    csv+=esFmtDate(date)+','+shops.map(s=>{const v=row[s];return v!=null&&v!==''?Number(v)||0:'';}).join(',')+'\n';
+  });
+  const blob=new Blob(['\ufeff'+csv],{type:'text/csv;charset=utf-8'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='etsy-sales-tracker.csv';a.click();
+  toast('✅ Đã xuất CSV','success');
+}
+
 function renderSuppliers(){
   const el=document.getElementById('sup-list');if(!el)return;
   const list=cfg.suppliers||[];
@@ -6459,86 +6730,6 @@ async function calRefreshEvents() {
   // Cũng re-bind sau login (app render lại)
   window._bindScrollHide=bindScrollHide;
 })();
-
-// ══════════════════════════════════════════
-//  THEO DÕI SALES ETSY
-// ══════════════════════════════════════════
-let esShops=[];
-function esHeaders(json){
-  const h={};
-  if(auth&&auth.token)h['X-Session']=auth.token;
-  if(json)h['Content-Type']='application/json';
-  return h;
-}
-function esSetMsg(t){const e=document.getElementById('esMsg');if(e)e.textContent=t||'';}
-async function esLoad(){
-  esSetMsg('Đang tải...');
-  try{
-    const r=await fetch('/api/etsy-sales?action=shops',{headers:esHeaders()});
-    const d=await r.json();
-    if(!d.ok){esSetMsg(d.error||d.message||'Lỗi tải.');return;}
-    esShops=(d.shops&&d.shops.length)?d.shops:[{name:'',url:'',active:true}];
-    esRenderShops();
-    esRenderHistory(d.history||[]);
-    esSetMsg('');
-  }catch(e){esSetMsg('Lỗi kết nối: '+e.message);}
-}
-function esRenderShops(){
-  const tb=document.getElementById('esShopRows');if(!tb)return;
-  tb.innerHTML='';
-  esShops.forEach((s,i)=>{
-    const tr=document.createElement('tr');
-    tr.innerHTML=
-      '<td style="padding:5px 8px;border-bottom:1px solid var(--border)"><input class="fi" value="'+(s.name||'').replace(/"/g,'&quot;')+'" oninput="esShops['+i+'].name=this.value" placeholder="NeoPaws" style="width:100%"></td>'+
-      '<td style="padding:5px 8px;border-bottom:1px solid var(--border)"><input class="fi" value="'+(s.url||'').replace(/"/g,'&quot;')+'" oninput="esShops['+i+'].url=this.value" placeholder="https://www.etsy.com/shop/NeoPaws" style="width:100%"></td>'+
-      '<td style="padding:5px 8px;border-bottom:1px solid var(--border);text-align:center"><input type="checkbox" '+(s.active!==false?'checked':'')+' onchange="esShops['+i+'].active=this.checked"></td>'+
-      '<td style="padding:5px 8px;border-bottom:1px solid var(--border)"><button class="btn btn-sm" onclick="esRemoveRow('+i+')" style="padding:2px 9px">×</button></td>';
-    tb.appendChild(tr);
-  });
-}
-function esRenderHistory(history){
-  const tb=document.getElementById('esHistRows');if(!tb)return;
-  const total=history.reduce((s,h)=>s+(Number(h.ordersToday)||0),0);
-  const c=document.getElementById('esHistCount');
-  if(c)c.textContent='· '+history.length+' dòng · '+total+' đơn';
-  tb.innerHTML='';
-  if(!history.length){
-    tb.innerHTML='<tr><td colspan="4" style="padding:10px 8px;color:var(--text2)">Chưa có dữ liệu. Bấm "Chạy ngay" để quét lần đầu (lần đầu cột Đơn = tổng sales, làm mốc; từ lần sau mới là số đơn mới thật).</td></tr>';
-    return;
-  }
-  history.forEach(h=>{
-    const tr=document.createElement('tr');
-    tr.innerHTML=
-      '<td style="padding:6px 8px;border-bottom:1px solid var(--border)">'+h.dateOnly+'</td>'+
-      '<td style="padding:6px 8px;border-bottom:1px solid var(--border)">'+h.shopName+'</td>'+
-      '<td style="padding:6px 8px;border-bottom:1px solid var(--border);text-align:right;font-weight:700;color:var(--green)">'+h.ordersToday+'</td>'+
-      '<td style="padding:6px 8px;border-bottom:1px solid var(--border);text-align:right">'+h.totalSales+'</td>';
-    tb.appendChild(tr);
-  });
-}
-function esAddRow(){esShops.push({name:'',url:'',active:true});esRenderShops();}
-function esRemoveRow(i){esShops.splice(i,1);esRenderShops();}
-async function esSaveShops(){
-  esSetMsg('Đang lưu...');
-  try{
-    const r=await fetch('/api/etsy-sales?action=save',{method:'POST',headers:esHeaders(true),body:JSON.stringify({shops:esShops})});
-    const d=await r.json();
-    if(d.ok){esShops=d.shops;esRenderShops();esSetMsg('✅ Đã lưu '+d.shops.length+' shop hợp lệ.');}
-    else esSetMsg(d.error||'Lỗi khi lưu.');
-  }catch(e){esSetMsg('Lỗi: '+e.message);}
-}
-async function esRunNow(){
-  const btn=document.getElementById('es-run-btn');
-  if(btn){btn.disabled=true;btn.textContent='⏳ Đang quét...';}
-  esSetMsg('Đang quét sales... (có thể mất 10–30s tuỳ số shop)');
-  try{
-    const r=await fetch('/api/etsy-sales?action=run',{headers:esHeaders()});
-    const d=await r.json();
-    esSetMsg(d.ok?('✅ '+d.message):('Lỗi: '+(d.message||d.error)));
-    esLoad();
-  }catch(e){esSetMsg('Lỗi: '+e.message);}
-  if(btn){btn.disabled=false;btn.textContent='▶ Chạy ngay';}
-}
 </script>
 <script>
 // Đăng ký Service Worker để cài PWA lên điện thoại
