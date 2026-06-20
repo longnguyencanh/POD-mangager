@@ -1388,46 +1388,70 @@ body[data-role="seller"] .no-seller{display:none !important}
 
   <!-- ════ PAGE: THEO DÕI SALES ETSY ════ -->
   <div class="page" id="page-salestrack">
-    <div class="ph">
-      <h1>📈 Theo dõi Sales các shop Etsy</h1>
-      <p class="sub">Số đơn mỗi ngày theo từng shop · dữ liệu tự động đẩy sang từ Google Sheet (Apps Script).</p>
+    <div class="ph" style="padding-bottom:8px">
+      <h1 style="font-size:18px;margin:0">📈 Theo dõi Sales</h1>
     </div>
     <div class="page-scroll">
-      <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;align-items:center">
-        <button class="btn btn-sm" onclick="esLoad()" id="es-reload-btn">🔄 Tải lại dữ liệu</button>
-        <input class="fi" id="es-search-shop" placeholder="🔍 Lọc shop theo tên..." oninput="esRenderMatrix()" style="width:auto;min-width:200px;padding:6px 10px">
-        <select class="fi" id="es-days" onchange="esRenderMatrix()" style="width:auto;padding:6px 10px">
-          <option value="14">14 ngày gần nhất</option>
-          <option value="30" selected>30 ngày gần nhất</option>
-          <option value="60">60 ngày gần nhất</option>
+      <div class="es-toolbar" style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap;align-items:center">
+        <button class="btn btn-sm" onclick="esLoad()" id="es-reload-btn">🔄 Tải lại</button>
+        <input class="fi" id="es-search-shop" placeholder="🔍 Lọc shop..." oninput="esRenderMatrix()" style="width:auto;min-width:130px;flex:1;padding:6px 10px">
+        <select class="fi" id="es-days" onchange="esRenderMatrix()" style="width:auto;padding:6px 8px">
+          <option value="14">14 ngày</option>
+          <option value="30" selected>30 ngày</option>
+          <option value="60">60 ngày</option>
           <option value="9999">Tất cả</option>
         </select>
-        <select class="fi" id="es-sort" onchange="esRenderMatrix()" style="width:auto;padding:6px 10px">
-          <option value="spike">🔥 Sắp xếp: Đột biến hôm nay</option>
-          <option value="today">📊 Sắp xếp: Đơn hôm nay cao→thấp</option>
-          <option value="name">🔤 Sắp xếp: Tên shop A→Z</option>
+        <select class="fi" id="es-sort" onchange="esRenderMatrix()" style="width:auto;padding:6px 8px">
+          <option value="spike">🔥 Đột biến</option>
+          <option value="today">📊 Đơn cao nhất</option>
+          <option value="name">🔤 Tên A→Z</option>
         </select>
-        <label style="display:flex;align-items:center;gap:5px;font-size:12px;color:var(--text2);cursor:pointer"><input type="checkbox" id="es-heatmap" checked onchange="esRenderMatrix()"> Tô màu nhiệt</label>
-        <button class="btn btn-sm" onclick="esExportCSV()">⬇ Xuất CSV</button>
+        <label style="display:flex;align-items:center;gap:4px;font-size:12px;color:var(--text2);cursor:pointer;white-space:nowrap"><input type="checkbox" id="es-heatmap" checked onchange="esRenderMatrix()"> Màu nhiệt</label>
+        <button class="btn btn-sm" onclick="esToggleHidden()" id="es-hidden-btn">🙈 Shop ẩn</button>
+        <button class="btn btn-sm" onclick="esExportCSV()">⬇ CSV</button>
         <span id="esMsg" style="align-self:center;font-size:12px;color:var(--text2)"></span>
       </div>
 
-      <div id="esInfo" style="display:none;margin-bottom:12px;padding:10px 14px;background:var(--accent-l);border:1px solid #edd8b0;border-radius:10px;font-size:12.5px"></div>
-
-      <!-- 🔥 Bảng shop đang tăng đột biến -->
-      <div id="esSpikeBox" style="display:none;margin-bottom:16px;background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:16px">
-        <div style="font-size:14px;font-weight:700;margin-bottom:4px">🔥 Shop đang tăng đột biến hôm nay</div>
-        <div style="font-size:11.5px;color:var(--text2);margin-bottom:12px">So sánh đơn hôm nay với trung bình 7 ngày trước. Tăng mạnh = có thể vừa trúng mẫu hot — bấm để mở shop xem ngay.</div>
-        <div id="esSpikeList" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px"></div>
+      <!-- Khu quản lý shop đã ẩn -->
+      <div id="esHiddenBox" style="display:none;margin-bottom:12px;padding:12px 14px;background:var(--surface);border:1px solid var(--border);border-radius:12px">
+        <div style="font-size:12.5px;font-weight:700;margin-bottom:8px">🙈 Shop đang ẩn khỏi bảng <span style="font-weight:400;color:var(--text3)">(vẫn theo dõi trong Sheet, chỉ ẩn cho gọn)</span></div>
+        <div id="esHiddenList" style="display:flex;flex-wrap:wrap;gap:6px"></div>
       </div>
 
-      <div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:14px;overflow:auto;max-height:calc(100vh - 220px)">
-        <table id="esMatrix" style="border-collapse:collapse;font-size:12.5px;white-space:nowrap"></table>
+      <div id="esInfo" style="display:none;margin-bottom:10px;padding:8px 12px;background:var(--accent-l);border:1px solid #edd8b0;border-radius:10px;font-size:12px"></div>
+
+      <!-- 🔥 Bảng shop đang tăng đột biến -->
+      <div id="esSpikeBox" style="display:none;margin-bottom:14px;background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:14px">
+        <div style="font-size:13.5px;font-weight:700;margin-bottom:4px">🔥 Shop đang tăng đột biến</div>
+        <div style="font-size:11px;color:var(--text2);margin-bottom:10px">So đơn ngày mới nhất với TB 7 ngày trước. Tăng mạnh = có thể vừa trúng mẫu hot, bấm để mở shop.</div>
+        <div id="esSpikeList" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:8px"></div>
+      </div>
+
+      <div class="es-tablewrap" style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:10px;overflow:auto;max-height:calc(100vh - 200px);-webkit-overflow-scrolling:touch">
+        <table id="esMatrix" style="border-collapse:collapse;font-size:12px;white-space:nowrap"></table>
         <div id="esEmpty" style="display:none;padding:30px;text-align:center;color:var(--text3)">
-          Chưa có dữ liệu. Cấu hình Apps Script đẩy số liệu sang (xem hướng dẫn), hoặc chạy <code>pushAllHistoryToTool()</code> để nạp lịch sử cũ.
+          Chưa có dữ liệu. Chạy <code>pushAllHistoryToTool()</code> bên Apps Script để nạp dữ liệu.
         </div>
       </div>
     </div>
+  </div>
+
+  <style>
+  /* Tối ưu trang Theo dõi Sales cho điện thoại */
+  @media (max-width:768px){
+    #page-salestrack .ph{padding:10px 12px 6px}
+    #page-salestrack h1{font-size:16px}
+    #page-salestrack .page-scroll{padding:0 10px 10px}
+    #page-salestrack .es-toolbar{gap:5px}
+    #page-salestrack .es-toolbar .btn{font-size:11.5px;padding:5px 8px}
+    #page-salestrack .es-toolbar .fi{font-size:12px}
+    #page-salestrack #es-search-shop{min-width:100px;flex:1 1 100%;order:-1}
+    #page-salestrack .es-tablewrap{max-height:calc(100vh - 240px);padding:6px}
+    #page-salestrack #esMatrix{font-size:11px}
+    #page-salestrack #esMatrix th,#page-salestrack #esMatrix td{padding:4px 6px !important}
+    #page-salestrack #esSpikeList{grid-template-columns:repeat(auto-fill,minmax(140px,1fr))}
+  }
+  </style>
   </div>
 
   <!-- ════ PAGE: NHÀ CUNG CẤP (XƯỞNG) ════ -->
@@ -2791,6 +2815,8 @@ async function esLoad(){
     const d=await r.json();
     if(!d.ok){esSetMsg(d.error||d.message||'Lỗi tải.');return;}
     esData={shops:d.shops||[],rows:d.rows||{}};
+    esLoadHidden();
+    esRenderHiddenBox();
     esRenderMatrix();
     esSetMsg('');
   }catch(e){esSetMsg('Lỗi kết nối: '+e.message);}
@@ -2834,10 +2860,29 @@ function esSortedDates(){
   const lim=sel?parseInt(sel.value,10)||30:30;
   return all.slice(0,lim);
 }
-// Danh sách shop (lọc theo ô tìm kiếm)
+// Danh sách shop ẩn (lưu trong memory + đẩy lên server qua config nếu có; ở đây dùng biến + localStorage thay thế bằng cfg)
+let esHidden=[];
+function esIsHidden(s){return esHidden.indexOf(String(s))>=0;}
+function esHideShop(s){if(!esIsHidden(s)){esHidden.push(String(s));esPersistHidden();esRenderMatrix();esRenderHiddenBox();}}
+function esUnhideShop(s){esHidden=esHidden.filter(x=>x!==String(s));esPersistHidden();esRenderMatrix();esRenderHiddenBox();}
+function esPersistHidden(){try{if(typeof cfg==='object'){cfg.esHiddenShops=esHidden;if(typeof saveCfg==='function')saveCfg();}}catch(e){}}
+function esLoadHidden(){try{if(typeof cfg==='object'&&Array.isArray(cfg.esHiddenShops))esHidden=cfg.esHiddenShops.slice();}catch(e){}}
+function esToggleHidden(){
+  const box=document.getElementById('esHiddenBox');if(!box)return;
+  box.style.display=box.style.display==='none'?'block':'none';
+  esRenderHiddenBox();
+}
+function esRenderHiddenBox(){
+  const list=document.getElementById('esHiddenList');if(!list)return;
+  const btn=document.getElementById('es-hidden-btn');
+  if(btn)btn.textContent='🙈 Shop ẩn'+(esHidden.length?(' ('+esHidden.length+')'):'');
+  if(!esHidden.length){list.innerHTML='<span style="font-size:12px;color:var(--text3)">Chưa ẩn shop nào. Bấm ✕ trên đầu cột shop để ẩn.</span>';return;}
+  list.innerHTML=esHidden.map(s=>'<span style="display:inline-flex;align-items:center;gap:5px;background:var(--bg);border:1px solid var(--border2);border-radius:20px;padding:4px 10px;font-size:12px">'+esc(String(s))+' <button onclick="esUnhideShop(\''+esc(String(s)).replace(/'/g,"\\'")+'\')" style="border:none;background:none;cursor:pointer;color:var(--green-d);font-weight:700;font-size:13px" title="Hiện lại">↩</button></span>').join('');
+}
+// Danh sách shop (lọc theo ô tìm kiếm + bỏ shop đã ẩn)
 function esVisibleShops(){
   const q=((document.getElementById('es-search-shop')||{}).value||'').toLowerCase().trim();
-  let shops=esData.shops||[];
+  let shops=(esData.shops||[]).filter(s=>!esIsHidden(s));
   if(q)shops=shops.filter(s=>String(s).toLowerCase().includes(q));
   return shops;
 }
@@ -2948,11 +2993,11 @@ function esRenderMatrix(){
 
   // Header
   let head='<thead><tr>';
-  head+='<th style="position:sticky;left:0;top:0;z-index:3;background:var(--green);color:#fff;padding:8px 10px;text-align:left;border:1px solid var(--border)">Ngày</th>';
+  head+='<th style="position:sticky;left:0;top:0;z-index:3;background:var(--green);color:#fff;padding:6px 7px;text-align:left;border:1px solid var(--border);font-size:11px">Ngày</th>';
   shops.forEach(s=>{
     const sp=esSpikeInfo(s);
     const hot=sp.ratio>=1.8&&sp.today>=3?' 🔥':'';
-    head+='<th style="position:sticky;top:0;z-index:2;background:var(--bg);padding:8px 8px;border:1px solid var(--border);font-size:11px;max-width:90px;overflow:hidden;text-overflow:ellipsis" title="'+esc(String(s))+(sp.avg>0?(' — hôm nay '+sp.today+', TB tuần '+sp.avg.toFixed(1)):'')+'"><a href="'+esShopUrl(s)+'" target="_blank" style="color:var(--text2);text-decoration:none">'+esc(String(s))+hot+'</a></th>';
+    head+='<th style="position:sticky;top:0;z-index:2;background:var(--bg);padding:6px 8px;border:1px solid var(--border);font-size:11px;max-width:100px" title="'+esc(String(s))+(sp.avg>0?(' — mới nhất '+sp.today+', TB tuần '+sp.avg.toFixed(1)):'')+'"><div style="display:flex;align-items:center;gap:3px;justify-content:space-between"><a href="'+esShopUrl(s)+'" target="_blank" style="color:var(--text2);text-decoration:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:80px">'+esc(String(s))+hot+'</a><button onclick="esHideShop(\''+esc(String(s)).replace(/'/g,"\\'")+'\')" style="border:none;background:none;cursor:pointer;color:var(--text3);font-size:12px;padding:0 2px;line-height:1" title="Ẩn shop này">✕</button></div></th>';
   });
   head+='</tr></thead>';
 
@@ -2961,7 +3006,7 @@ function esRenderMatrix(){
   dates.forEach((date,di)=>{
     const row=esData.rows[date]||{};
     body+='<tr>';
-    body+='<td style="position:sticky;left:0;z-index:1;background:var(--green-l);color:var(--green-d);font-weight:700;padding:6px 10px;border:1px solid var(--border)">'+esc(esFmtDate(date))+(di===0?' <span style="font-size:9px;background:var(--green);color:#fff;padding:1px 5px;border-radius:6px">mới</span>':'')+'</td>';
+    body+='<td style="position:sticky;left:0;z-index:1;background:var(--green-l);color:var(--green-d);font-weight:700;padding:4px 7px;border:1px solid var(--border);font-size:11px;white-space:nowrap">'+esc(esFmtDate(date))+(di===0?' <span style="font-size:8px;background:var(--green);color:#fff;padding:1px 4px;border-radius:6px">mới</span>':'')+'</td>';
     shops.forEach(s=>{
       const v=row[s];
       const has=v!=null&&v!=='';
@@ -2978,7 +3023,7 @@ function esRenderMatrix(){
 }
 function esFmtDate(d){
   const m=String(d).match(/^(\d{4})-(\d{2})-(\d{2})/);
-  if(m)return m[3]+'/'+m[2]+'/'+m[1].slice(2);
+  if(m)return m[3]+'/'+m[2];
   return d;
 }
 function esExportCSV(){
