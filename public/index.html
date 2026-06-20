@@ -2797,8 +2797,39 @@ async function esLoad(){
   if(btn)btn.disabled=false;
 }
 // Lấy danh sách ngày đã sort giảm dần (mới nhất trước), giới hạn theo bộ chọn
+// Hôm nay (yyyy-mm-dd) theo giờ địa phương — để loại ngày tương lai
+function esTodayKey(){
+  const d=new Date();
+  const y=d.getFullYear(),m=('0'+(d.getMonth()+1)).slice(-2),dd=('0'+d.getDate()).slice(-2);
+  return y+'-'+m+'-'+dd;
+}
+// Một ngày có "dữ liệu thật" nếu có ít nhất 1 shop số > 0
+function esDayHasData(date){
+  const row=esData.rows[date]||{};
+  for(const k in row){if((Number(row[k])||0)>0)return true;}
+  return false;
+}
+// Tất cả ngày KHÔNG ở tương lai, sort mới→cũ
+function esAllValidDates(){
+  const today=esTodayKey();
+  return Object.keys(esData.rows||{})
+    .filter(d=>d<=today)        // bỏ ngày tương lai
+    .sort().reverse();
+}
+// Ngày "mới nhất có dữ liệu" — dùng làm mốc "hôm nay" cho đột biến
+function esLatestDataDate(){
+  const dates=esAllValidDates();
+  for(const d of dates){if(esDayHasData(d))return d;}
+  return dates[0]||null;
+}
 function esSortedDates(){
-  const all=Object.keys(esData.rows||{}).sort().reverse();
+  // Lấy các ngày không tương lai; nếu có ngày dữ liệu thì bắt đầu từ ngày dữ liệu mới nhất
+  let all=esAllValidDates();
+  const latest=esLatestDataDate();
+  if(latest){
+    const idx=all.indexOf(latest);
+    if(idx>0)all=all.slice(idx); // bỏ các ngày (không tương lai nhưng) rỗng nằm trên ngày dữ liệu mới nhất
+  }
   const sel=document.getElementById('es-days');
   const lim=sel?parseInt(sel.value,10)||30:30;
   return all.slice(0,lim);
@@ -2810,20 +2841,22 @@ function esVisibleShops(){
   if(q)shops=shops.filter(s=>String(s).toLowerCase().includes(q));
   return shops;
 }
-// Tính chỉ số đột biến cho 1 shop: đơn hôm nay so với TB 7 ngày trước đó
-// Trả về {today, avg, ratio} — ratio = today / avg (gấp mấy lần)
+// Tính chỉ số đột biến cho 1 shop: đơn ngày mới nhất CÓ DỮ LIỆU so với TB 7 ngày trước đó
 function esSpikeInfo(shop){
-  const allDates=Object.keys(esData.rows||{}).sort().reverse(); // mới nhất trước
+  const allDates=esAllValidDates(); // bỏ tương lai, mới→cũ
   if(!allDates.length)return {today:0,avg:0,ratio:0};
-  const today=Number((esData.rows[allDates[0]]||{})[shop])||0;
-  // TB 7 ngày trước đó (dòng 1..7, bỏ hôm nay là dòng 0)
+  // mốc "hôm nay" = ngày dữ liệu mới nhất
+  const latest=esLatestDataDate();
+  const startIdx=latest?Math.max(0,allDates.indexOf(latest)):0;
+  const today=Number((esData.rows[allDates[startIdx]]||{})[shop])||0;
+  // TB 7 ngày liền trước mốc đó
   let sum=0,cnt=0;
-  for(let i=1;i<=7&&i<allDates.length;i++){
+  for(let i=startIdx+1;i<=startIdx+7&&i<allDates.length;i++){
     const v=(esData.rows[allDates[i]]||{})[shop];
     if(v!=null&&v!==''){sum+=Number(v)||0;cnt++;}
   }
   const avg=cnt?sum/cnt:0;
-  const ratio=avg>0?today/avg:(today>0?99:0); // chưa có nền mà hôm nay bán = coi như đột biến lớn
+  const ratio=avg>0?today/avg:(today>0?99:0);
   return {today,avg,ratio};
 }
 // Màu nền ô theo độ "nóng" (heatmap). max = giá trị lớn nhất trong bảng đang xem
