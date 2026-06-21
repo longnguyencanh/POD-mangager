@@ -5947,10 +5947,51 @@ function ytShowError(msg) {
 }
 
 // ===== Tóm tắt tiếng Việt dễ đọc (miễn phí, không cần AI) =====
+// Dịch insight tiếng Anh của YTrends sang tiếng Việt (các mẫu hay gặp)
+function ytInsightVN(t){
+  if(!t) return '';
+  var s=t;
+  // Cảnh báo dữ liệu cũ / không đo được momentum
+  s=s.replace(/Data freshness:\s*stale[^.]*\./i,'⚠️ Dữ liệu đã CŨ — chưa cập nhật gần đây, hãy cẩn trọng với các con số.');
+  s=s.replace(/Momentum could not be measured[^.]*\./i,'⚠️ Không đo được đà tăng (momentum) — phần lớn dữ liệu chưa refresh, nên không biết chắc đang lên hay xuống.');
+  s=s.replace(/most of the dataset has not been refreshed recently[^.]*/i,'phần lớn dữ liệu chưa được cập nhật gần đây');
+  s=s.replace(/so a trend read would reflect crawl coverage rather than the market/i,'nên chỉ số xu hướng phản ánh độ phủ thu thập chứ chưa phải thị trường thật');
+  // Câu thống kê thường gặp
+  s=s.replace(/Keyword has ([\d,]+) listings from ([\d,]+) sellers; average conversion ([\d.]+)%\./i,
+    'Từ khóa có $1 listing từ $2 người bán; tỷ lệ chốt đơn trung bình $3%.');
+  s=s.replace(/Found (\d+) niches matching the filter; top opportunity score ([\d.]+)\/100\./i,
+    'Tìm thấy $1 ngách khớp bộ lọc; điểm cơ hội cao nhất $2/100.');
+  s=s.replace(/Top pick:\s*"([^"]+)"\s*[—-]\s*momentum ([\d.]+)\/100,\s*low competition\./i,
+    'Ngách tốt nhất: "$1" — đà tăng $2/100, cạnh tranh thấp.');
+  s=s.replace(/Runner-up:\s*"([^"]+)"\s*[—-]\s*opportunity ([\d.]+)\/100,\s*momentum ([\d.]+)\/100\./i,
+    'Á quân: "$1" — cơ hội $2/100, đà tăng $3/100.');
+  s=s.replace(/Scoped to category\s*"([^"]+)"\s*\(taxonomy_id=(\d+)\)[^.]*\./i,
+    'Đã lọc theo danh mục "$1" (mã $2).');
+  s=s.replace(/Globally #([\d,]+)\s*\(below top 10k\),?\s*down ([\d,]+) over 7d[^.]*\./i,
+    'Xếp hạng toàn cục #$1 (ngoài top 10k), giảm $2 bậc trong 7 ngày.');
+  s=s.replace(/Use ytrends_get_keyword_rank for a sparkline series\./i,'');
+  s=s.replace(/pass that numeric id directly on follow-up calls to skip resolution\./i,'');
+  return s.trim();
+}
+// Phát hiện dữ liệu cũ để hiện banner cảnh báo
+function ytStaleBanner(d){
+  var ins=(d.insights||[]).join(' ').toLowerCase();
+  var stale=/stale|could not be measured|not been refreshed/.test(ins);
+  var scores=d.scores||{};
+  var noMomentum=(scores.momentum==null||scores.momentum===undefined)&&/momentum/.test(JSON.stringify(scores));
+  if(stale){
+    return '<div style="background:#fdf2f2;border-left:3px solid #c25a4a;border-radius:8px;padding:10px 14px;margin-bottom:14px;font-size:13px;line-height:1.6;color:#8a3a30">'+
+      '<b>⚠️ Cảnh báo dữ liệu cũ:</b> Số liệu của từ khóa này <b>chưa được cập nhật gần đây</b>, và không đo được đà tăng. '+
+      'Đừng tin tuyệt đối vào các con số bên dưới — nên thử từ khóa cụ thể hơn, hoặc kiểm tra lại sau.</div>';
+  }
+  return '';
+}
+
 function ytSmartSummary(d, toolName){
   try{
     var rows = ytPickRows(d);
-    if(!rows || !rows.length) return '';
+    var staleBanner = ytStaleBanner(d);
+    if(!rows || !rows.length) return staleBanner;
     // Format helper
     var pct = function(v){ return v!=null ? (v*100).toFixed(1)+'%' : '—'; };
     var usd = function(v){ return v!=null ? '$'+Math.round(v).toLocaleString() : '—'; };
@@ -6010,7 +6051,7 @@ function ytSmartSummary(d, toolName){
     tbl += '</tbody></table></div>';
     if(rows.length>8) tbl += '<div style="font-size:11px;color:#a39d94;margin:-8px 0 14px">Hiện 8/'+rows.length+' · xem đầy đủ ở bảng dữ liệu bên dưới</div>';
 
-    return head + tbl;
+    return staleBanner + head + tbl;
   }catch(e){ return ''; }
 }
 function ytPickRows(d){
@@ -6080,10 +6121,10 @@ function ytRenderYTrendsResponse(res, toolName) {
 
   // ── Insights ──
   if (res.insights && res.insights.length) {
-    html += `<div style="margin-bottom:16px"><div style="font-size:12px;font-weight:700;color:var(--text2);margin-bottom:8px">💡 Insights</div>`;
+    html += `<div style="margin-bottom:16px"><div style="font-size:12px;font-weight:700;color:var(--text2);margin-bottom:8px">💡 Nhận định</div>`;
     html += `<div style="background:var(--bg2);border-radius:8px;padding:12px 14px">`;
     html += res.insights.map((s,i) => `<div style="padding:4px 0;font-size:12.5px;border-bottom:${i<res.insights.length-1?'1px solid var(--border)':'none'}">
-      <span style="color:var(--accent);margin-right:8px">${i+1}.</span>${esc(s)}</div>`).join('');
+      <span style="color:var(--accent);margin-right:8px">${i+1}.</span>${esc(ytInsightVN(s))}</div>`).join('');
     html += '</div></div>';
   }
 
