@@ -5946,6 +5946,81 @@ function ytShowError(msg) {
     <div style="font-size:11px;color:var(--text3);margin-top:8px">💡 Kiểm tra: API key hợp lệ, kết nối mạng OK, hoặc thử lại sau.</div>`;
 }
 
+// ===== Tóm tắt tiếng Việt dễ đọc (miễn phí, không cần AI) =====
+function ytSmartSummary(d, toolName){
+  try{
+    var rows = ytPickRows(d);
+    if(!rows || !rows.length) return '';
+    // Format helper
+    var pct = function(v){ return v!=null ? (v*100).toFixed(1)+'%' : '—'; };
+    var usd = function(v){ return v!=null ? '$'+Math.round(v).toLocaleString() : '—'; };
+    var compColor = function(c){ c=(c||'').toLowerCase();
+      if(c==='low') return '#5a8a6a'; if(c==='medium') return '#d4894a';
+      if(c==='high'||c==='very_high') return '#c25a4a'; return '#a39d94'; };
+    var compVN = function(c){ c=(c||'').toLowerCase();
+      return {low:'Thấp',medium:'Vừa',high:'Cao',very_high:'Rất cao'}[c]||c||'—'; };
+    var trendVN = function(t){ t=(t||'').toLowerCase();
+      return {rising:'🔼 Đang lên',stable:'➡️ Ổn định',fading:'🔽 Đang xuống'}[t]||''; };
+
+    // Dòng tóm tắt đầu
+    var head = '';
+    var n = rows.length;
+    var best = rows[0];
+    var bestName = best.tag || best.keyword || best.title || best.id || '';
+    head += '<div style="background:#f0f7f2;border-left:3px solid #5a8a6a;border-radius:8px;padding:10px 14px;margin-bottom:14px;font-size:13px;line-height:1.6">';
+    head += '<b>📌 Tóm tắt nhanh:</b> Tìm thấy <b>'+n+'</b> kết quả. ';
+    if(bestName){
+      head += 'Đáng chú ý nhất: <b>'+esc(String(bestName).replace(/^kw:|^lst:/,''))+'</b>';
+      var bits=[];
+      if(best.opportunity_score!=null) bits.push('cơ hội '+Math.round(best.opportunity_score));
+      if(best.sellers!=null||best.seller_count!=null) bits.push((best.sellers||best.seller_count)+' người bán');
+      if(best.competition_level) bits.push('cạnh tranh '+compVN(best.competition_level).toLowerCase());
+      if(bits.length) head += ' ('+bits.join(' · ')+')';
+      head += '.';
+    }
+    head += '</div>';
+
+    // Bảng top 8 dạng tiếng Việt, dễ đọc
+    var show = rows.slice(0,8);
+    var cols = [];
+    var first = show[0];
+    var has = function(k){ return show.some(function(r){return r[k]!=null;}); };
+    if(has('tag')||has('keyword')) cols.push(['Từ khóa', function(r){return esc(String(r.tag||r.keyword||'').replace(/^kw:/,''));}]);
+    else if(has('title')) cols.push(['Sản phẩm', function(r){return esc(String(r.title||'').slice(0,45));}]);
+    if(has('sellers')||has('seller_count')) cols.push(['Người bán', function(r){return (r.sellers!=null?r.sellers:r.seller_count);}]);
+    if(has('listings')||has('listing_count')) cols.push(['Listing', function(r){return (r.listings!=null?r.listings:r.listing_count);}]);
+    if(has('avg_price_usd')||has('price_usd')) cols.push(['Giá', function(r){return usd(r.avg_price_usd!=null?r.avg_price_usd:r.price_usd);}]);
+    if(has('avg_conversion_rate')||has('conversion_rate')) cols.push(['Chốt đơn', function(r){return pct(r.avg_conversion_rate!=null?r.avg_conversion_rate:r.conversion_rate);}]);
+    if(has('opportunity_score')) cols.push(['Cơ hội', function(r){return r.opportunity_score!=null?Math.round(r.opportunity_score):'—';}]);
+    if(has('total_revenue_usd')) cols.push(['Doanh thu', function(r){return usd(r.total_revenue_usd);}]);
+    if(has('competition_level')) cols.push(['Cạnh tranh', function(r){return '<span style="color:'+compColor(r.competition_level)+';font-weight:600">'+compVN(r.competition_level)+'</span>';}]);
+    if(has('trend_direction')) cols.push(['Xu hướng', function(r){return trendVN(r.trend_direction);}]);
+    if(has('peak_date')) cols.push(['Đỉnh mùa', function(r){return r.peak_date||'—';}]);
+    if(has('recommended_listing_start')) cols.push(['Nên đăng từ', function(r){return r.recommended_listing_start||'—';}]);
+
+    if(cols.length<2) return head; // không đủ cột thì chỉ hiện tóm tắt
+
+    var tbl = '<div style="overflow-x:auto;margin-bottom:14px"><table style="width:100%;border-collapse:collapse;font-size:12.5px">';
+    tbl += '<thead><tr>'+cols.map(function(c){return '<th style="text-align:left;padding:7px 10px;background:#faf8f5;border-bottom:2px solid #ece8e2;font-weight:700;white-space:nowrap">'+c[0]+'</th>';}).join('')+'</tr></thead><tbody>';
+    show.forEach(function(r,i){
+      tbl += '<tr style="background:'+(i%2?'#fbfaf8':'#fff')+'">'+cols.map(function(c){
+        return '<td style="padding:7px 10px;border-bottom:1px solid #f0ede8;white-space:nowrap">'+c[1](r)+'</td>';
+      }).join('')+'</tr>';
+    });
+    tbl += '</tbody></table></div>';
+    if(rows.length>8) tbl += '<div style="font-size:11px;color:#a39d94;margin:-8px 0 14px">Hiện 8/'+rows.length+' · xem đầy đủ ở bảng dữ liệu bên dưới</div>';
+
+    return head + tbl;
+  }catch(e){ return ''; }
+}
+function ytPickRows(d){
+  var inner = d.data || d;
+  var cand=['results','events','listings','gaps','trending_subtags','keywords','rows'];
+  for(var i=0;i<cand.length;i++){ if(Array.isArray(inner[cand[i]])&&inner[cand[i]].length&&typeof inner[cand[i]][0]==='object')return inner[cand[i]]; }
+  for(var k in inner){ if(Array.isArray(inner[k])&&inner[k].length&&typeof inner[k][0]==='object')return inner[k]; }
+  return null;
+}
+
 function ytRenderResult(toolName, params, data) {
   const res = document.getElementById('yt-result');
   const body = document.getElementById('yt-result-body');
@@ -5964,7 +6039,7 @@ function ytRenderResult(toolName, params, data) {
 
   // YTrends response: {data, insights, scores, suggested_next_tools, snapshot, source, link}
   if (data && typeof data === 'object' && (data.data !== undefined || data.insights !== undefined)) {
-    body.innerHTML = ytRenderYTrendsResponse(data, toolName);
+    body.innerHTML = ytSmartSummary(data, toolName) + ytRenderYTrendsResponse(data, toolName);
     return;
   }
 
