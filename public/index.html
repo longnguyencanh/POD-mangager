@@ -1079,6 +1079,28 @@ body[data-role="seller"] .no-seller{display:none !important}
 
     <div class="page-scroll" style="padding:10px 20px">
 
+      <!-- ⚡ Ô TÌM NHANH THÔNG MINH (không cần API) -->
+      <div id="yt-smartbar" style="background:linear-gradient(135deg,#fff,#fdf3f3);border:1px solid var(--border);border-radius:12px;padding:14px 16px;margin-bottom:14px">
+        <div style="font-size:12px;font-weight:700;color:var(--text2);margin-bottom:8px">
+          ⚡ Tìm nhanh — gõ tiếng Việt tự nhiên rồi Enter
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <input id="yt-smart-input" type="text"
+            placeholder="vd: niche clothing ít seller · đối thủ của childhood photo · listing mới usa flag · sự kiện 90 ngày"
+            style="flex:1;min-width:240px;padding:10px 14px;font-size:13px;border:1px solid var(--border);border-radius:9px;font-family:inherit"
+            onkeydown="if(event.key==='Enter')ytSmartGo()">
+          <button class="btn btn-green" onclick="ytSmartGo()" style="padding:10px 20px">🔍 Tìm</button>
+        </div>
+        <div id="yt-smart-hint" style="font-size:11px;color:var(--text3);margin-top:7px;min-height:14px"></div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:10px">
+          <button class="btn btn-sm" onclick="ytCombo('clothing_low_seller')" style="font-size:12px">👕 Niche clothing ít seller</button>
+          <button class="btn btn-sm" onclick="ytCombo('events_90d')" style="font-size:12px">📅 Sự kiện 90 ngày tới</button>
+          <button class="btn btn-sm" onclick="ytCombo('trending')" style="font-size:12px">📈 Keyword đang lên</button>
+          <button class="btn btn-sm" onclick="ytCombo('hidden_gems')" style="font-size:12px">💎 Ngọc ẩn</button>
+        </div>
+      </div>
+
+
       <!-- Tool selector tabs -->
       <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px">
         <button class="yt-tool-btn active" data-tool="ytrends_research_keyword" onclick="ytSelectTool(this)">🔍 Keyword</button>
@@ -6726,6 +6748,83 @@ async function calRefreshEvents() {
   // Cũng re-bind sau login (app render lại)
   window._bindScrollHide=bindScrollHide;
 })();
+
+// ===== ⚡ Ô tìm nhanh thông minh cho tab Research (không cần API) =====
+function ytSmartGo(){
+  var raw=(document.getElementById('yt-smart-input')||{}).value||'';
+  var q=raw.trim(); if(!q)return;
+  var s=q.toLowerCase();
+  var hint=document.getElementById('yt-smart-hint');
+  var plan=null;
+  if(/đối thủ|cạnh tranh|seller|hhi|độ tập trung|competition/.test(s)){
+    var seed=ytStripKeyword(q,['đối thủ của','đối thủ','cạnh tranh của','cạnh tranh','phân tích','seller của','của']);
+    plan={tool:'ytrends_analyze_competition',args:{seed:seed||q},note:'Phân tích cạnh tranh: '+(seed||q)};
+  }else if(/listing mới|hàng mới|mới đăng|new listing|mới lên/.test(s)){
+    var kw=ytStripKeyword(q,['listing mới của','listing mới','hàng mới của','hàng mới','mới đăng','mới lên','của']);
+    plan={tool:'ytrends_browse_new_listings',args:{keyword:kw,listing_age_days_max:'30'},note:'Listing mới: '+(kw||'(tất cả)')};
+  }else if(/listing nóng|hot|bán chạy|cháy|outperform|nổi bật/.test(s)){
+    var kw2=ytStripKeyword(q,['listing nóng của','listing nóng','bán chạy của','bán chạy','hot','của']);
+    plan={tool:'ytrends_find_hot_listings',args:{keyword:kw2},note:'Listing nóng: '+(kw2||'(tất cả)')};
+  }else if(/sự kiện|lịch|mùa|dịp|ngày lễ|calendar|sắp tới|\b\d+\s*ngày/.test(s)){
+    var win='next_90d';
+    if(/30\s*ngày|tháng tới|next_?30/.test(s))win='next_30d';
+    if(/cả năm|năm nay|full|365/.test(s))win='full_year';
+    plan={tool:'ytrends_trend_calendar',args:{window:win},note:'Lịch sự kiện ('+win+')'};
+  }else if(/niche|ngách|cơ hội|ít seller|ít người bán|ít đối thủ|scout|opportunit/.test(s)){
+    var cat=ytGuessCategory(s); var args5={limit:'25'};
+    if(cat)args5.category_name=cat;
+    var extra=ytStripKeyword(q,['niche','ngách','cơ hội','ít seller','ít người bán','ít đối thủ']);
+    if(extra&&extra.length>2&&!cat)args5.search=extra;
+    plan={tool:'ytrends_scout_opportunities',args:args5,note:'Dò cơ hội'+(cat?' · '+cat:'')+(args5.search?' · '+args5.search:'')};
+  }else if(/ngọc ẩn|hidden gem|lời cao|conversion cao/.test(s)){
+    var g=ytStripKeyword(q,['ngọc ẩn của','ngọc ẩn','hidden gem','của']); var args6={limit:'25'};
+    if(g&&g.length>2)args6.search=g;
+    plan={tool:'ytrends_find_hidden_gems',args:args6,note:'Viên ngọc ẩn'+(args6.search?' · '+args6.search:'')};
+  }else if(/đang lên|trending|xu hướng|hot trend|tăng mạnh/.test(s)){
+    var t=ytStripKeyword(q,['từ khoá đang lên','đang lên','trending','xu hướng','tăng mạnh','của']); var args7={limit:'25'};
+    if(t&&t.length>2)args7.search=t;
+    plan={tool:'ytrends_find_trending_keywords',args:args7,note:'Keyword đang lên'+(args7.search?' · '+args7.search:'')};
+  }else if(/thứ hạng|xếp hạng|rank của|hạng của/.test(s)){
+    var r=ytStripKeyword(q,['thứ hạng của','thứ hạng','xếp hạng của','xếp hạng','rank của','rank','của']);
+    plan={tool:'ytrends_get_keyword_rank',args:{keyword:r||q},note:'Thứ hạng: '+(r||q)};
+  }else{
+    plan={tool:'ytrends_research_keyword',args:{keyword:q},note:'Tra keyword: '+q};
+  }
+  if(hint)hint.textContent='→ '+plan.note;
+  ytRunPlan(plan);
+}
+function ytRunPlan(plan){
+  try{ ytSelectToolByName(plan.tool,plan.args); setTimeout(function(){ytRun();},200); }
+  catch(e){ var h=document.getElementById('yt-smart-hint'); if(h)h.textContent='Lỗi: '+e.message; }
+}
+function ytCombo(kind){
+  var inp=document.getElementById('yt-smart-input');
+  if(kind==='clothing_low_seller'){ if(inp)inp.value='niche clothing ít seller';
+    ytRunPlan({tool:'ytrends_scout_opportunities',args:{category_name:'Clothing',limit:'25'},note:'Niche clothing ít seller'}); }
+  else if(kind==='events_90d'){ if(inp)inp.value='sự kiện 90 ngày tới';
+    ytRunPlan({tool:'ytrends_trend_calendar',args:{window:'next_90d'},note:'Sự kiện 90 ngày tới'}); }
+  else if(kind==='trending'){ if(inp)inp.value='keyword đang lên';
+    ytRunPlan({tool:'ytrends_find_trending_keywords',args:{limit:'25'},note:'Keyword đang lên'}); }
+  else if(kind==='hidden_gems'){ if(inp)inp.value='ngọc ẩn';
+    ytRunPlan({tool:'ytrends_find_hidden_gems',args:{limit:'25'},note:'Viên ngọc ẩn'}); }
+}
+function ytStripKeyword(q,prefixes){
+  var out=q; prefixes.forEach(function(p){ out=out.replace(new RegExp(p,'gi'),' '); });
+  return out.replace(/\s+/g,' ').trim();
+}
+function ytGuessCategory(s){
+  var map=[[/clothing|áo|quần|thời trang|shirt|tee|hoodie/,'Clothing'],
+    [/jewelry|trang sức|nhẫn|dây chuyền|necklace/,'Jewelry'],
+    [/home|nhà cửa|nội thất|decor|trang trí/,'Home & Living'],
+    [/wedding|cưới|đám cưới/,'Wedding'],
+    [/art|tranh|wall art|poster/,'Art & Collectibles'],
+    [/toy|đồ chơi|game/,'Toys & Games'],
+    [/accessor|phụ kiện|túi|mũ|nón/,'Accessories']];
+  for(var i=0;i<map.length;i++){ if(map[i][0].test(s))return map[i][1]; }
+  return '';
+}
+// ===== Hết ô tìm nhanh thông minh =====
+
 </script>
 <script>
 // Đăng ký Service Worker để cài PWA lên điện thoại
